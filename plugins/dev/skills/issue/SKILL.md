@@ -5,9 +5,7 @@ model: sonnet
 ---
 
 要件や使用をヒアリングし、エンジニアが作業を開始できるように Issue を作成してください。
-Issue は以下のテンプレートに沿って起票してください。テンプレートが複数ある場合は、起票者に確認してください。
+Issue は以下のテンプレートに沿って起票してください。上にあるものを優先します。
 
- - `https://github.com/{組織アカウント名}/.github` の `.github/ISSUE_TEMPLATE`
- - 任意のリポジトリの Issue テンプレート
-
-もしテンプレートがない場合は業界標準のフォーマットに沿って起票してください。
+ - 起票先リポジトリの `.github/ISSUE_TEMPLATE/backlog.md`
+ - FastShip プラグインの `${CLAUDE_PLUGIN_ROOT}/templates/ISSUE_TEMPLATE/backlog.md`

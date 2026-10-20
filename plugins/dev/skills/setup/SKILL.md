@@ -12,7 +12,7 @@ Organization アカウントにあるテンプレートリポジトリを確認�
  - テンプレートリポジトリがない場合はスキップしてください。
 
 ## 2. FastShip プラグインの設定
-対象リポジトリの `.claude/settings.json` に次を追加してください。`extraKnownMarketplaces.fastship` と `enabledPlugins["dev@fastship"]` だけを追加・上書きし、他のキー (他のマーケットプレイス・プラグイン・hooks など) はそのまま残してください。ローカルの Claude Code で、フォルダを信頼するとプラグインのインストールを促されます。クラウドセッションはこの設定を読まないため、3.3 で入れます。
+対象リポジトリの `.claude/settings.json` に次を追加してください。`extraKnownMarketplaces.fastship` と `enabledPlugins["dev@fastship"]` だけを追加・上書きし、他のキー (他のマーケットプレイス・プラグイン・hooks など) はそのまま残してください。ローカルの Claude Code で、フォルダを信頼するとプラグインのインストールを促されます。クラウドセッションはこの設定を読まないため、4.3 で入れます。
 
 ```json
 {
@@ -27,10 +27,21 @@ Organization アカウントにあるテンプレートリポジトリを確認�
 }
 ```
 
-## 3. ラベル駆動開発のセットアップ
+## 3. Issue / PR テンプレートの配置
+FastShip プラグインのテンプレートを、対象リポジトリにコピーしてください。2 の設定と一緒にコミットします。テンプレートの正本はプラグインにあり、各スキルはこの欄に沿って Issue / PR を読み書きします。
+
+| コピー元 | コピー先 | 使う工程 |
+|:--|:--|:--|
+| `${CLAUDE_PLUGIN_ROOT}/templates/ISSUE_TEMPLATE/backlog.md` | `.github/ISSUE_TEMPLATE/backlog.md` | ① 起票 / ③ 課題分析 |
+| `${CLAUDE_PLUGIN_ROOT}/templates/ISSUE_TEMPLATE/todo.md` | `.github/ISSUE_TEMPLATE/todo.md` | ⑥ リファインメント (Sub Issue) |
+| `${CLAUDE_PLUGIN_ROOT}/templates/PULL_REQUEST_TEMPLATE.md` | `.github/PULL_REQUEST_TEMPLATE.md` | ⑧ PR 作成 |
+
+ - 同じ名前のファイルは上書きしてください (最新版に更新するため)。それ以外のテンプレートは残してください。
+
+## 4. ラベル駆動開発のセットアップ
 Issue のラベルで Claude Code on the web のルーティンが動くように、ラベル・ルーティン・クラウド環境を用意してください。リポジトリへのコミットは伴いません。
 
-### 3.1 ラベル
+### 4.1 ラベル
 次のコマンドで 4 ラベルを作成してください (既にある場合は上書き)。
 
 ```bash
@@ -40,7 +51,7 @@ gh label create claude:implement --color d97757 --description "🧑‍💻 Sub I
 gh label create claude:blocked --color b60205 --description "❓ 人間の回答を待っている" --force -R {owner/repo}
 ```
 
-### 3.2 ルーティン
+### 4.2 ルーティン
 RemoteTrigger ツールで、実行者の claude.ai アカウントに次のルーティンを用意してください。
 
 | 項目 | 値 |
@@ -81,11 +92,11 @@ Issue の内容を確認し、着手してください。
 ```
 
  - 追加済みのトリガーは API から確認できず重複に気づけないため、既存のルーティンにはトリガーを追加しないでください。
- - RemoteTrigger が使えない場合 (claude.ai 以外でログインしているなど) や、Claude GitHub App が未インストールでトリガーを追加できない場合は、3.2 をスキップし、上の表の内容で https://claude.ai/code/routines から手動で作成するよう、ユーザーに案内してください。
+ - RemoteTrigger が使えない場合 (claude.ai 以外でログインしているなど) や、Claude GitHub App が未インストールでトリガーを追加できない場合は、4.2 をスキップし、上の表の内容で https://claude.ai/code/routines から手動で作成するよう、ユーザーに案内してください。
  - 作成・更新したルーティンの URL (`https://claude.ai/code/routines/{ID}`) をユーザーに伝えてください。
 
-### 3.3 クラウド環境
-クラウドセッションはリポジトリの `enabledPlugins` からプラグインを入れません。3.2 のルーティンが使う環境の Setup script (claude.ai の環境設定画面) に次を追加するよう、ユーザーに案内してください。環境ごとに 1 回で済みます。
+### 4.3 クラウド環境
+クラウドセッションはリポジトリの `enabledPlugins` からプラグインを入れません。4.2 のルーティンが使う環境の Setup script (claude.ai の環境設定画面) に次を追加するよう、ユーザーに案内してください。環境ごとに 1 回で済みます。
 
 ```bash
 claude plugin marketplace add anthropics/claude-plugins-official || echo "⚠️ claude-plugins-official を追加できませんでした" >&2
