@@ -107,24 +107,11 @@ CI の指摘（該当行へのインラインコメントとして投稿され�
 
 ### 3. PR テンプレートの取得と適用
 
-PR テンプレートの正本は **org 共通リポジトリ `<owner>/.github` の `.github/PULL_REQUEST_TEMPLATE.md`**（`<owner>` は対象リポジトリの owner。org 名はハードコードせず実行時に導出する）。GitHub の default community health files の仕様どおり、**対象リポジトリに自前のテンプレートがあればそちらが優先**され、無い場合に org 共通テンプレートが適用される。org 共通テンプレートはワーキングツリーに存在しないため、`Read` ではなく以下で取得する:
+PR テンプレートの正本は **FastShip プラグインの `${CLAUDE_PLUGIN_ROOT}/templates/PULL_REQUEST_TEMPLATE.md`**。このスキルの手順 (8-a など) はこの構造を前提にしているため、**常にこれを `Read` で読む**。`/dev:setup` が対象リポジトリの `.github/` に置くコピーは GitHub の UI 用なので、ここでは読まない。
 
-```bash
-# ローカル (リポジトリ固有) のテンプレートが最優先。無ければ org 共通テンプレートを取得する。
-TEMPLATE=$(ls .github/PULL_REQUEST_TEMPLATE.md PULL_REQUEST_TEMPLATE.md \
-             docs/PULL_REQUEST_TEMPLATE.md 2>/dev/null | head -1)
-if [ -n "$TEMPLATE" ]; then
-  cat "$TEMPLATE"
-else
-  OWNER=$(gh api 'repos/{owner}/{repo}' --jq .owner.login)
-  gh api -H "Accept: application/vnd.github.raw" \
-    "repos/${OWNER}/.github/contents/.github/PULL_REQUEST_TEMPLATE.md"
-fi
-```
+読んだテンプレートに従って PR を作成する。**各セクションの埋め方（Sub Issue からの転記・🙆‍♂️ やったこと の書き方など）はテンプレートの HTML コメントに集約しているので、それを順守する**（SKILL.md に複製しない）。取得に失敗した場合のみ「💡 概要 / 🙆‍♂️ やったこと / 🙅‍♂️ やらないこと / ✔️ 動作確認」の構成で書く。
 
-取得したテンプレートに従って PR を作成する。**各セクションの埋め方（Todo Issue からのマッピング・🙆‍♂️ やったこと の書き方など）はテンプレートの HTML コメントに集約しているので、それを順守する**（SKILL.md に複製しない）。取得に失敗した場合 (ネットワーク断・`gh` 未認証など) のみ「💡 概要 / 🙆‍♂️ やったこと / 🙅‍♂️ やらないこと / ✔️ 動作確認」の構成で書く。
-
-対応する Todo Issue (org 共通リポジトリ `<owner>/.github` の `.github/ISSUE_TEMPLATE/todo.md` 構造) があれば、コメントのマッピングに従って各セクションをそのまま転記する。無い PR (バグ修正・ドキュメントのみ等) は直接埋める。
+対応する Sub Issue (`.github/ISSUE_TEMPLATE/todo.md` 構造) があれば、コメントの転記表に従って各セクションを書く。完了条件は ✔️ 動作確認 にそのまま貼らず、確認した方法と結果を書く。無い PR (バグ修正・ドキュメントのみ等) は直接埋める。
 
 ### 4. チェックリスト
 
@@ -239,8 +226,9 @@ PR 本文の「✔️ 動作確認」セクション（`### ✔️ 動作確認`
 1. 動作確認の結果が記載されている（スクリーンショット、録画、Before/After 表に画像、テスト結果など、テンプレートのプレースホルダ以外の実質的な内容がある）
 2. 動作確認が不要である旨が記載されている（例：「動作確認不要」「動作確認は不要です」「確認不要」「N/A」など）
 
-**変更をブロックする条件:**
+**変更をブロックする条件（いずれかに当てはまればブロック。許可する条件より優先する）:**
 - 上記いずれの条件も満たさない場合（セクションがテンプレートのままで何も記載されていない場合）
+- 未チェックの `- [ ]` だけで、確認した方法・結果が書かれていない場合（Sub Issue の完了条件を貼っただけの状態など）
 
 ブロック時はユーザーに以下を伝える:
 > Draft PR を Ready for Review に変更するには、「✔️ 動作確認」セクションに動作確認の結果を記載するか、動作確認が不要である旨を記載してください。
