@@ -36,7 +36,9 @@ FastShip プラグインのテンプレートを、対象リポジトリにコ�
 | `${CLAUDE_PLUGIN_ROOT}/templates/ISSUE_TEMPLATE/todo.md` | `.github/ISSUE_TEMPLATE/todo.md` | ⑥ リファインメント (Sub Issue) |
 | `${CLAUDE_PLUGIN_ROOT}/templates/PULL_REQUEST_TEMPLATE.md` | `.github/PULL_REQUEST_TEMPLATE.md` | ⑧ PR 作成 |
 
- - 同じ名前のファイルは上書きしてください (最新版に更新するため)。それ以外のテンプレートは残してください。
+ - コピー先が無い場合は作成してください。
+ - 既にあって内容が違う場合は、リポジトリでカスタマイズしている可能性があります。差分を見せて、上書きしてよいかユーザーに確認してください。上書きしない場合はそのまま残してください。
+ - それ以外のテンプレートは残してください。
 
 ## 4. ラベル駆動開発のセットアップ
 Issue のラベルで Claude Code on the web のルーティンが動くように、ラベル・ルーティン・クラウド環境を用意してください。リポジトリへのコミットは伴いません。
