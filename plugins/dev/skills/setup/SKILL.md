@@ -1,6 +1,6 @@
 ---
 name: setup
-description: 対象リポジトリに組織推奨の開発スタックを導入し、コミット・PR 作成まで行う。Issue のラベルで Claude Code on the web が実装を始めるラベル駆動開発 (ラベルとルーティン) も用意する。導入済みのリポジトリでは最新版に更新する。使い方 → /dev:setup [owner/repo]
+description: 対象リポジトリに組織推奨の開発スタックを導入し、コミット・PR 作成まで行う。Issue のラベルで Claude Code on the web が動くラベル駆動開発 (ラベル・ルーティン・FastShip プラグイン) も用意する。導入済みのリポジトリでは最新版に更新する。使い方 → /dev:setup [owner/repo]
 argument-hint: "[owner/repo]"
 ---
 
@@ -28,17 +28,39 @@ Terraform (`*.tf`) を含むリポジトリでは、`https://github.com/{組織�
  - `mise.toml` / `mise.lock`: devops の同じタグからコピーする
  - `.gitignore`: `.task/` を追加する
 
-## 5. Claude Code on the web のセットアップ
-devops の `docs/CLAUDE-WEB-SETUP.md` に従って、`.claude/settings.json` の `hooks.SessionStart` に、devops の `scripts/claude-web-setup.sh` を 4 と同じタグで取得・実行する hook を追加してください (既存の設定は残す)。
+## 5. Claude Code の設定
+対象リポジトリの `.claude/settings.json` に次を追加してください。既存の設定は残し、同じキーは上書きしてください。
+
+### 5.1 SessionStart hook
+devops の `docs/CLAUDE-WEB-SETUP.md` に従って、`hooks.SessionStart` に、devops の `scripts/claude-web-setup.sh` を 4 と同じタグで取得・実行する hook を追加してください。既にある場合はタグだけ更新し、hook を重ねないでください。
+
+### 5.2 FastShip プラグイン
+`extraKnownMarketplaces` と `enabledPlugins` に次を追加してください。ローカルの Claude Code で、フォルダを信頼するとプラグインのインストールを促されます。クラウドセッションはこの設定を読まないため、6.3 で入れます。
+
+```json
+{
+  "extraKnownMarketplaces": {
+    "fastship": {
+      "source": {"source": "github", "repo": "theindiehacker/fastship-plugin"}
+    }
+  },
+  "enabledPlugins": {
+    "dev@fastship": true
+  }
+}
+```
 
 ## 6. ラベル駆動開発のセットアップ
-Issue に `claude:implement` ラベルを付けると Claude Code on the web が実装を始めるように、ラベルとルーティンを用意してください。リポジトリへのコミットは伴いません。
+Issue のラベルで Claude Code on the web のルーティンが動くように、ラベル・ルーティン・クラウド環境を用意してください。リポジトリへのコミットは伴いません。
 
 ### 6.1 ラベル
-次のコマンドでラベルを作成してください (既にある場合は上書き)。
+次のコマンドで README の 4 ラベルを作成してください (既にある場合は上書き)。
 
 ```bash
-gh label create claude:implement --color d97757 --description "🧠 Claude Code on Web で開発を開始する" --force -R {owner/repo}
+gh label create claude:analysis --color d97757 --description "🤔 課題分析を始める" --force -R {owner/repo}
+gh label create claude:refine --color d97757 --description "✂️ 課題分析の結果を承認し、リファインメントを始める" --force -R {owner/repo}
+gh label create claude:implement --color d97757 --description "🧑‍💻 Sub Issue の実装を始める" --force -R {owner/repo}
+gh label create claude:blocked --color b60205 --description "❓ 人間の回答を待っている" --force -R {owner/repo}
 ```
 
 ### 6.2 ルーティン
@@ -84,3 +106,16 @@ Issue の内容を確認し、着手してください。
  - 追加済みのトリガーは API から確認できず重複に気づけないため、既存のルーティンにはトリガーを追加しないでください。
  - RemoteTrigger が使えない場合 (claude.ai 以外でログインしているなど) や、Claude GitHub App が未インストールでトリガーを追加できない場合は、6.2 をスキップし、devops の README「🤖 Claude Code on Web」の手動手順をユーザーに案内してください。
  - 作成・更新したルーティンの URL (`https://claude.ai/code/routines/{ID}`) をユーザーに伝えてください。
+
+### 6.3 クラウド環境
+クラウドセッションはリポジトリの `enabledPlugins` からプラグインを入れません。6.2 のルーティンが使う環境の Setup script (claude.ai の環境設定画面) に次を追加するよう、ユーザーに案内してください。環境ごとに 1 回で済みます。
+
+```bash
+claude plugin marketplace add anthropics/claude-plugins-official || true
+claude plugin marketplace add theindiehacker/fastship-plugin || true
+claude plugin install dev@fastship || true
+```
+
+ - 1 行目は依存の `security-guidance@claude-plugins-official` を入れるためです。無いと `dev` が読み込まれません。
+ - Setup script は 0 以外で終わるとセッションが始まらないため、`|| true` を付けます。
+ - 同じ名前 (`fastship`) のマーケットプレイスは 1 つしか登録できません。devops の `fastship` を登録する行があれば、この 3 行に置き換えてください (そのままだと 2 行目が失敗し、devops 版の `dev` が入ります)。
