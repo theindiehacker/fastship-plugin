@@ -45,12 +45,13 @@ FastShip プラグインのテンプレートを、対象リポジトリにコ�
 Issue のラベルで Claude Code on the web のルーティンが動くように、ラベル・ルーティン・クラウド環境を用意してください。リポジトリへのコミットは伴いません。
 
 ### 4.1 ラベル
-次のコマンドで 4 ラベルを作成してください (既にある場合は上書き)。
+次のコマンドで 5 ラベルを作成してください (既にある場合は上書き)。
 
 ```bash
 gh label create claude:analysis --color d97757 --description "🤔 課題分析を始める" --force -R {owner/repo}
 gh label create claude:refine --color d97757 --description "✂️ 課題分析の結果を承認し、リファインメントを始める" --force -R {owner/repo}
 gh label create claude:implement --color d97757 --description "🧑‍💻 Sub Issue の実装を始める" --force -R {owner/repo}
+gh label create claude:under-review --color d97757 --description "✔️ PR のレビューを始める" --force -R {owner/repo}
 gh label create claude:blocked --color b60205 --description "❓ 人間の回答を待っている" --force -R {owner/repo}
 ```
 
@@ -65,13 +66,13 @@ RemoteTrigger ツールで、実行者の claude.ai アカウントに次のル�
 | モデル | `claude-opus-5-5` |
 | コネクタ | なし |
 | 通知 | プッシュ通知のみ |
-| トリガー | 対象リポジトリの Issue にラベルが付いたとき (`issues.labeled`)。Issue のラベルに `claude:implement` を含む場合だけ |
+| トリガー | 対象リポジトリの Issue / PR にラベルが付いたとき (`issues.labeled` / `pull_request.labeled`)。ラベルに `claude:implement` を含む場合だけ。PR は、PR で止めたときの再開に使う |
 | プロンプト | 下記 |
 
 ```text
-Issue の内容を確認し、着手してください。
+Issue / PR の内容を確認し、着手してください。
 
- - 不明点や質問がある場合は着手する前にチャットで質問してください
+ - 最初に /dev:blocked の「1. 始める」を行ってください。判断できないことがあれば、推測で進めず /dev:blocked の「2. 止める」で人間に返してください
  - PR を作成/更新したら、`/code-review`, `/security-review` コメントを投稿し、Claude によるレビューを実施してください
  - Claude からレビューが投稿されたら、コメントを確認し、採否の判断・対応・返信まで行ってください
 ```
@@ -81,7 +82,7 @@ Issue の内容を確認し、着手してください。
 3. 既存のルーティンがない場合は、次の順に作成してください。
    1. `create`: body の書き方は `/schedule` スキルに従う。ただし `cron_expression` / `run_once_at` は付けず、`session_context` に `"autofix_on_pr_create": true` を付ける (UI で作ったときの既定値)
    2. `update`: `{"clear_mcp_connections": true, "notifications": {"channel": {"email": false, "push": true, "slack": false}}}` を送る (`create` でコネクタを省くと、claude.ai に接続済みのコネクタがすべて付くため)
-   3. `create_webhook_trigger`: 次の body で GitHub トリガーを追加する
+   3. `create_webhook_trigger`: 次の body で GitHub トリガーを追加する。PR 用に、`events` を `["pull_request.labeled"]`、`field` を `pull_request.labels` に変えた body でもう 1 つ追加する
 
 ```json
 {
@@ -94,7 +95,7 @@ Issue の内容を確認し、着手してください。
 }
 ```
 
- - 追加済みのトリガーは API から確認できず重複に気づけないため、既存のルーティンにはトリガーを追加しないでください。
+ - 追加済みのトリガーは API から確認できず重複に気づけないため、既存のルーティンにはトリガーを追加しないでください。0.3.0 以前の setup で作ったルーティンには PR のトリガーがありません。https://claude.ai/code/routines で確認し、無ければ手動で追加するよう、ユーザーに案内してください。
  - RemoteTrigger が使えない場合 (claude.ai 以外でログインしているなど) や、Claude GitHub App が未インストールでトリガーを追加できない場合は、4.2 をスキップし、上の表の内容で https://claude.ai/code/routines から手動で作成するよう、ユーザーに案内してください。
  - 作成・更新したルーティンの URL (`https://claude.ai/code/routines/{ID}`) をユーザーに伝えてください。
 
