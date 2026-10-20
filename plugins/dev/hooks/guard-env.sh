@@ -4,7 +4,8 @@
 
 # jq が無い環境でも判定できるよう、入力の JSON は grep で見る
 path=$(grep -Eo '"file_path" *: *"[^"]*"' | head -n 1 | sed -E 's/.*"([^"]*)"$/\1/')
-name=${path##*/}
+# macOS のファイルシステムは大文字と小文字を区別しないため、.ENV なども同じファイルとして扱う
+name=$(tr '[:upper:]' '[:lower:]' <<< "${path##*/}")
 
 case "$name" in
   .env | .env.*)
