@@ -11,31 +11,8 @@ Organization アカウントにあるテンプレートリポジトリを確認�
  - テンプレートリポジトリが複数ある場合は、ユーザーに確認・提案してください。
  - テンプレートリポジトリがない場合はスキップしてください。
 
-## 2. GitHub Actions の実装
-`https://github.com/{組織アカウント}/devops` (実際は、具体的な組織アカウント名を指定) を参照して、対象リポジトリに導入できる caller の github workflows を実装してください。
-
-## 3. tflint 設定の導入
-Terraform (`*.tf`) を含むリポジトリでは、`https://github.com/{組織アカウント}/devops` の `.github/workflows/tflint.yml` にある `TFLINT_HCL` と同じ内容で、リポジトリ直下に `.tflint.hcl` を作成してください (既にある場合は上書き)。
-
- - CI はこのファイルを読まず `tflint.yml` の設定で固定しているため、ローカル実行 (`tflint --recursive --config="$(pwd)/.tflint.hcl"`) を CI と揃えるためのものです。
- - サブディレクトリの `.tflint.hcl` は削除してください。
- - `tflint-ignore` コメントは CI で禁止されているため、削除して違反を修正してください。
-
-## 4. Taskfile / lefthook / mise の導入
-`https://github.com/{組織アカウント}/devops` の README「📦 共通設定の配布」に従って、次のファイルを置いてください (既にある場合は最新版に更新)。参照するタグは devops の最新のリリースタグにしてください。
-
- - `Taskfile.yml` / `lefthook.yml`: devops をタグで参照する
- - `mise.toml` / `mise.lock`: devops の同じタグからコピーする
- - `.gitignore`: `.task/` を追加する
-
-## 5. Claude Code の設定
-対象リポジトリの `.claude/settings.json` に次を追加してください。既存の設定は残し、同じキーは上書きしてください。
-
-### 5.1 SessionStart hook
-devops の `docs/CLAUDE-WEB-SETUP.md` に従って、`hooks.SessionStart` に、devops の `scripts/claude-web-setup.sh` を 4 と同じタグで取得・実行する hook を追加してください。既にある場合はタグだけ更新し、hook を重ねないでください。
-
-### 5.2 FastShip プラグイン
-`extraKnownMarketplaces` と `enabledPlugins` に次を追加してください。ローカルの Claude Code で、フォルダを信頼するとプラグインのインストールを促されます。クラウドセッションはこの設定を読まないため、6.3 で入れます。
+## 2. FastShip プラグインの設定
+対象リポジトリの `.claude/settings.json` の `extraKnownMarketplaces` と `enabledPlugins` に次を追加してください。既存の設定は残し、同じキーは上書きしてください。ローカルの Claude Code で、フォルダを信頼するとプラグインのインストールを促されます。クラウドセッションはこの設定を読まないため、3.3 で入れます。
 
 ```json
 {
@@ -50,10 +27,10 @@ devops の `docs/CLAUDE-WEB-SETUP.md` に従って、`hooks.SessionStart` に、
 }
 ```
 
-## 6. ラベル駆動開発のセットアップ
+## 3. ラベル駆動開発のセットアップ
 Issue のラベルで Claude Code on the web のルーティンが動くように、ラベル・ルーティン・クラウド環境を用意してください。リポジトリへのコミットは伴いません。
 
-### 6.1 ラベル
+### 3.1 ラベル
 次のコマンドで README の 4 ラベルを作成してください (既にある場合は上書き)。
 
 ```bash
@@ -63,7 +40,7 @@ gh label create claude:implement --color d97757 --description "🧑‍💻 Sub I
 gh label create claude:blocked --color b60205 --description "❓ 人間の回答を待っている" --force -R {owner/repo}
 ```
 
-### 6.2 ルーティン
+### 3.2 ルーティン
 RemoteTrigger ツールで、実行者の claude.ai アカウントに次のルーティンを用意してください。
 
 | 項目 | 値 |
@@ -104,11 +81,11 @@ Issue の内容を確認し、着手してください。
 ```
 
  - 追加済みのトリガーは API から確認できず重複に気づけないため、既存のルーティンにはトリガーを追加しないでください。
- - RemoteTrigger が使えない場合 (claude.ai 以外でログインしているなど) や、Claude GitHub App が未インストールでトリガーを追加できない場合は、6.2 をスキップし、devops の README「🤖 Claude Code on Web」の手動手順をユーザーに案内してください。
+ - RemoteTrigger が使えない場合 (claude.ai 以外でログインしているなど) や、Claude GitHub App が未インストールでトリガーを追加できない場合は、3.2 をスキップし、上の表の内容で https://claude.ai/code/routines から手動で作成するよう、ユーザーに案内してください。
  - 作成・更新したルーティンの URL (`https://claude.ai/code/routines/{ID}`) をユーザーに伝えてください。
 
-### 6.3 クラウド環境
-クラウドセッションはリポジトリの `enabledPlugins` からプラグインを入れません。6.2 のルーティンが使う環境の Setup script (claude.ai の環境設定画面) に次を追加するよう、ユーザーに案内してください。環境ごとに 1 回で済みます。
+### 3.3 クラウド環境
+クラウドセッションはリポジトリの `enabledPlugins` からプラグインを入れません。3.2 のルーティンが使う環境の Setup script (claude.ai の環境設定画面) に次を追加するよう、ユーザーに案内してください。環境ごとに 1 回で済みます。
 
 ```bash
 claude plugin marketplace add anthropics/claude-plugins-official || true
@@ -118,3 +95,4 @@ claude plugin install dev@fastship || true
 
  - 1 行目は依存の `security-guidance@claude-plugins-official` を入れるためです。無いと `dev` が読み込まれません。
  - Setup script は 0 以外で終わるとセッションが始まらないため、`|| true` を付けます。
+ - dev プラグインの SessionStart hook が、セッションの開始時に mise・ツール・lefthook のフックを入れます (`mise.toml` があるリポジトリのみ)。
