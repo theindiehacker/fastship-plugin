@@ -52,6 +52,7 @@ graph LR;
 | `claude:analysis` | 🧠 Claude | 課題分析を始める |
 | `claude:refine` | 🧑‍💻 開発者 | 課題分析の結果を承認し、リファインメントを始める |
 | `claude:implement` | 🧠 Claude | Sub Issue の実装を始める |
+| `claude:under-review` | 🧠 Claude | PR のレビューを始める |
 | `claude:blocked` | 🧠 Claude | 人間の回答を待っている |
 
 ## 🧑‍💻 人間が判断すること
@@ -62,10 +63,12 @@ graph LR;
 
 ## ❓ 質問・差し戻し
 
-Claude だけで判断できないことがあると、ルーティンは処理を止めて人間に返します。
+Claude だけで判断できないことがあると、ルーティンは処理を止めて人間に返します。手順は `/dev:blocked` スキルにまとめています。
 
-1. Claude が Issue / PR に質問をコメントし、進行中のラベル (`claude:analysis` / `claude:refine` / `claude:implement`) を外して `claude:blocked` を付けます。
+1. Claude が Issue / PR に質問をコメントし、進行中のラベル (`claude:analysis` / `claude:refine` / `claude:implement` / `claude:under-review`) を外して `claude:blocked` を付けます。
 2. 開発者は FastShip プロジェクトで `claude:blocked` が付いた Issue / PR を確認し、コメントで回答します。
-3. 開発者が `claude:blocked` を外して元のラベルを付け直すと、処理が再開します。
+3. 開発者が `claude:blocked` を外して元のラベルを、止まった Issue / PR に付け直すと、処理が再開します。再開したセッションは、前回の質問と回答を読んでから続けます。
+
+同じ Issue / PR で動くセッションは 1 つだけです。後から起動したセッションは何もせずに終わります。
 
 レビューの 🛑 は実装のセッションが対応します。Claude だけで判断できない指摘は、同じ手順で `claude:blocked` を付けて人間に返します。

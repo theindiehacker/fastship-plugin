@@ -47,6 +47,7 @@ FastShip プラグインのテンプレートを、対象リポジトリにコ�
 gh label create claude:analysis --color d97757 --description "🤔 課題分析を始める" --force -R {owner/repo}
 gh label create claude:refine --color d97757 --description "✂️ 課題分析の結果を承認し、リファインメントを始める" --force -R {owner/repo}
 gh label create claude:implement --color d97757 --description "🧑‍💻 Sub Issue の実装を始める" --force -R {owner/repo}
+gh label create claude:under-review --color d97757 --description "✔️ PR のレビューを始める" --force -R {owner/repo}
 gh label create claude:blocked --color b60205 --description "❓ 人間の回答を待っている" --force -R {owner/repo}
 ```
 
@@ -61,13 +62,13 @@ RemoteTrigger ツールで次のルーティンを用意し、URL (`https://clau
 | モデル | `claude-opus-5-5` |
 | コネクタ | なし |
 | 通知 | プッシュ通知のみ |
-| トリガー | `issues.labeled` で、Issue のラベルに `claude:implement` を含む場合 |
+| トリガー | `issues.labeled` / `pull_request.labeled` で、Issue / PR のラベルに `claude:implement` を含む場合。PR は、PR で止めたときの再開に使う |
 | プロンプト | 下記 |
 
 ```text
-Issue の内容を確認し、着手してください。
+Issue / PR の内容を確認し、着手してください。
 
- - 不明点や質問がある場合は着手する前にチャットで質問してください
+ - 最初に /dev:blocked の「1. 始める」を行ってください。判断できないことがあれば、推測で進めず /dev:blocked の「2. 止める」で人間に返してください
  - PR を作成/更新したら、`/code-review`, `/security-review` コメントを投稿し、Claude によるレビューを実施してください
  - Claude からレビューが投稿されたら、コメントを確認し、採否の判断・対応・返信まで行ってください
 ```
@@ -79,10 +80,10 @@ flowchart LR
     exists -->|ない| create["create"] --> clear["update<br/>コネクタを外し、プッシュ通知のみにする"] --> trigger["create_webhook_trigger"]
 ```
 
- - 既存の `update`: `get` した `job_config` を丸ごと送り、`ccr.events[0].data.message.content` と `ccr.session_context.model` だけを変える。トリガーは API から見えず重複に気づけないため、追加しない
+ - 既存の `update`: `get` した `job_config` を丸ごと送り、`ccr.events[0].data.message.content` と `ccr.session_context.model` だけを変える。トリガーは API から見えず重複に気づけないため、追加しない。0.3.0 以前に作ったルーティンには PR のトリガーが無いので、https://claude.ai/code/routines で確認し、無ければ手動で追加するよう案内する
  - `create`: `/schedule` スキルの書き方に従う。`cron_expression` / `run_once_at` は付けず、`session_context` に `"autofix_on_pr_create": true` を付ける
  - 新規の `update`: `{"clear_mcp_connections": true, "notifications": {"channel": {"email": false, "push": true, "slack": false}}}` を送る (`create` は接続済みのコネクタをすべて付けるため)
- - `create_webhook_trigger`: 下記の body を送る
+ - `create_webhook_trigger`: 下記の body を送る。PR 用に、`events` を `["pull_request.labeled"]`、`field` を `pull_request.labels` に変えた body も送る
  - RemoteTrigger や Claude GitHub App が使えない場合は、上の表の内容で https://claude.ai/code/routines から手動で作るよう案内する
 
 ```json
