@@ -118,4 +118,3 @@ claude plugin install dev@fastship || true
 
  - 1 行目は依存の `security-guidance@claude-plugins-official` を入れるためです。無いと `dev` が読み込まれません。
  - Setup script は 0 以外で終わるとセッションが始まらないため、`|| true` を付けます。
- - devops の `fastship` マーケットプレイス (廃止済み) を登録する古い行があれば、削除してください。同じ名前は 1 つしか登録できず、2 行目が失敗します。
