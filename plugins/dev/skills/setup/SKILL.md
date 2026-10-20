@@ -12,7 +12,7 @@ Organization アカウントにあるテンプレートリポジトリを確認�
  - テンプレートリポジトリがない場合はスキップしてください。
 
 ## 2. FastShip プラグインの設定
-対象リポジトリの `.claude/settings.json` の `extraKnownMarketplaces` と `enabledPlugins` に次を追加してください。既存の設定は残し、同じキーは上書きしてください。ローカルの Claude Code で、フォルダを信頼するとプラグインのインストールを促されます。クラウドセッションはこの設定を読まないため、3.3 で入れます。
+対象リポジトリの `.claude/settings.json` に次を追加してください。`extraKnownMarketplaces.fastship` と `enabledPlugins["dev@fastship"]` だけを追加・上書きし、他のキー (他のマーケットプレイス・プラグイン・hooks など) はそのまま残してください。ローカルの Claude Code で、フォルダを信頼するとプラグインのインストールを促されます。クラウドセッションはこの設定を読まないため、3.3 で入れます。
 
 ```json
 {
@@ -31,7 +31,7 @@ Organization アカウントにあるテンプレートリポジトリを確認�
 Issue のラベルで Claude Code on the web のルーティンが動くように、ラベル・ルーティン・クラウド環境を用意してください。リポジトリへのコミットは伴いません。
 
 ### 3.1 ラベル
-次のコマンドで README の 4 ラベルを作成してください (既にある場合は上書き)。
+次のコマンドで 4 ラベルを作成してください (既にある場合は上書き)。
 
 ```bash
 gh label create claude:analysis --color d97757 --description "🤔 課題分析を始める" --force -R {owner/repo}
@@ -88,11 +88,11 @@ Issue の内容を確認し、着手してください。
 クラウドセッションはリポジトリの `enabledPlugins` からプラグインを入れません。3.2 のルーティンが使う環境の Setup script (claude.ai の環境設定画面) に次を追加するよう、ユーザーに案内してください。環境ごとに 1 回で済みます。
 
 ```bash
-claude plugin marketplace add anthropics/claude-plugins-official || true
-claude plugin marketplace add theindiehacker/fastship-plugin || true
-claude plugin install dev@fastship || true
+claude plugin marketplace add anthropics/claude-plugins-official || echo "⚠️ claude-plugins-official を追加できませんでした" >&2
+claude plugin marketplace add theindiehacker/fastship-plugin || echo "⚠️ fastship を追加できませんでした" >&2
+claude plugin install dev@fastship || echo "⚠️ dev@fastship を入れられませんでした" >&2
 ```
 
  - 1 行目は依存の `security-guidance@claude-plugins-official` を入れるためです。無いと `dev` が読み込まれません。
- - Setup script は 0 以外で終わるとセッションが始まらないため、`|| true` を付けます。
+ - Setup script は 0 以外で終わるとセッションが始まらないため、失敗しても警告だけ出して続けます。
  - dev プラグインの SessionStart hook が、セッションの開始時に mise・ツール・lefthook のフックを入れます (`mise.toml` があるリポジトリのみ)。
