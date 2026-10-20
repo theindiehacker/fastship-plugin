@@ -107,16 +107,9 @@ CI の指摘（該当行へのインラインコメントとして投稿され�
 
 ### 3. PR テンプレートの取得と適用
 
-PR テンプレートの正本は **FastShip プラグインの `${CLAUDE_PLUGIN_ROOT}/templates/PULL_REQUEST_TEMPLATE.md`** で、`/dev:setup` が対象リポジトリの `.github/` にコピーする。**対象リポジトリのテンプレートを優先**し、無い場合はプラグインのテンプレートを使う:
+PR テンプレートの正本は **FastShip プラグインの `${CLAUDE_PLUGIN_ROOT}/templates/PULL_REQUEST_TEMPLATE.md`**。このスキルの手順 (8-a など) はこの構造を前提にしているため、**常にこれを `Read` で読む**。`/dev:setup` が対象リポジトリの `.github/` に置くコピーは GitHub の UI 用なので、ここでは読まない。
 
-```bash
-# 対象リポジトリのテンプレートが最優先。無ければプラグインのテンプレートを使う。
-TEMPLATE=$(ls .github/PULL_REQUEST_TEMPLATE.md PULL_REQUEST_TEMPLATE.md \
-             docs/PULL_REQUEST_TEMPLATE.md 2>/dev/null | head -1)
-cat "${TEMPLATE:-${CLAUDE_PLUGIN_ROOT}/templates/PULL_REQUEST_TEMPLATE.md}"
-```
-
-取得したテンプレートに従って PR を作成する。**各セクションの埋め方（Sub Issue からの転記・🙆‍♂️ やったこと の書き方など）はテンプレートの HTML コメントに集約しているので、それを順守する**（SKILL.md に複製しない）。取得に失敗した場合のみ「💡 概要 / 🙆‍♂️ やったこと / 🙅‍♂️ やらないこと / ✔️ 動作確認」の構成で書く。
+読んだテンプレートに従って PR を作成する。**各セクションの埋め方（Sub Issue からの転記・🙆‍♂️ やったこと の書き方など）はテンプレートの HTML コメントに集約しているので、それを順守する**（SKILL.md に複製しない）。取得に失敗した場合のみ「💡 概要 / 🙆‍♂️ やったこと / 🙅‍♂️ やらないこと / ✔️ 動作確認」の構成で書く。
 
 対応する Sub Issue (`.github/ISSUE_TEMPLATE/todo.md` 構造) があれば、コメントの転記表に従って各セクションを書く。完了条件は ✔️ 動作確認 にそのまま貼らず、確認した方法と結果を書く。無い PR (バグ修正・ドキュメントのみ等) は直接埋める。
 
