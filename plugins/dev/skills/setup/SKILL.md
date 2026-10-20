@@ -1,6 +1,6 @@
 ---
 name: setup
-description: 対象リポジトリに組織推奨の開発スタックを導入し、コミット・PR 作成まで行う。Issue のラベルで Claude Code on the web が実装を始めるラベル駆動開発 (ラベルとルーティン) も用意する。導入済みのリポジトリでは最新版に更新する。使い方 → /dev:setup [owner/repo]
+description: 対象リポジトリに組織推奨の開発スタックを導入し、コミット・PR 作成まで行う。Issue のラベルで Claude Code on the web が動くラベル駆動開発 (ラベル・ルーティン・FastShip プラグイン) も用意する。導入済みのリポジトリでは最新版に更新する。使い方 → /dev:setup [owner/repo]
 argument-hint: "[owner/repo]"
 ---
 
@@ -11,37 +11,36 @@ Organization アカウントにあるテンプレートリポジトリを確認�
  - テンプレートリポジトリが複数ある場合は、ユーザーに確認・提案してください。
  - テンプレートリポジトリがない場合はスキップしてください。
 
-## 2. GitHub Actions の実装
-`https://github.com/{組織アカウント}/devops` (実際は、具体的な組織アカウント名を指定) を参照して、対象リポジトリに導入できる caller の github workflows を実装してください。
+## 2. FastShip プラグインの設定
+対象リポジトリの `.claude/settings.json` に次を追加してください。`extraKnownMarketplaces.fastship` と `enabledPlugins["dev@fastship"]` だけを追加・上書きし、他のキー (他のマーケットプレイス・プラグイン・hooks など) はそのまま残してください。ローカルの Claude Code で、フォルダを信頼するとプラグインのインストールを促されます。クラウドセッションはこの設定を読まないため、3.3 で入れます。
 
-## 3. tflint 設定の導入
-Terraform (`*.tf`) を含むリポジトリでは、`https://github.com/{組織アカウント}/devops` の `.github/workflows/tflint.yml` にある `TFLINT_HCL` と同じ内容で、リポジトリ直下に `.tflint.hcl` を作成してください (既にある場合は上書き)。
-
- - CI はこのファイルを読まず `tflint.yml` の設定で固定しているため、ローカル実行 (`tflint --recursive --config="$(pwd)/.tflint.hcl"`) を CI と揃えるためのものです。
- - サブディレクトリの `.tflint.hcl` は削除してください。
- - `tflint-ignore` コメントは CI で禁止されているため、削除して違反を修正してください。
-
-## 4. Taskfile / lefthook / mise の導入
-`https://github.com/{組織アカウント}/devops` の README「📦 共通設定の配布」に従って、次のファイルを置いてください (既にある場合は最新版に更新)。参照するタグは devops の最新のリリースタグにしてください。
-
- - `Taskfile.yml` / `lefthook.yml`: devops をタグで参照する
- - `mise.toml` / `mise.lock`: devops の同じタグからコピーする
- - `.gitignore`: `.task/` を追加する
-
-## 5. Claude Code on the web のセットアップ
-devops の `docs/CLAUDE-WEB-SETUP.md` に従って、`.claude/settings.json` の `hooks.SessionStart` に、devops の `scripts/claude-web-setup.sh` を 4 と同じタグで取得・実行する hook を追加してください (既存の設定は残す)。
-
-## 6. ラベル駆動開発のセットアップ
-Issue に `claude:implement` ラベルを付けると Claude Code on the web が実装を始めるように、ラベルとルーティンを用意してください。リポジトリへのコミットは伴いません。
-
-### 6.1 ラベル
-次のコマンドでラベルを作成してください (既にある場合は上書き)。
-
-```bash
-gh label create claude:implement --color d97757 --description "🧠 Claude Code on Web で開発を開始する" --force -R {owner/repo}
+```json
+{
+  "extraKnownMarketplaces": {
+    "fastship": {
+      "source": {"source": "github", "repo": "theindiehacker/fastship-plugin"}
+    }
+  },
+  "enabledPlugins": {
+    "dev@fastship": true
+  }
+}
 ```
 
-### 6.2 ルーティン
+## 3. ラベル駆動開発のセットアップ
+Issue のラベルで Claude Code on the web のルーティンが動くように、ラベル・ルーティン・クラウド環境を用意してください。リポジトリへのコミットは伴いません。
+
+### 3.1 ラベル
+次のコマンドで 4 ラベルを作成してください (既にある場合は上書き)。
+
+```bash
+gh label create claude:analysis --color d97757 --description "🤔 課題分析を始める" --force -R {owner/repo}
+gh label create claude:refine --color d97757 --description "✂️ 課題分析の結果を承認し、リファインメントを始める" --force -R {owner/repo}
+gh label create claude:implement --color d97757 --description "🧑‍💻 Sub Issue の実装を始める" --force -R {owner/repo}
+gh label create claude:blocked --color b60205 --description "❓ 人間の回答を待っている" --force -R {owner/repo}
+```
+
+### 3.2 ルーティン
 RemoteTrigger ツールで、実行者の claude.ai アカウントに次のルーティンを用意してください。
 
 | 項目 | 値 |
@@ -82,5 +81,18 @@ Issue の内容を確認し、着手してください。
 ```
 
  - 追加済みのトリガーは API から確認できず重複に気づけないため、既存のルーティンにはトリガーを追加しないでください。
- - RemoteTrigger が使えない場合 (claude.ai 以外でログインしているなど) や、Claude GitHub App が未インストールでトリガーを追加できない場合は、6.2 をスキップし、devops の README「🤖 Claude Code on Web」の手動手順をユーザーに案内してください。
+ - RemoteTrigger が使えない場合 (claude.ai 以外でログインしているなど) や、Claude GitHub App が未インストールでトリガーを追加できない場合は、3.2 をスキップし、上の表の内容で https://claude.ai/code/routines から手動で作成するよう、ユーザーに案内してください。
  - 作成・更新したルーティンの URL (`https://claude.ai/code/routines/{ID}`) をユーザーに伝えてください。
+
+### 3.3 クラウド環境
+クラウドセッションはリポジトリの `enabledPlugins` からプラグインを入れません。3.2 のルーティンが使う環境の Setup script (claude.ai の環境設定画面) に次を追加するよう、ユーザーに案内してください。環境ごとに 1 回で済みます。
+
+```bash
+claude plugin marketplace add anthropics/claude-plugins-official || echo "⚠️ claude-plugins-official を追加できませんでした" >&2
+claude plugin marketplace add theindiehacker/fastship-plugin || echo "⚠️ fastship を追加できませんでした" >&2
+claude plugin install dev@fastship || echo "⚠️ dev@fastship を入れられませんでした" >&2
+```
+
+ - 1 行目は依存の `security-guidance@claude-plugins-official` を入れるためです。無いと `dev` が読み込まれません。
+ - Setup script は 0 以外で終わるとセッションが始まらないため、失敗しても警告だけ出して続けます。
+ - dev プラグインの SessionStart hook が、セッションの開始時に mise・ツール・lefthook のフックを入れます (`mise.toml` があるリポジトリのみ)。
