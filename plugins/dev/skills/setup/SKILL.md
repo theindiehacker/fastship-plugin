@@ -137,6 +137,12 @@ flowchart LR
  - `list` で ` / 振り返り` のルーティン (0.13.0 以前に作ったもの) が見つかったら、https://claude.ai/code/routines で消すようユーザーに案内する。振り返りは 0.14.0 で外した。`has_more` が true なら、あるかもしれないと伝える
  - RemoteTrigger や Claude GitHub App が使えない場合は、上の表の内容で https://claude.ai/code/routines から手動で作るよう案内する
 
+ルーティンの URL と一緒に、次の前提をユーザーに伝えてください (README の「🛟 ルーティンの前提」)。
+ - ルーティンは、作った人の claude.ai アカウントに属し、チームでは共有されない。作った人の利用枠を使い、その人が抜けると止まる。そのときは、別の人が `/dev:setup` を実行し直して作り直す
+ - `issues.labeled`・`issues.closed` のトリガーは、ルーティンのドキュメントに無い (載っている GitHub イベントは Pull request と Release だけ)
+ - GitHub イベントは、毎時の上限を超えると捨てられる (上限の数値は公開されていない)
+ - 動かなかった・途中で止まった Issue / PR は、進行中のラベルが付いたまま 4.4 の `⏳ 進行中` に残る。10 分以上進まないものは、ラベルを外して付け直す
+
 ```json
 {
   "routine_trigger_id": "{作成したルーティンの ID}",
@@ -211,6 +217,7 @@ gh project copy 6 --source-owner theindiehacker --target-owner <owner> --title "
 | `④ 承認待ち` | `is:issue is:open label:"claude:analyzed"` | Title / Repository / Labels |
 | `❓ 回答待ち` | `is:open label:"claude:blocked"` | Title / Repository / Labels / Parent issue |
 | `⑪ マージ待ち` | `is:pr is:open label:"claude:approved" -label:"claude:blocked" -label:"claude:under-review"` | Title / Repository / Labels |
+| `⏳ 進行中` | `is:open label:"claude:analysis","claude:refine","claude:implement","claude:under-review"` | Title / Repository / Labels |
 
 ```bash
 gh api graphql -f login=<owner> -F n=<n> -f query='query($login: String!, $n: Int!) { repositoryOwner(login: $login) { ... on ProjectV2Owner { projectV2(number: $n) { views(first: 50) { nodes { name filter } } } } } }' \

@@ -150,6 +150,7 @@ Claude Code からも `/dev:issue` で起票できます。Slack (Claude Tag) �
    - https://claude.ai/code/routines で、`{リポジトリ名} / 振り返り` のルーティンを消してください
    - FastShip プロジェクトの `⑫ 成功指標の確認待ち` のビューを、画面で消してください (ビューは API で消せません)
    - [4. Auto-add](#4-auto-add) のフィルタから `"claude:shipped"` を外してください (残っていても害はありません)
+ - `/dev:setup` を実行し直すと、FastShip プロジェクトに `⏳ 進行中` のビューが足されます。動かなかった・途中で止まった Issue / PR が載ります ([🛟 ルーティンの前提](#-ルーティンの前提))。setup を使わずにつないだ場合は、[📋 FastShip プロジェクト](#-fastship-プロジェクト) の表のとおりに画面で作ってください。
  - `/dev:setup` で、Actions の Claude レビュー (claude-code-action) を PR で自動で動かさないか聞かれたら、止めてください。⑨ と二重にレビューし、Actions の時間を使うためです。コメントでの依頼 (`/code-review` など) は残ります。org の必須ワークフローで動いているときは、org の管理者に止めてもらってください。
 
 ## 🧰 スキル
@@ -181,7 +182,7 @@ Claude Code からも `/dev:issue` で起票できます。Slack (Claude Tag) �
 
 ## 📋 FastShip プロジェクト
 
-開発者は FastShip プロジェクト (GitHub Project) のビューを見れば、次に判断することが分かります。ビューはラベルで絞り込んでいます。二重枠が、ビューに載る (開発者の番の) 状態です。
+開発者は FastShip プロジェクト (GitHub Project) のビューを見れば、次に判断することが分かります。ビューはラベルで絞り込んでいます。二重枠が、ビューに載る (開発者の番の) 状態です。Claude の番の状態は `⏳ 進行中` に載り、止まっていないかを確かめられます。
 
 ```mermaid
 flowchart LR
@@ -198,6 +199,7 @@ flowchart LR
 | ④ 承認待ち | `is:issue is:open label:"claude:analyzed"` | 課題・解決策・成功指標を読み、承認か差し戻しか |
 | ❓ 回答待ち | `is:open label:"claude:blocked"` | Claude の質問への回答 |
 | ⑪ マージ待ち | `is:pr is:open label:"claude:approved" -label:"claude:blocked" -label:"claude:under-review"` | マージ・リリースするか |
+| ⏳ 進行中 | `is:open label:"claude:analysis","claude:refine","claude:implement","claude:under-review"` | 止まっていないか ([🛟 ルーティンの前提](#-ルーティンの前提)) |
 
  - プロジェクトの Status と Board は、工程と連動しません。GitHub の Status はラベルの変化で変えられないため、ラベルを正にしています。
  - `claude:analyzed` は、課題分析・リファインメントが Issue の状態から決めて付け外しします (`scripts/waiting.sh`)。手で付け外ししても、次にそれらが動いたときに状態に合わせ直されます。
@@ -229,9 +231,19 @@ Claude だけで判断できないことがあると、ルーティンは処理�
 2. 開発者は FastShip プロジェクトの `❓ 回答待ち` で Issue / PR を確認し、コメントで回答します。
 3. 開発者が `claude:blocked` を外して元のラベルを、止まった Issue / PR に付け直すと、処理が再開します。再開したセッションは、前回の質問と回答を読んでから続けます。
 
-同じ Issue / PR で動くセッションは 1 つだけです。後から起動したセッションは何もせずに終わります。進行中のラベルが付いたまま 10 分以上進まないときは、セッションが途中で止まっています。そのラベルを外して付け直すと、やり直します。
+同じ Issue / PR で動くセッションは 1 つだけです。後から起動したセッションは何もせずに終わります。進行中のラベルが付いたまま 10 分以上進まないときは、ルーティンが動かなかったか、セッションが途中で止まっています (`⏳ 進行中` に残ります)。そのラベルを外して付け直すと、やり直します。
 
 レビューの 🛑 は実装のセッションが対応します。Claude だけで判断できない指摘は、同じ手順で `claude:blocked` を付けて人間に返します。人が作った PR も、`claude:under-review` を付けるとレビューします。
+
+## 🛟 ルーティンの前提
+
+ルーティンは、気づかないうちに止まることがあります。
+
+ - ルーティンは、作った人の claude.ai アカウントに属し、チームでは共有されません。作った人の利用枠を使い、その人が抜けると止まります。そのときは、別の人が `/dev:setup` を実行し直して作り直してください。
+ - FastShip が使う `issues.labeled`・`issues.closed` のトリガーは、[ルーティンのドキュメント](https://code.claude.com/docs/en/routines) にありません (載っている GitHub イベントは Pull request と Release だけです)。
+ - GitHub イベントは、毎時の上限を超えると捨てられます。上限の数値は公開されていません。
+
+どの場合も、進行中のラベル (`claude:analysis` / `claude:refine` / `claude:implement` / `claude:under-review`) が付いたまま動きません。FastShip プロジェクトの `⏳ 進行中` をときどき見て、10 分以上進まないものはラベルを外して付け直してください。
 
 ## 🧰 技術スタック (stack プラグイン)
 
