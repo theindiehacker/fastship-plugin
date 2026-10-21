@@ -2,6 +2,12 @@
   "permissions": {
     "allow": [
       "mcp__claude-code-remote__delete_trigger"
+    ],
+    "deny": [
+      "Read(**/.env)",
+      "Read(**/.env.*)",
+      "Edit(**/.env)",
+      "Edit(**/.env.*)"
     ]
   }
 }
