@@ -55,17 +55,16 @@ gh label create claude:analysis --color d97757 --description "🤔 課題分析�
 gh label create claude:refine --color d97757 --description "✂️ 課題分析の結果を承認し、リファインメントを始める" --force -R {owner/repo}
 gh label create claude:implement --color d97757 --description "🧑‍💻 Sub Issue (1 PR で済むときは Issue) の実装を始める" --force -R {owner/repo}
 gh label create claude:under-review --color d97757 --description "✔️ PR のレビューを始める" --force -R {owner/repo}
-gh label create claude:approved --color 0e8a16 --description "✅ レビューを通った" --force -R {owner/repo}
 gh label create claude:blocked --color b60205 --description "❓ 人間の回答を待っている" --force -R {owner/repo}
 gh label create claude:analyzed --color 0e8a16 --description "🧑‍💻 課題分析が終わり、承認を待っている" --force -R {owner/repo}
 ```
 
-`claude:approved` / `claude:analyzed` は、人が見るためのラベルです。4.2 のトリガーには使いません。
+`claude:analyzed` は、人が見るためのラベルです。4.2 のトリガーには使いません。レビューが ✅ になった PR は、ラベルではなく Ready (Draft でない) で示します。
 
-0.13.0 以前に導入したリポジトリには、`claude:retrospective` / `claude:shipped` が残っています (下の 1 つ目のコマンドで出ます)。残っていれば、付いている Issue の数 (2 つ目のコマンド。100 で頭打ち) をユーザーに伝え、消してよいか確認してください。消すと、付いていた Issue からも外れます。消さないと答えたら残してください。
+0.13.0 以前に導入したリポジトリには、`claude:retrospective` / `claude:shipped` / `claude:approved` が残っています (下の 1 つ目のコマンドで出ます)。残っていれば、付いている Issue / PR の数 (2 つ目のコマンド。100 で頭打ち) をユーザーに伝え、消してよいか確認してください。消すと、付いていた Issue / PR からも外れます。消さないと答えたら残してください。
 
 ```bash
-gh api --paginate "repos/{owner/repo}/labels?per_page=100" --jq '.[].name | select(. == "claude:retrospective" or . == "claude:shipped")'
+gh api --paginate "repos/{owner/repo}/labels?per_page=100" --jq '.[].name | select(. == "claude:retrospective" or . == "claude:shipped" or . == "claude:approved")'
 gh api "repos/{owner/repo}/issues?labels=<ラベル>&state=all&per_page=100" --jq length
 gh label delete <ラベル> --yes -R {owner/repo}
 ```
@@ -216,8 +215,8 @@ gh project copy 6 --source-owner theindiehacker --target-owner <owner> --title "
 |:--|:--|:--|
 | `④ 承認待ち` | `is:issue is:open label:"claude:analyzed"` | Title / Repository / Labels |
 | `❓ 回答待ち` | `is:open label:"claude:blocked"` | Title / Repository / Labels / Parent issue |
-| `⑪ マージ待ち` | `is:pr is:open label:"claude:approved" -label:"claude:blocked" -label:"claude:under-review"` | Title / Repository / Labels |
-| `⏳ 進行中` | `is:open label:"claude:analysis","claude:refine","claude:implement","claude:under-review"` | Title / Repository / Labels |
+| `⑪ マージ待ち` | `is:pr is:open -is:draft -label:"claude:blocked" -label:"claude:under-review"` | Title / Repository / Labels |
+| `⏳ 進行中` | `is:open label:"claude:analysis","claude:refine","claude:implement","claude:under-review" -label:"claude:blocked"` | Title / Repository / Labels |
 
 ```bash
 gh api graphql -f login=<owner> -F n=<n> -f query='query($login: String!, $n: Int!) { repositoryOwner(login: $login) { ... on ProjectV2Owner { projectV2(number: $n) { views(first: 50) { nodes { name filter } } } } } }' \
