@@ -1,12 +1,12 @@
 ---
 name: refine
-description: FastShip の ⑤⑥ リファインメント。claude:refine が付いた (承認済みの) Issue を、1 PR で終わる Sub Issue に分解して起票し、親 Issue に紐付ける。依存の無い Sub Issue に claude:implement を付けて実装を始める。Sub Issue が閉じたときは、依存が解けた Sub Issue に claude:implement を付け、判断待ちのラベル (claude:analyzed / claude:shipped) を合わせる。Sub Issue がすべて閉じると、親 Issue に claude:shipped (成功指標の確認待ち) が付く。リファインメントルーティンから使う。使い方: /dev:refine {Issue の番号}
+description: FastShip の ⑤⑥ リファインメント。claude:refine が付いた (承認済みの) Issue を、1 PR で終わる Sub Issue に分解して起票し、親 Issue に紐付ける。1 PR で済む Issue は分けず、完了条件・やらないことを書き足して Issue に claude:implement を付ける。依存の無い Sub Issue に claude:implement を付けて実装を始める。Sub Issue が閉じたときは、依存が解けた Sub Issue に claude:implement を付け、判断待ちのラベル (claude:analyzed / claude:shipped) を合わせる。Sub Issue がすべて閉じると、親 Issue に claude:shipped (成功指標の確認待ち) が付く。リファインメントルーティンから使う。使い方: /dev:refine {Issue の番号}
 argument-hint: "{Issue の番号}"
 ---
 
 # ✂️ リファインメント
 
-`claude:refine` が付いた Issue を Sub Issue に分解し、実装を始めてください。Sub Issue が閉じて起動したときは、1 で見分けて 6 だけを行います。
+`claude:refine` が付いた Issue を Sub Issue に分解し、実装を始めてください。1 PR で済む Issue は分けずに、Issue をそのまま実装に回します (3 の「1 PR で済むとき」)。Sub Issue が閉じて起動したときは、1 で見分けて 6 だけを行います。
 
 GitHub は `gh api` (REST) で操作します。コマンドの `123` は、トリガーになった Issue の番号に置き換えてください。
 
@@ -19,7 +19,7 @@ Issue の状態を確かめてください。
 gh api "repos/{owner}/{repo}/issues/123" --jq .state
 ```
 
- - `closed` なら、Sub Issue が閉じて起動しています。6 に進んでください。
+ - `closed` なら、`claude:implement` の付いた Issue (Sub Issue か、そのまま実装した Issue) が閉じて起動しています。6 に進んでください。
  - `open` なら、`/dev:blocked` の「1. 始める」を、進行中ラベル `claude:refine` で行ってください。`STOP` と出たら、何もせずに終えてください。
    - `CONTINUE` と出たら、判断待ちのラベルを合わせてください (下のコマンド)。`claude:refine` が付いているので、`claude:analyzed` と `claude:shipped` が外れます。承認されたので承認待ちから外し、やり直しで Sub Issue を足す間は成功指標の確認待ちに載せないためです。
 
@@ -39,6 +39,7 @@ gh api --paginate "repos/{owner}/{repo}/issues/123/sub_issues" --jq '.[] | "#\(.
  - 課題 / 解決策 / 成功指標 が分解の元です。リポジトリのコードとドキュメントも読み、どこを変えるかを確かめてください。
  - リファインメントの完了コメント (`<!-- fastship:refine -->` で始まる) があれば、やり直しです。それ以降の開発者のコメントを反映してください。
  - 完了コメントが無いのに Sub Issue があれば、前のセッションが途中で止まっています。同じ作業の Sub Issue を重複して作らないでください。
+ - 完了コメントがあって Sub Issue が無ければ、前回は 1 PR で済むとして、この Issue をそのまま実装に回しています (3 の「1 PR で済むとき」)。
  - 既にある Sub Issue の依存は、下のコマンドで確かめてください。
 
 ```bash
@@ -48,10 +49,28 @@ gh api --paginate "repos/{owner}/{repo}/issues/<Sub Issue の番号>/dependencie
 ## 3. 分解する
  - 1 つの Sub Issue は 1 PR で終わる大きさにしてください。目的が 1 つで、レビューで読み切れる量が目安です。
  - 単独でマージしても壊れず、テストが通る単位にしてください。層 (DB / API / UI) ではなく、確かめられる振る舞いで分けてください。
- - 解決策 全体が 1 PR で終わるなら、分けずに Sub Issue を 1 つにしてください。分けるのは 1 PR に収まらないときだけです。
+ - 解決策 全体が 1 PR で終わるなら、分けずに、Sub Issue を作らずこの Issue をそのまま実装してください (下の「1 PR で済むとき」)。分けるのは 1 PR に収まらないときだけです。
  - 解決策 に無いことは Sub Issue にしないでください。
  - 成功指標を測る仕組み (ログ・計測など) が要るなら、それも Sub Issue にしてください。
  - 依存 は、前の Sub Issue のコードが無いと作れないときだけ付けてください。依存の無い Sub Issue は、同時に実装が始まります。
+
+### 1 PR で済むとき
+次をすべて満たすときは、Sub Issue を作らず、この Issue をそのまま実装に回します。Sub Issue を 1 つ作っても親の解決策を写すだけになり、Issue・待ちが増えるためです。4 と 5 の 1 は行わず、下の手順の後に 5 の 2 に進んでください。
+
+ - 解決策 全体 (成功指標を測る仕組みを含む) が 1 PR で終わる
+ - Sub Issue が無い。既にあれば (やり直し)、今までどおり Sub Issue で進めてください
+
+1. この Issue に実装の着手コメント (下の 1 つ目のコマンド) があれば、実装が始まっています。本文を変えず、`/dev:blocked` の「2. 止める」で、どう直すかを人間に聞いてください。
+2. 本文 (下の 2 つ目のコマンド) の末尾に、`## やらないこと` と `## 完了条件` を書き足してください。書き方は `${CLAUDE_PLUGIN_ROOT}/templates/ISSUE_TEMPLATE/todo.md` の同じ欄に合わせます。既にあれば (やり直し)、書き足さずに直してください。ほかの欄は変えないでください。書いたら 3 つ目のコマンドで更新します。
+3. `claude:implement` が付いていなければ、付けてください (下の 4 つ目のコマンド)。実装ルーティンが始まります。
+
+```bash
+gh api --paginate "repos/{owner}/{repo}/issues/123/comments" --jq '.[] | select(.body | startswith("<!-- fastship:start -->") and contains("`claude:implement`")) | .id'
+gh api "repos/{owner}/{repo}/issues/123" --jq .body > /tmp/issue.md
+jq -n --rawfile body /tmp/issue.md '{body:$body}' \
+  | gh api --method PATCH "repos/{owner}/{repo}/issues/123" --input - > /dev/null
+gh api --method POST "repos/{owner}/{repo}/issues/123/labels" -f "labels[]=claude:implement" > /dev/null
+```
 
 ### やり直しのとき
  - 着手前の Sub Issue (5 の条件のうち、依存 以外を満たすもの) は、本文と依存を直すか、不要なら閉じてください。
@@ -103,18 +122,18 @@ gh api --method POST "repos/{owner}/{repo}/issues/123/sub_issues" -F sub_issue_i
 1. 次の条件をすべて満たす Sub Issue に、`claude:implement` を付けてください。実装ルーティンが始まります。
    - open である
    - `claude:implement` / `claude:blocked` が付いていない
-   - 着手コメント (`<!-- fastship:start -->` で始まる) が無い。実装を始めた後に止まった Sub Issue に付け直さないためです
+   - 実装の着手コメント (`<!-- fastship:start -->` で始まり、`` `claude:implement` `` を含む) が無い。実装を始めた後に止まった Sub Issue に付け直さないためです
    - 依存 (Blocked by) の Issue がすべて closed である (依存が無い場合を含む)
 
    open かどうかとラベルは、2 の Sub Issue の一覧で確かめてください。依存は下の 1 つ目のコマンドで確かめ、エラーが無く何も出なければ満たしています。エラーが出たら、満たしていないものとして扱ってください。親 Issue の外の Issue への依存も含まれます。
 
 ```bash
 gh api --paginate "repos/{owner}/{repo}/issues/<Sub Issue の番号>/dependencies/blocked_by" --jq '.[] | select(.state == "open") | "#\(.number)"'
-gh api --paginate "repos/{owner}/{repo}/issues/<Sub Issue の番号>/comments" --jq '.[] | select(.body | startswith("<!-- fastship:start -->")) | .id'
+gh api --paginate "repos/{owner}/{repo}/issues/<Sub Issue の番号>/comments" --jq '.[] | select(.body | startswith("<!-- fastship:start -->") and contains("`claude:implement`")) | .id'
 gh api --method POST "repos/{owner}/{repo}/issues/<Sub Issue の番号>/labels" -f "labels[]=claude:implement" > /dev/null
 ```
 
-2. 下の形式で `/tmp/refine_done.md` を書き、次を 1 回の Bash で実行してください。親 Issue にコメントしてから `claude:refine` を外し、判断待ちのラベルを合わせます。
+2. 下の形式 (1 PR で済むときは 2 つ目) で `/tmp/refine_done.md` を書き、次を 1 回の Bash で実行してください。親 Issue にコメントしてから `claude:refine` を外し、判断待ちのラベルを合わせます。
    - `claude:refine` を外しておくと、やり直すときに開発者が付け直せます。
    - リファインメントの間に差し戻されて課題分析が終わっていれば、`claude:analyzed` が付きます (承認待ち)。やり直しで残りの Sub Issue を閉じて、すべて閉じていれば `claude:shipped` が付きます。
 
@@ -141,23 +160,39 @@ Sub Issue に分けました。上から着手順です。
 **やり直すには**: 直してほしい点をコメントし、`claude:refine` を付け直してください。着手前の Sub Issue を直します。
 ```
 
-## 6. 後続に着手する (Sub Issue が閉じたとき)
-閉じた Sub Issue には `claude:refine` が無いため、`/dev:blocked` の「1. 始める」は行いません。コメントもしません。
+```markdown
+<!-- fastship:refine -->
+## ✂️ リファインメントが終わりました
 
-1. 親 Issue の番号を取得してください。何も出なければ、Sub Issue ではないか、親 Issue が別のリポジトリにあります。何もせずに終えてください。以降のコマンドは、このリポジトリの番号として扱うためです。
+1 PR で済むため、Sub Issue に分けず、この Issue をそのまま実装します。本文に やらないこと・完了条件 を書き足しました。🧑‍💻 着手しました
+
+<やり直しのときだけ、前回から変えたことを 1〜3 行で書く>
+
+実装が始まらないときは、この Issue に `claude:implement` を付けてください。
+
+**やり直すには**: 直してほしい点をコメントし、`claude:refine` を付け直してください。実装を始める前なら本文を直します。
+```
+
+## 6. 後続に着手する (Sub Issue が閉じたとき)
+閉じた Issue には `claude:refine` が無いため、`/dev:blocked` の「1. 始める」は行いません。コメントもしません。
+
+1. 閉じた Issue にリファインメントの完了コメントがあるか確かめてください (下の 1 つ目のコマンド)。何か出たら、1 PR で済むとしてそのまま実装した Issue が閉じています。後続の Sub Issue は無いので、何もせずに終えてください。その Issue に親 Issue があっても、親の Sub Issue には着手しません。親はリファインメントで分けたものではなく、承認されていない Issue の実装が始まってしまうためです。
+2. 親 Issue の番号を取得してください (下の 2 つ目のコマンド)。何も出なければ、Sub Issue ではないか、親 Issue が別のリポジトリにあります。何もせずに終えてください。以降のコマンドは、このリポジトリの番号として扱うためです。
 
 ```bash
+gh api --paginate "repos/{owner}/{repo}/issues/123/comments" \
+  --jq '.[] | select((.body | startswith("<!-- fastship:refine -->")) and (.author_association | test("^(OWNER|MEMBER|COLLABORATOR)$"))) | .id'
 gh api "repos/{owner}/{repo}/issues/123" \
   --jq '.repository_url as $repo | .parent_issue_url // empty | select(startswith($repo + "/issues/")) | split("/") | last'
 ```
 
-2. 親 Issue の Sub Issue を読み、5 の条件をすべて満たすものに `claude:implement` を付けてください。確かめ方は 5 と同じです。
+3. 親 Issue の Sub Issue を読み、5 の条件をすべて満たすものに `claude:implement` を付けてください。確かめ方は 5 と同じです。
 
 ```bash
 gh api --paginate "repos/{owner}/{repo}/issues/<親 Issue の番号>/sub_issues" --jq '.[] | "#\(.number) \(.state) [\([.labels[].name] | join(", "))] \(.title)"'
 ```
 
-3. 親 Issue の判断待ちのラベルを合わせてください。Sub Issue がすべて閉じていれば `claude:shipped=yes` と出て、親 Issue に `claude:shipped` が付きます。FastShip プロジェクトの成功指標の確認待ちに載り、開発者が ⑫ で確かめます。付かないときは、理由が括弧の中に出ます。
+4. 親 Issue の判断待ちのラベルを合わせてください。Sub Issue がすべて閉じていれば `claude:shipped=yes` と出て、親 Issue に `claude:shipped` が付きます。FastShip プロジェクトの成功指標の確認待ちに載り、開発者が ⑫ で確かめます。付かないときは、理由が括弧の中に出ます。
 
 ```bash
 bash "${CLAUDE_PLUGIN_ROOT}/scripts/waiting.sh" sync <親 Issue の番号>
