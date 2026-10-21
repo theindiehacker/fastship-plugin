@@ -42,6 +42,8 @@ graph LR;
 
     Developer -->|⑪ マージ・リリース<br/>⑫ 成功指標を確認| Project
 
+    retrospective -->|⑬ 振り返りと改善 Issue を起票<br/>+ 🏷️ <code>claude:analysis</code>| Repository
+
     ClaudeCode -.->|❓ 質問・差し戻し<br/>+ 🏷️ <code>claude:blocked</code>| Repository
 ```
 
@@ -54,6 +56,7 @@ graph LR;
 | `claude:implement` | 🧠 Claude | Sub Issue の実装を始める |
 | `claude:under-review` | 🧠 Claude | PR のレビューを始める |
 | `claude:blocked` | 🧠 Claude | 人間の回答を待っている |
+| `claude:retrospective` | 🧠 Claude | 振り返りの結果 (ルーティンは起動しない) |
 
 ## 🧑‍💻 人間が判断すること
 
