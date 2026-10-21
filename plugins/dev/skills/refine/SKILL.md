@@ -6,9 +6,9 @@ argument-hint: "{Issue の番号}"
 
 # ✂️ リファインメント
 
-`claude:refine` が付いた Issue を Sub Issue に分解し、実装を始めてください。Sub Issue が閉じて起動したときは、6 だけを行ってください。
+`claude:refine` が付いた Issue を Sub Issue に分解し、実装を始めてください。Sub Issue が閉じて起動したときは、1 で見分けて 6 だけを行います。
 
-GitHub は `gh api` (REST) で操作します。コマンドの `123` は Issue の番号に置き換えてください。
+GitHub は `gh api` (REST) で操作します。コマンドの `123` は、トリガーになった Issue の番号に置き換えてください。
 
 ## 1. 始める
 Issue の状態を確かめてください。
@@ -36,7 +36,8 @@ gh api --paginate "repos/{owner}/{repo}/issues/123/sub_issues" --jq '.[] | "#\(.
 ## 3. 分解する
  - 1 つの Sub Issue は 1 PR で終わる大きさにしてください。目的が 1 つで、レビューで読み切れる量が目安です。
  - 単独でマージしても壊れず、テストが通る単位にしてください。層 (DB / API / UI) ではなく、確かめられる振る舞いで分けてください。
- - 解決策 が 1 PR で終わるなら、Sub Issue は 1 つで構いません。解決策 に無いことは Sub Issue にしないでください。
+ - 解決策 全体が 1 PR で終わるなら、分けずに Sub Issue を 1 つにしてください。分けるのは 1 PR に収まらないときだけです。
+ - 解決策 に無いことは Sub Issue にしないでください。
  - 成功指標を測る仕組み (ログ・計測など) が要るなら、それも Sub Issue にしてください。
  - 依存 は、前の Sub Issue のコードが無いと作れないときだけ書いてください。並行できるものは「なし」にすると、同時に実装が始まります。
 
@@ -78,7 +79,10 @@ gh api --method POST "repos/{owner}/{repo}/issues/123/sub_issues" -F sub_issue_i
    - 着手コメント (`<!-- fastship:start -->` で始まる) が無い。実装を始めた後に止まった Sub Issue に付け直さないためです
    - 依存 の Issue がすべて closed である (「なし」を含む)
 
+   open かどうかとラベルは、2 の Sub Issue の一覧で確かめてください。親 Issue の外の Issue が 依存 にあれば、その state も確かめてください。
+
 ```bash
+gh api "repos/{owner}/{repo}/issues/<依存の番号>" --jq .state
 gh api --paginate "repos/{owner}/{repo}/issues/<Sub Issue の番号>/comments" --jq '.[] | select(.body | startswith("<!-- fastship:start -->")) | .id'
 gh api --method POST "repos/{owner}/{repo}/issues/<Sub Issue の番号>/labels" -f "labels[]=claude:implement" > /dev/null
 ```
@@ -100,7 +104,7 @@ Sub Issue に分けました。上から着手順です。
 1. #<番号> (依存: なし) 🧑‍💻 着手しました
 2. #<番号> (依存: #<番号>)
 
-<やり直しのときは、前回から変えたことを 1〜3 行で書く>
+<やり直しのときだけ、前回から変えたことを 1〜3 行で書く>
 
 依存の無い Sub Issue から実装を始めました。残りは、依存する Sub Issue が閉じると始まります。始まらないときは、その Sub Issue に `claude:implement` を付けてください。
 
@@ -116,7 +120,7 @@ Sub Issue に分けました。上から着手順です。
 gh api "repos/{owner}/{repo}/issues/123" --jq '.parent_issue_url // empty | split("/") | last'
 ```
 
-2. 親 Issue の Sub Issue を読み、5 の条件をすべて満たすものに `claude:implement` を付けてください。依存 は各 Sub Issue の本文から読んでください。
+2. 親 Issue の Sub Issue を読み、5 の条件をすべて満たすものに `claude:implement` を付けてください。依存 は各 Sub Issue の本文から読み、確かめ方は 5 と同じです。
 
 ```bash
 gh api --paginate "repos/{owner}/{repo}/issues/<親 Issue の番号>/sub_issues" --jq '.[] | "#\(.number) \(.state) [\([.labels[].name] | join(", "))] \(.title)"'
