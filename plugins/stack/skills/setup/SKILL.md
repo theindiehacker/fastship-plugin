@@ -1,6 +1,6 @@
 ---
 name: setup
-description: 対象リポジトリに技術スタック (bun / Biome・uv / Ruff / Pyright・lefthook) の設定を入れる。既にある設定と違うときは、差分を見せて確認してから置き換える。/dev:setup から使う。使い方 → /stack:setup
+description: 対象リポジトリに技術スタック (bun / Biome・knip・uv / Ruff / Pyright・lefthook) の設定を入れる。既にある設定と違うときは、差分を見せて確認してから置き換える。/dev:setup から使う。使い方 → /stack:setup
 ---
 
 # 🧰 技術スタックの導入
@@ -33,6 +33,7 @@ stack プラグインの hook (整形・lint・型チェック) は、ここで�
    - その dir に `.gitignore` が無いと Biome が止まります。`vcs.root` にリポジトリ直下への相対パス (例: `"../"`) を書いてください。
 3. ESLint・Prettier を置き換えるなら、`bunx biome migrate eslint --write` と `bunx biome migrate prettier --write` で設定を移してから、`bun remove` で外し、設定ファイルを消してください。
 4. `package.json` の `scripts` に `"lint": "biome check"` と `"format": "biome check --write"` を足してください。
+5. `bun add -d --exact knip` で knip (使っていない依存を見つける) を入れてください。TypeScript のパッケージで `typescript` が devDependencies に無ければ、`bun add -d --exact typescript` で入れます。org の必須ワークフロー (🔷 typescript) が `biome`・`knip`・`typescript` を devDependencies に求め、無いと PR をマージできないためです。
 
 ## 4. Python (パッケージの dir ごと)
 1. uv に置き換えるなら、Poetry は `uvx migrate-to-uv`、`requirements.txt` は `uv init --bare` と `uv add -r requirements.txt` で移してください。
@@ -52,6 +53,7 @@ stack プラグインの hook (整形・lint・型チェック) は、ここで�
 ```bash
 bunx biome check .
 bunx tsc --noEmit
+bun run knip --dependencies
 uv run ruff check
 uv run ruff format --check
 uv run pyright
