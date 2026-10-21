@@ -11,7 +11,7 @@ description: FastShip のルーティン (課題分析・リファインメン�
 |:--|:--|:--|:--|
 | 課題分析 | `claude:analysis` | Issue | `issues.labeled` |
 | リファインメント | `claude:refine` | Issue | `issues.labeled` |
-| 実装 | `claude:implement` | Sub Issue。PR を作った後は PR | `issues.labeled` / `pull_request.labeled` |
+| 実装 | `claude:implement` | Sub Issue (1 PR で済むときは Issue)。PR を作った後は PR | `issues.labeled` / `pull_request.labeled` |
 | レビュー | `claude:under-review` | PR | `pull_request.labeled` |
 
 どちらの手順も `${CLAUDE_PLUGIN_ROOT}/scripts/blocked.sh` で行います。GitHub は `gh api` (REST) で操作します。

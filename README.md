@@ -24,7 +24,7 @@ graph LR;
 
     subgraph ClaudeCode ["💻 Claude Code on the Web"]
         analysis(["🤔 <b style='font-size: larger;'>〇〇 / 課題分析</b><br/>課題の解像度と解の質を高め、成功指標を決める"])
-        refinement(["✂️ <b  style='font-size: larger;'>〇〇 / リファインメント</b><br/>Sub Issue に分解する"])
+        refinement(["✂️ <b  style='font-size: larger;'>〇〇 / リファインメント</b><br/>Sub Issue に分解する<br/>1 PR で済むなら分けない"])
         implement(["🧑‍💻 <b  style='font-size: larger;'>〇〇 / 実装</b><br/>ドメイン駆動設計 + テスト駆動開発"])
         review(["✔️ <b  style='font-size: larger;'>〇〇 / レビュー</b><br/>コードレビュー / セキュリティレビュー"])
     end
@@ -32,7 +32,7 @@ graph LR;
     Claude -->|① Issue を起票<br/>+ 🏷️ <code>claude:analysis</code>| Repository -->|② 起動| analysis
     analysis -->|③ 課題・解決策・成功指標を<br/>Issue に追記<br/>+ 🏷️ <code>claude:analyzed</code>| Repository
     Developer(("🧑‍💻")) -->|④ 確認・承認<br/>+ 🏷️ <code>claude:refine</code>| Project
-    Repository -->|⑤ 起動| refinement -->|⑥ Sub Issue を起票する<br/>+ 🏷️ <code>claude:implement</code>| Repository
+    Repository -->|⑤ 起動| refinement -->|⑥ Sub Issue を起票する<br/>(1 PR で済むなら Issue のまま)<br/>+ 🏷️ <code>claude:implement</code>| Repository
     
     Repository -->|⑦ 起動| implement -->|⑧ PR を作成| Repository
     
@@ -143,8 +143,8 @@ Claude Code からも `/dev:issue` で起票できます。Slack (Claude Tag) �
 | `/dev:setup [owner/repo]` | 🧑‍💻 開発者 (導入・更新) | ラベル・ルーティン・テンプレート・FastShip プロジェクトを導入し、PR を作る |
 | `/dev:issue [owner/repo] {内容}` | 🧑 誰でも (① 起票) | 背景と参考資料を聞き、`claude:analysis` を付けて起票する |
 | `/dev:analysis {Issue}` | 課題分析ルーティン (③) | 課題・解決策・成功指標を書き、`claude:analyzed` を付ける |
-| `/dev:refine {Issue}` | リファインメントルーティン (⑤⑥) | 1 PR で終わる Sub Issue に分解し、`claude:implement` を付ける |
-| `/dev:implement {Sub Issue / PR}` | 実装ルーティン (⑦⑧) | ドメイン駆動設計 + テスト駆動開発で実装し、PR を作って `claude:under-review` を付ける |
+| `/dev:refine {Issue}` | リファインメントルーティン (⑤⑥) | 1 PR で終わる Sub Issue に分解し、`claude:implement` を付ける。1 PR で済むなら分けず、Issue に完了条件を書き足して `claude:implement` を付ける |
+| `/dev:implement {Sub Issue / Issue / PR}` | 実装ルーティン (⑦⑧) | ドメイン駆動設計 + テスト駆動開発で実装し、PR を作って `claude:under-review` を付ける |
 | `/dev:review {PR}` | レビュールーティン (⑨⑩) | コードレビューとセキュリティレビューをし、✅ なら `claude:approved` を付ける |
 | `/dev:blocked` | 課題分析・リファインメント・実装・レビューのルーティン | 多重起動を防ぎ、判断できないときは質問して `claude:blocked` を付ける |
 | `/dev:push-pr` | 🧑‍💻 開発者 / 実装ルーティン | PR テンプレートに沿って PR を作成・更新する |
@@ -158,7 +158,7 @@ Claude Code からも `/dev:issue` で起票できます。Slack (Claude Tag) �
 | `claude:analysis` | 🧠 Claude | 課題分析を始める |
 | `claude:analyzed` | 🧠 Claude | 課題分析が終わり、承認を待っている (ルーティンは起動しない) |
 | `claude:refine` | 🧑‍💻 開発者 | 課題分析の結果を承認し、リファインメントを始める |
-| `claude:implement` | 🧠 Claude | Sub Issue の実装を始める |
+| `claude:implement` | 🧠 Claude | Sub Issue (1 PR で済むときは Issue) の実装を始める |
 | `claude:under-review` | 🧠 Claude | PR のレビューを始める |
 | `claude:approved` | 🧠 Claude | レビューが ✅ になった (ルーティンは起動しない) |
 | `claude:blocked` | 🧠 Claude | 人間の回答を待っている |
