@@ -1,6 +1,6 @@
 ---
 name: review
-description: FastShip の ⑨⑩ レビュー。claude:under-review が付いた PR を、Claude Code 同梱の /code-review と /security-review、Sub Issue の完了条件でレビューし、結果を ✅ / 🛑 で PR に返す。PR はレビューの間 Draft にし、✅ なら Ready for review にする。🛑 の指摘は実装のセッションが直し、再レビューを頼む。判断できないときは claude:blocked で人間に返す。レビュールーティンから使う。使い方: /dev:review {PR の番号}
+description: FastShip の ⑨⑩ レビュー。claude:under-review が付いた PR を、Claude Code 同梱の /code-review と /security-review、Sub Issue の完了条件でレビューし、結果を ✅ / 🛑 で PR に返す。PR はレビューの間 Draft にし、✅ なら Ready for review にする。🛑 の指摘は実装のセッションが直し、再レビューを頼む。判断できないときは claude:blocked で人間に返す。ルーティンから使う。使い方: /dev:review {PR の番号}
 argument-hint: "{PR の番号}"
 ---
 

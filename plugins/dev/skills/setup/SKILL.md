@@ -70,76 +70,65 @@ gh label delete <ラベル> --yes -R {owner/repo}
 ```
 
 ### 4.2 ルーティン
-RemoteTrigger ツールで次のルーティンをそれぞれ用意し、URL (`https://claude.ai/code/routines/{ID}`) をユーザーに伝えてください。
-
-| ルーティン | 名前 | トリガー |
-|:--|:--|:--|
-| 課題分析 | `{リポジトリ名} / 課題分析` | `issues.labeled` で、Issue のラベルに `claude:analysis` を含む場合 |
-| リファインメント | `{リポジトリ名} / リファインメント` | `issues.labeled` で、Issue のラベルに `claude:refine` を含む場合。`issues.closed` で、Issue のラベルに `claude:implement` を含む場合。closed は、Sub Issue が閉じたときに後続の Sub Issue に着手するのに使う。1 PR で済むとしてそのまま実装した Issue が閉じたときも起動するが、何もせずに終わる |
-| 実装 | `{リポジトリ名} / 実装` | `issues.labeled` / `pull_request.labeled` で、Issue / PR のラベルに `claude:implement` を含む場合。PR は、PR で止めたときの再開に使う |
-| レビュー | `{リポジトリ名} / レビュー` | `pull_request.labeled` で、PR のラベルに `claude:under-review` を含む場合。実装は push を終えてからこのラベルを付けるため、`opened` / `synchronize` は使わない |
-
-どのルーティンも次の設定にしてください。
+RemoteTrigger ツールで、FastShip のルーティンを 1 つ用意し、URL (`https://claude.ai/code/routines/{ID}`) をユーザーに伝えてください。課題分析・リファインメント・実装・レビューは、1 つのルーティンが Issue / PR のラベルを見て選びます。
 
 | 項目 | 値 |
 |:--|:--|
+| 名前 | `{リポジトリ名} / FastShip` |
 | リポジトリ | 対象リポジトリのみ |
-| 環境 | 既存の ` / 課題分析` / ` / リファインメント` / ` / 実装` / ` / レビュー` ルーティンと同じ (無ければユーザーに確認) |
+| 環境 | 既存の ` / FastShip` ルーティンと同じ。無ければ 0.14.0 以前のルーティン (` / 課題分析` / ` / リファインメント` / ` / 実装` / ` / レビュー`) と同じ。どちらも無ければユーザーに確認 |
 | モデル | `claude-opus-5-5` |
 | ツール | claude.ai の既定 (`session_context.allowed_tools` を `["preset:default"]` にする) |
 | コネクタ | なし |
 | 通知 | プッシュ通知のみ |
 | プロンプト | 下記 |
 
-課題分析:
+トリガーは次の 3 本です。
+
+| イベント | ラベル (どれかを含む場合) | 使う工程 |
+|:--|:--|:--|
+| `issues.labeled` | `claude:analysis` / `claude:refine` / `claude:implement` | 課題分析・リファインメント・実装 |
+| `issues.closed` | `claude:implement` | リファインメント (Sub Issue が閉じたときに、後続の Sub Issue に着手する。1 PR で済むとしてそのまま実装した Issue が閉じたときも起動するが、何もせずに終わる) |
+| `pull_request.labeled` | `claude:implement` / `claude:under-review` | 実装 (PR で止めたときの再開)・レビュー。実装は push を終えてから `claude:under-review` を付けるため、`opened` / `synchronize` は使わない |
+
+プロンプト:
 
 ```text
-Issue の課題分析を /dev:analysis で行ってください。
+GitHub のイベントで起動しました。トリガーになった Issue / PR に、FastShip の工程を 1 つ行ってください。
+1. Issue (PR ではない) が closed なら、/dev:refine で行ってください。Sub Issue が閉じたときの後続の着手です。
+2. それ以外は、Issue / PR に付いているラベルを見て、次の順に試してください。スキルの「1. 始める」で STOP と出たら、次を試してください。どれも STOP か、ラベルが無ければ、何もせずに終えてください。
+   - claude:under-review → /dev:review
+   - claude:implement → /dev:implement
+   - claude:refine → /dev:refine
+   - claude:analysis → /dev:analysis
 ```
 
-リファインメント:
-
-```text
-Issue のリファインメントを /dev:refine で行ってください。
-```
-
-実装:
-
-```text
-Issue / PR の実装を /dev:implement で行ってください。
-```
-
-レビュー:
-
-```text
-PR のレビューを /dev:review で行ってください。
-```
+ - 工程は、イベントの種類ではなく Issue / PR の状態とラベルで選びます。セッションに渡るイベントの内容は、ルーティンのドキュメントに書かれていないためです。`issues.closed` で起動するのは closed の Issue だけなので、状態で見分けられます。
+ - 「1. 始める」(`blocked.sh start`) は、ラベルが付いた後にまだ着手していなければ `CONTINUE`、それ以外は何も変えずに `STOP` を返します。このため、付いたばかりのラベルの工程だけが動きます (例: `claude:implement` と `claude:under-review` が付いた PR に `claude:under-review` を付け直すと、実装は着手済みで `STOP` になり、レビューが動く)。
 
 ```mermaid
 flowchart LR
-    list["list"] --> exists{"名前が ' / {ルーティン}' で終わり<br/>sources の先頭が対象リポジトリ"}
+    list["list"] --> exists{"名前が ' / FastShip' で終わり<br/>sources の先頭が対象リポジトリ"}
     exists -->|ある| get["get"] --> update["update<br/>プロンプトとモデルだけ差し替える"]
     exists -->|ない| more{"has_more"}
     more -->|true| ask["ユーザーに確認"]
     ask -->|ある| get
     ask -->|ない| create
-    more -->|false| create["create"] --> clear["update<br/>コネクタを外し、プッシュ通知のみにする"] --> trigger["create_webhook_trigger"]
+    more -->|false| create["create"] --> clear["update<br/>コネクタを外し、プッシュ通知のみにする"] --> trigger["create_webhook_trigger<br/>3 本"]
 ```
 
- - `list`: 返るのは 20 件までで、続きは取れない (`next_cursor` を渡しても同じページが返る)。`has_more` が true のときに見つからないルーティンは、無いとみなさない (重複して作らないため)。https://claude.ai/code/routines に `{リポジトリ名} / {工程}` があるかユーザーに確認し、あれば URL の `trig_…` で `get` する。無ければ `create` する
- - 既存の `update`: `get` した `job_config` を丸ごと送り、`ccr.events[0].data.message.content` と `ccr.session_context.model` だけを変える。トリガーは API から見えず重複に気づけないため、追加しない。次のルーティンには PR のトリガーが無いので、https://claude.ai/code/routines で確認し、無ければ手動で追加するよう案内する
-   - 0.3.0 以前に作った実装のルーティン
-   - 0.12.1 以前に作った実装・レビューのルーティン (PR のトリガーの field を誤っていて、作れなかった)
- - `create`: `/schedule` スキルの書き方に従う。`run_once_at` と `cron_expression` は付けない。実装は PR を作るので、`session_context` に `"autofix_on_pr_create": true` を付ける
+ - `list`: 返るのは 20 件までで、続きは取れない (`next_cursor` を渡しても同じページが返る)。`has_more` が true のときに見つからないルーティンは、無いとみなさない (重複して作らないため)。https://claude.ai/code/routines に `{リポジトリ名} / FastShip` があるかユーザーに確認し、あれば URL の `trig_…` で `get` する。無ければ `create` する
+ - 既存の `update`: `get` した `job_config` を丸ごと送り、`ccr.events[0].data.message.content` と `ccr.session_context.model` だけを変える。トリガーは API から見えず重複に気づけないため、追加しない
+ - `create`: `/schedule` スキルの書き方に従う。`run_once_at` と `cron_expression` は付けない。実装は PR を作るので、`session_context` に `"autofix_on_pr_create": true` を付ける。課題分析・リファインメント・レビューは PR を作らないため、付いていても何も起きない
  - 新規の `update`: `{"clear_mcp_connections": true, "notifications": {"channel": {"email": false, "push": true, "slack": false}}}` を送る (`create` は接続済みのコネクタをすべて付けるため)
- - `create_webhook_trigger`: 下記の body を、`{ラベル}` をトリガーのラベルに置き換えて送る。実装は PR 用に、`events` を `["pull_request.labeled"]`、`field` を `pr.labels` に変えた body も送る。レビューは `events` を `["pull_request.labeled"]`、`field` を `pr.labels`、`{ラベル}` を `claude:under-review` にした body だけを送る。PR のラベルの field は `pr.labels` で、`pull_request.labels` は `unknown field` で拒否される。リファインメントは Sub Issue の完了用に、`events` を `["issues.closed"]`、`{ラベル}` を `claude:implement` にした body も送る (実装は `claude:implement` を閉じるまで外さないため、実装した Sub Issue / Issue だけに絞れる)
- - `list` で ` / 振り返り` のルーティン (0.13.0 以前に作ったもの) が見つかったら、https://claude.ai/code/routines で消すようユーザーに案内する。振り返りは 0.14.0 で外した。`has_more` が true なら、あるかもしれないと伝える
+ - `create_webhook_trigger`: 上のトリガーの表の行ごとに、下記の body を、`events` をその行のイベントに、`values` をその行のラベルに置き換えて送る。`pull_request.labeled` は `field` を `pr.labels` にする。`pull_request.labels` は `unknown field` で拒否される
+ - `list` で 0.14.0 以前のルーティン (名前が ` / 課題分析` / ` / リファインメント` / ` / 実装` / ` / レビュー` / ` / 振り返り` で終わり、sources の先頭が対象リポジトリ) が見つかったら、名前と URL を伝え、https://claude.ai/code/routines で消すよう案内する。ルーティンは API で消せない。残すと ` / FastShip` と同じイベントで二重に起動する (「1. 始める」で片方は止まるが、Sub Issue が閉じたときのリファインメントは二重に動く)。`has_more` が true なら、あるかもしれないと伝える
  - RemoteTrigger や Claude GitHub App が使えない場合は、上の表の内容で https://claude.ai/code/routines から手動で作るよう案内する
 
 ルーティンの URL と一緒に、次の前提をユーザーに伝えてください (README の「🛟 ルーティンの前提」)。
  - ルーティンは、作った人の claude.ai アカウントに属し、チームでは共有されない。作った人の利用枠を使い、その人が抜けると止まる。そのときは、別の人が `/dev:setup` を実行し直して作り直す
  - `issues.labeled`・`issues.closed` のトリガーは、ルーティンのドキュメントに無い (載っている GitHub イベントは Pull request と Release だけ)
- - GitHub イベントは、毎時の上限を超えると捨てられる (上限の数値は公開されていない)
+ - GitHub イベントは、ルーティンごと・アカウントごとの毎時の上限を超えると捨てられる (上限の数値は公開されていない)。ルーティンが 1 つなので、すべての工程で 1 つの上限を分け合う
  - 動かなかった・途中で止まった Issue / PR は、進行中のラベルが付いたまま 4.4 の `⏳ 進行中` に残る。10 分以上進まないものは、ラベルを外して付け直す
 
 ```json
@@ -149,7 +138,7 @@ flowchart LR
   "hook_type": "app",
   "scope_id": "{owner/repo}",
   "events": ["issues.labeled"],
-  "filter": {"clauses": [{"field": "issue.labels", "op": "FILTER_OP_IN", "values": ["{ラベル}"]}]}
+  "filter": {"clauses": [{"field": "issue.labels", "op": "FILTER_OP_IN", "values": ["claude:analysis", "claude:refine", "claude:implement"]}]}
 }
 ```
 

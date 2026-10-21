@@ -66,7 +66,7 @@ flowchart LR
 dev は技術スタックに依存しません。bun / Biome・uv / Ruff / Pyright で開発するなら、`/plugin install stack@fastship` も実行します ([🧰 技術スタック](#-技術スタック-stack-プラグイン))。
 
 ### 2. `/dev:setup` を実行する
-対象リポジトリで `/dev:setup` を実行します (別のリポジトリなら `/dev:setup owner/repo`)。ラベル・ルーティン 4 つ・テンプレート・FastShip プロジェクトを用意し、PR を作ります。stack を入れていれば、技術スタックも入れるか聞きます。Actions の Claude レビューが PR で自動で動くなら、止めるか聞きます。導入済みなら最新版に更新します。
+対象リポジトリで `/dev:setup` を実行します (別のリポジトリなら `/dev:setup owner/repo`)。ラベル・ルーティン 1 つ・テンプレート・FastShip プロジェクトを用意し、PR を作ります。stack を入れていれば、技術スタックも入れるか聞きます。Actions の Claude レビューが PR で自動で動くなら、止めるか聞きます。導入済みなら最新版に更新します。
 
 3 と 4 は API で設定できないため、setup が案内したら画面で設定します。
 
@@ -157,6 +157,9 @@ Claude Code からも `/dev:issue` で起票できます。Slack (Claude Tag) �
    - FastShip プロジェクトの `⑪ マージ待ち` のフィルタを、画面で `is:pr is:open -is:draft -label:"claude:blocked" -label:"claude:under-review"` に直してください (ビューは API で直せません)
    - [4. Auto-add](#4-auto-add) のフィルタから `"claude:approved"` を外してください (残っていても害はありません)
    - 上げる前に作った open の PR は Ready のため、✅ の前でも `⑪ マージ待ち` に出ます。`claude:under-review` を付け直すと、⑨ が Draft に戻してレビューし直します
+ - ルーティンを 1 つ (`{リポジトリ名} / FastShip`) にまとめました。Issue / PR のラベルを見て、課題分析・リファインメント・実装・レビューを選びます。次を行ってください。
+   - `/dev:setup` を実行し直すと、`{リポジトリ名} / FastShip` のルーティンが作られます
+   - https://claude.ai/code/routines で、`{リポジトリ名} / 課題分析`・`/ リファインメント`・`/ 実装`・`/ レビュー` のルーティンを消してください (API では消せません)。残すと同じイベントで二重に起動し、Sub Issue が閉じたときのリファインメントが二重に動きます
 
 ## 🧰 スキル
 
@@ -164,12 +167,12 @@ Claude Code からも `/dev:issue` で起票できます。Slack (Claude Tag) �
 |:--|:--|:--|
 | `/dev:setup [owner/repo]` | 🧑‍💻 開発者 (導入・更新) | ラベル・ルーティン・テンプレート・FastShip プロジェクトを導入し、PR を作る |
 | `/dev:issue [owner/repo] {内容}` | 🧑 誰でも (① 起票) | 背景と参考資料を聞き、`claude:analysis` を付けて起票する |
-| `/dev:analysis {Issue}` | 課題分析ルーティン (③) | 課題・解決策・成功指標を書き、`claude:analyzed` を付ける |
-| `/dev:refine {Issue}` | リファインメントルーティン (⑤⑥) | 1 PR で終わる Sub Issue に分解し、`claude:implement` を付ける。1 PR で済むなら分けず、Issue に完了条件を書き足して `claude:implement` を付ける |
-| `/dev:implement {Sub Issue / Issue / PR}` | 実装ルーティン (⑦⑧) | ドメイン駆動設計 + テスト駆動開発で実装し、Draft の PR を作って `claude:under-review` を付ける |
-| `/dev:review {PR}` | レビュールーティン (⑨⑩) | コードレビューとセキュリティレビューをし、✅ なら PR を Ready for review にする |
-| `/dev:blocked` | 課題分析・リファインメント・実装・レビューのルーティン | 多重起動を防ぎ、判断できないときは質問して `claude:blocked` を付ける |
-| `/dev:push-pr` | 🧑‍💻 開発者 / 実装ルーティン | PR テンプレートに沿って PR を作成・更新する |
+| `/dev:analysis {Issue}` | ルーティン (③ 課題分析) | 課題・解決策・成功指標を書き、`claude:analyzed` を付ける |
+| `/dev:refine {Issue}` | ルーティン (⑤⑥ リファインメント) | 1 PR で終わる Sub Issue に分解し、`claude:implement` を付ける。1 PR で済むなら分けず、Issue に完了条件を書き足して `claude:implement` を付ける |
+| `/dev:implement {Sub Issue / Issue / PR}` | ルーティン (⑦⑧ 実装) | ドメイン駆動設計 + テスト駆動開発で実装し、Draft の PR を作って `claude:under-review` を付ける |
+| `/dev:review {PR}` | ルーティン (⑨⑩ レビュー) | コードレビューとセキュリティレビューをし、✅ なら PR を Ready for review にする |
+| `/dev:blocked` | ルーティン (課題分析・リファインメント・実装・レビュー) | 多重起動を防ぎ、判断できないときは質問して `claude:blocked` を付ける |
+| `/dev:push-pr` | 🧑‍💻 開発者 / ルーティン (⑦⑧ 実装) | PR テンプレートに沿って PR を作成・更新する |
 
 `/dev:implement` は、リポジトリの検査 (`CLAUDE.md`・CI に書かれたテスト・lint・型チェック) を自分で実行してから PR を作ります。技術スタックの hook (stack プラグイン) は要りません。
 
@@ -257,7 +260,7 @@ Claude だけで判断できないことがあると、ルーティンは処理�
 
  - ルーティンは、作った人の claude.ai アカウントに属し、チームでは共有されません。作った人の利用枠を使い、その人が抜けると止まります。そのときは、別の人が `/dev:setup` を実行し直して作り直してください。
  - FastShip が使う `issues.labeled`・`issues.closed` のトリガーは、[ルーティンのドキュメント](https://code.claude.com/docs/en/routines) にありません (載っている GitHub イベントは Pull request と Release だけです)。
- - GitHub イベントは、毎時の上限を超えると捨てられます。上限の数値は公開されていません。
+ - GitHub イベントは、ルーティンごと・アカウントごとの毎時の上限を超えると捨てられます。上限の数値は公開されていません。ルーティンは 1 つなので、すべての工程で 1 つの上限を分け合います。
 
 どの場合も、進行中のラベル (`claude:analysis` / `claude:refine` / `claude:implement` / `claude:under-review`) が付いたまま動きません。FastShip プロジェクトの `⏳ 進行中` をときどき見て、10 分以上進まないものはラベルを外して付け直してください。
 

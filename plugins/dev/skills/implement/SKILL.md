@@ -1,6 +1,6 @@
 ---
 name: implement
-description: FastShip の ⑦⑧ 実装。claude:implement が付いた Sub Issue (1 PR で済む Issue はその Issue) を、ドメイン駆動設計とテスト駆動開発で実装する。Sub Issue に紐付けた (Closes #N) テスト付きの PR を Draft で作り、claude:under-review でレビューに回す。レビューの指摘 (🛑 など) と CI の失敗に対応する。判断できないときは claude:blocked で人間に返す。PR で止めた後の再開 (PR に claude:implement) にも使う。実装ルーティンから使う。使い方: /dev:implement {Sub Issue または PR の番号}
+description: FastShip の ⑦⑧ 実装。claude:implement が付いた Sub Issue (1 PR で済む Issue はその Issue) を、ドメイン駆動設計とテスト駆動開発で実装する。Sub Issue に紐付けた (Closes #N) テスト付きの PR を Draft で作り、claude:under-review でレビューに回す。レビューの指摘 (🛑 など) と CI の失敗に対応する。判断できないときは claude:blocked で人間に返す。PR で止めた後の再開 (PR に claude:implement) にも使う。ルーティンから使う。使い方: /dev:implement {Sub Issue または PR の番号}
 argument-hint: "{Sub Issue または PR の番号}"
 ---
 

@@ -1,6 +1,6 @@
 ---
 name: refine
-description: FastShip の ⑤⑥ リファインメント。claude:refine が付いた (承認済みの) Issue を、1 PR で終わる Sub Issue に分解して起票し、親 Issue に紐付ける。1 PR で済む Issue は分けず、完了条件・やらないことを書き足して Issue に claude:implement を付ける。依存の無い Sub Issue に claude:implement を付けて実装を始める。Sub Issue が閉じたときは、依存が解けた Sub Issue に claude:implement を付け、すべて閉じていれば親 Issue を閉じる。リファインメントルーティンから使う。使い方: /dev:refine {Issue の番号}
+description: FastShip の ⑤⑥ リファインメント。claude:refine が付いた (承認済みの) Issue を、1 PR で終わる Sub Issue に分解して起票し、親 Issue に紐付ける。1 PR で済む Issue は分けず、完了条件・やらないことを書き足して Issue に claude:implement を付ける。依存の無い Sub Issue に claude:implement を付けて実装を始める。Sub Issue が閉じたときは、依存が解けた Sub Issue に claude:implement を付け、すべて閉じていれば親 Issue を閉じる。ルーティンから使う。使い方: /dev:refine {Issue の番号}
 argument-hint: "{Issue の番号}"
 ---
 
@@ -62,7 +62,7 @@ gh api --paginate "repos/{owner}/{repo}/issues/<Sub Issue の番号>/dependencie
 
 1. この Issue に実装の着手コメント (下の 1 つ目のコマンド) があれば、実装が始まっています。本文を変えず、`/dev:blocked` の「2. 止める」で、どう直すかを人間に聞いてください。
 2. 本文 (下の 2 つ目のコマンド) の末尾に、`## やらないこと` と `## 完了条件` を書き足してください。書き方は `${CLAUDE_PLUGIN_ROOT}/templates/ISSUE_TEMPLATE/todo.md` の同じ欄に合わせます。既にあれば (やり直し)、書き足さずに直してください。ほかの欄は変えないでください。書いたら 3 つ目のコマンドで更新します。
-3. `claude:implement` が付いていなければ、付けてください (下の 4 つ目のコマンド)。実装ルーティンが始まります。
+3. `claude:implement` が付いていなければ、付けてください (下の 4 つ目のコマンド)。実装が始まります。
 
 ```bash
 gh api --paginate "repos/{owner}/{repo}/issues/123/comments" --jq '.[] | select(.body | startswith("<!-- fastship:start -->") and contains("`claude:implement`")) | .id'
@@ -119,7 +119,7 @@ gh api --method POST "repos/{owner}/{repo}/issues/123/sub_issues" -F sub_issue_i
 ```
 
 ## 5. 着手する
-1. 次の条件をすべて満たす Sub Issue に、`claude:implement` を付けてください。実装ルーティンが始まります。
+1. 次の条件をすべて満たす Sub Issue に、`claude:implement` を付けてください。実装が始まります。
    - open である
    - `claude:implement` / `claude:blocked` が付いていない
    - 実装の着手コメント (`<!-- fastship:start -->` で始まり、`` `claude:implement` `` を含む) が無い。実装を始めた後に止まった Sub Issue に付け直さないためです
