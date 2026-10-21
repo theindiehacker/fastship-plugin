@@ -38,9 +38,11 @@ Sub Issue と親 Issue を読んでください。1 つ目のコマンドの最�
 gh api "repos/{owner}/{repo}/issues/<Sub Issue>" --jq '.title, .body, (.parent_issue_url // "" | split("/") | last)'
 gh api "repos/{owner}/{repo}/issues/<Sub Issue>/comments?per_page=100" --jq '.[] | "### \(.user.login) (\(.created_at))\n\(.body)\n"'
 gh api "repos/{owner}/{repo}/issues/<親 Issue>" --jq '.title, .body'
+gh api --paginate "repos/{owner}/{repo}/issues/<Sub Issue>/dependencies/blocked_by" --jq '.[] | "#\(.number) \(.state) \(.title)"'
 ```
 
  - Sub Issue の やること / やらないこと / 完了条件 が、実装する範囲です。
+ - 4 つ目のコマンドで出る Issue (Blocked by) は、この Sub Issue の依存です。先に終わった作業なので、そのコードを使ってください。
  - 親 Issue の 課題 / 解決策 は、なぜ作るのかと、どんな言葉で呼ぶのかを知るために読んでください。
  - リポジトリの規約 (`CLAUDE.md` など) と、近いコードとそのテストを読み、次を確かめてください: 層の分け方、名前の付け方、テストの書き方、テストと lint の実行方法。
 
@@ -112,7 +114,7 @@ gh api "repos/{owner}/{repo}/issues/<PR>" --jq '.labels[].name' | grep -qxF clau
 次のように Claude だけで判断できないときは、推測で作らず、`/dev:blocked` の「2. 止める」で人間に返してください。PR を作った後は PR の番号で実行し、`unsubscribe_pr_activity` で PR の購読を外してください。Sub Issue の `claude:implement` は残ります (5 を参照)。
 
  - 完了条件 があいまいで、どう作るかで振る舞いが大きく変わる
- - Sub Issue がリポジトリの今の作りと合わない。または 依存 のコードが無くて作れない
+ - Sub Issue がリポジトリの今の作りと合わない。または 依存 (Blocked by) の Issue のコードが無くて作れない
  - テストの仕組みが無く、何を入れるかで結果が大きく変わる
  - Sub Issue を決められない (PR に `Closes #N` が無い)
  - 前のセッションのブランチに push できない (403 など)
