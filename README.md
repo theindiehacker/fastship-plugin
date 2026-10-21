@@ -129,7 +129,12 @@ claude ラベルの付いた Issue / PR が、FastShip プロジェクトに自�
 setup が作った PR をマージします。
 
 ### 6. 起票する
-claude.ai のチャットで `/dev:issue [owner/repo] {やりたいこと}` を実行すると、背景と参考資料を聞かれ、`claude:analysis` 付きで起票されて ③ 課題分析が始まります。使う前に、メンバーそれぞれが 1 回だけ設定します。
+GitHub の UI で **New issue** → **🚀 バックログ** を選び、背景と参考資料を書いて起票します。`claude:analysis` が自動で付き、③ 課題分析が始まります。
+
+ - 書き込み権限 (Triage 以上) の無いメンバーが起票すると、ラベルが付かないことがあります (GitHub Docs に記載が無く、[Community の報告](https://github.com/orgs/community/discussions/22510) があります)。付いていなければ、権限のある人が `claude:analysis` を付けてください。
+ - FastShip プロジェクトの Draft Issue を Issue に変換したときは、テンプレートを通らずラベルが付きません。`claude:analysis` を手で付けてください。
+
+チャットで起票したい人は、`/dev:issue` も使えます (任意)。claude.ai のチャットで `/dev:issue [owner/repo] {やりたいこと}` を実行すると、背景と参考資料を聞かれ、`claude:analysis` 付きで起票されます。使う前に、メンバーそれぞれが 1 回だけ設定します。
 
 1. https://claude.ai/customize/plugins で **追加** → **マーケットプレイスを追加** を押し、`theindiehacker/fastship-plugin` を入れる
 
@@ -139,6 +144,9 @@ claude.ai のチャットで `/dev:issue [owner/repo] {やりたいこと}` を�
 3. **コネクタ** で GitHub を有効にし、起票先のリポジトリが見えるようにする
 
 Claude Code からも `/dev:issue` で起票できます。Slack (Claude Tag) からは使えません (org のプラグインしか使えず、org の GitHub 同期は private リポジトリしか受け付けないため)。
+
+### 0.14.0 に上げたとき
+ - `/dev:setup` を実行し直してください。`.github/ISSUE_TEMPLATE/backlog.md` の差分 (`labels: ["claude:analysis"]`) を見せて上書きしてよいか聞かれたら、上書きしてください。テンプレートをカスタマイズしていて上書きしない場合は、frontmatter の `labels` を `["claude:analysis"]` に直してください。
 
 ## 🧰 スキル
 
