@@ -15,6 +15,9 @@ cd "$top" || exit 0
 changed=$({ git diff --name-only --diff-filter=d HEAD 2> /dev/null; git ls-files --others --exclude-standard; } | sort -u)
 [ -n "$changed" ] || exit 0
 
+# pyright (PyPI) が実行のたびに新しい版を PyPI に問い合わせ、警告を出すのを止める (版はリポジトリが固定する)
+export PYRIGHT_PYTHON_IGNORE_WARNINGS=1
+
 report=$(mktemp)
 out=$(mktemp)
 trap 'rm -f "$report" "$out"' EXIT
