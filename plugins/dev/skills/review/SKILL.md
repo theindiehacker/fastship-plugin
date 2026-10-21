@@ -20,13 +20,18 @@ gh api --method DELETE "repos/{owner}/{repo}/issues/123/labels/claude:approved" 
 gh api "repos/{owner}/{repo}/pulls/123" --jq '.state, .base.ref'
 ```
 
- - `open` でなければ、`claude:under-review` を外して終えてください (下の 1 つ目のコマンド)。
- - `open` なら、PR の head を checkout してください (下の 2 つ目のコマンド)。最後に出た sha を控えてください。4 で、レビューした commit を示すのに使います。
+ - `open` でなければ、`claude:under-review` を外して終えてください。
+
+```bash
+gh api --method DELETE "repos/{owner}/{repo}/issues/123/labels/claude:under-review" > /dev/null
+```
+
+ - `open` なら、`claude:under-review` は付けたまま、PR の head を checkout してください。最後に出た sha を控えてください。4 で、レビューした commit を示すのに使います。
+   - `claude:under-review` は 4 で外します。付けたままにするのは、実装がレビュー中だと分かるようにするためと、途中で止まっても付け直せばやり直せるようにするためです。
    - フォークの PR も取れるよう、ブランチ名ではなく `refs/pull/123/head` を取ります。
    - `origin/HEAD` をベースに向けるのは、`/security-review` が `origin/HEAD` と比べるためです。
 
 ```bash
-gh api --method DELETE "repos/{owner}/{repo}/issues/123/labels/claude:under-review" > /dev/null
 git fetch origin "+refs/heads/<base>:refs/remotes/origin/<base>" "+refs/pull/123/head:refs/remotes/origin/pr/123" \
   && git checkout --detach origin/pr/123 && git remote set-head origin "<base>" && git rev-parse HEAD
 ```
@@ -54,10 +59,11 @@ gh api --paginate "repos/{owner}/{repo}/pulls/123/comments" \
 ```
 
 ## 3. レビューする
-1. Claude Code に同梱のスキルで、PR の差分をレビューしてください。結果が届くまで待ってから次に進んでください。
-   - コードレビュー: `/code-review origin/<base>...HEAD`。`--comment` / `--fix` は付けないでください。投稿は 4 で行い、修正は実装が行います。
-   - セキュリティレビュー: `/security-review`
-   - スキルが使えなければ、同じ観点 (バグ・脆弱性) で差分を自分で読んでください。
+1. Claude Code に同梱のスキルで、PR の差分をレビューしてください。差分が小さくても飛ばさないでください。
+   - コードレビュー: `/code-review high origin/<base>...HEAD`。effort は `high` に固定してください。`low` に下げると指摘が出なくなるためです。`--comment` / `--fix` は付けないでください。投稿は 4 で行い、修正は実装が行います。
+   - セキュリティレビュー: サブエージェント (Agent ツール) に、`/security-review` を実行して報告をそのまま返すよう頼んでください。このセッションで直接実行すると、報告がセッションの最後の回答になり、4 の前に終わることがあるためです。サブエージェントは前景で動かしてください (`run_in_background` を付けない)。裏で動かすと、結果を待つ間に回答が終わります。
+   - 結果が届いたら、終えずに 2 に進んでください。このセッションは、4 で PR に返すまで終わりません。
+   - スキルが使えないか、結果が空のときは、同じ観点 (バグ・脆弱性) で差分を自分で読んでください。
 2. 同梱のスキルが見ない、次の観点で差分を読んでください。
    - 完了条件を 1 つずつ満たしているか。満たすことを確かめるテストがあるか。自動テストで確かめられない条件は、PR の ✔️ 動作確認 に方法と結果があるか
    - やらないこと にあるものを作っていないか
