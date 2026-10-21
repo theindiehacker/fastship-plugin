@@ -6,6 +6,8 @@ model: sonnet
 
 # Pull Request 作成・更新
 
+ルーティン (`/dev:implement` など) から使うときは、チャットを誰も見ていない。判断を求める確認 (`AskUserQuestion` など) の代わりに、`/dev:blocked` の「2. 止める」で人間に返す。知らせるだけの案内 (「ユーザーに伝える」など) は、PR にコメントして続ける。ただし更新フローの 7-a の確認は行わず、7-b の部分更新だけを行う (前のセッションが書いた本文も「ユーザ追記あり」に当たり、毎回止まってしまうため)。
+
 ## 手順
 
 ### 1. ベースブランチの特定と変更内容の把握
@@ -72,7 +74,7 @@ claude-opus-5・フレッシュコンテキストで各レビューを実行す�
 `git diff "$BASE_BRANCH"...HEAD` に以下のいずれかが含まれるなら「要」と判定する:
 
 - 認証認可・セッション・トークン・パスワード・暗号・シークレットの取り扱いに触れる変更
-- テナント / User Pool 境界（`app_id` / `pool_id` / `owner_tenant_id` スコープ、RLS）に関わる変更
+- テナント・組織などのデータの境界（アクセスできる範囲の絞り込み、RLS）に関わる変更
 - 決済・Webhook 受信・外部システム連携の変更
 - 入力を解釈する処理（SQL / 外部コマンド / パス操作 / デシリアライズ / リダイレクト / CORS / Cookie）の変更
 - 新規 API エンドポイントの追加、権限チェックの変更
@@ -84,15 +86,9 @@ CI の指摘（該当行へのインラインコメントとして投稿され�
 レビューワークフローが未導入のリポジトリではコメントしても起動しないので、
 その場合はユーザーに伝える。
 
-**ローカルで確認するプロジェクト規約 (ruleset プラグインのルールに該当する変更がある場合):**
+**ローカルで確認するプロジェクト規約:**
 
-プロジェクト固有の定番違反は CI のセキュリティレビューの対象外なので、ローカルでチェックする。規約の単一情報源は ruleset プラグインの各 skill に集約しているので、ここでは節を列挙しない。変更ファイルに該当する skill を `Skill` ツールで読み込み、全節に照らして diff を読み直し、違反はコミット前に修正する (SKILL.md に節を複製しないことでドリフトを防ぐ):
-
-- `backend/src/**/*.py` の変更 → `ruleset:backend`（および索引 `ruleset:domain-model` から辿る domain / application の skill）
-- `backend/test/**/*.py` の変更 → `ruleset:backend-test`
-- `.github/**/*.yml` の変更 → `ruleset:github-workflows`
-- `*.tf` / `*.hcl` の変更 → `ruleset:terraform`
-- その他 (E2E) → `ruleset:e2e`
+プロジェクト固有の規約違反は CI のレビューの対象外なので、ローカルでチェックする。リポジトリの規約 (`CLAUDE.md`、規約のドキュメント、規約をまとめたスキルなど) のうち、変更ファイルに該当するものを読み、それに照らして diff を読み直し、違反はコミット前に修正する。
 
 ### 2. PR の存在確認
 
@@ -255,15 +251,13 @@ gh api --method POST "repos/{owner}/{repo}/pulls/${PR_NUMBER}/ccr/ready_for_revi
 ### 9. 既存 Diff コメントの削除
 
 更新前の古い Diff コメントを削除してから新しいコメントを投稿する。
-既存のレビューコメントを取得し、自分が投稿したコメントを削除する:
+削除するのは、ステップ 10 で投稿した Diff コメント (本文が `<!-- fastship:diff -->` で始まる) だけにする。
+claude.ai/code ではルーティン・レビュー・開発者が同じ GitHub アカウントで動くため、投稿者で絞ると指摘や返信まで消してしまう:
 
 ```bash
 # PR_NUMBER はステップ 1-a の値をリテラルで埋める
-CURRENT_USER=$(gh api user --jq .login)
-
-# 自分が投稿した Diff コメントの ID を取得して削除
-gh api repos/{owner}/{repo}/pulls/${PR_NUMBER}/comments \
-  --jq ".[] | select(.user.login == \"${CURRENT_USER}\") | .id" \
+gh api "repos/{owner}/{repo}/pulls/${PR_NUMBER}/comments?per_page=100" \
+  --jq '.[] | select(.body | startswith("<!-- fastship:diff -->")) | .id' \
   | while read -r comment_id; do
     gh api repos/{owner}/{repo}/pulls/comments/${comment_id} --method DELETE
   done
@@ -284,6 +278,7 @@ PR 作成・更新後、レビュアーが実装意図を理解できるよう�
   - 注意が必要なロジック
   - レビュアーが「なぜこうしたのか？」と疑問に思いそうな箇所
 - コメントは日本語で記載する
+- 本文の先頭に `<!-- fastship:diff -->` と改行を付ける (ステップ 9 で、これだけを削除するため)
 - 自明な変更（import の追加、フォーマット変更など）にはコメント不要
 - `side` は追加・変更行なら `RIGHT`、削除行なら `LEFT` を指定する
 - **プレフィックス (`[must]` / `[imo]` / `[ask]` / `[nits]`) は付けない** — 作成者の Diff コメントはレビュー指摘ではなく実装意図の補足説明なので、説明文として淡々と書く。
@@ -306,13 +301,13 @@ cat > /tmp/pr_review.json <<EOF
       "path": "対象ファイルパス",
       "line": 42,
       "side": "RIGHT",
-      "body": "コメント内容"
+      "body": "<!-- fastship:diff -->\nコメント内容"
     },
     {
       "path": "別のファイルパス",
       "line": 10,
       "side": "RIGHT",
-      "body": "別のコメント"
+      "body": "<!-- fastship:diff -->\n別のコメント"
     }
   ]
 }
