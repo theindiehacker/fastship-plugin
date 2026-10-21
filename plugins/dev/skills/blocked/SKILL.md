@@ -38,7 +38,7 @@ bash "${CLAUDE_PLUGIN_ROOT}/scripts/blocked.sh" stop 123 claude:implement /tmp/q
 
 4. 以降は何もせずに終えてください。`claude:blocked` が付いている間は、PR のイベントで起こされても対応しないでください。
 
- - 実装で PR を作った後は、PR の番号で実行し、末尾に Sub Issue の番号を足してください。Sub Issue の `claude:implement` も外します。
+ - 実装で PR を作った後は、PR の番号で実行してください。Sub Issue の `claude:implement` は外しません。リファインメントは、このラベルが付いた Sub Issue が閉じたときに後続に着手するためです。Sub Issue に別のラベルが付いて実装ルーティンが起動しても、着手コメントがあるので「1. 始める」で止まります。
  - ラベルを手で操作するときも、進行中ラベルを先に外してください。付いたまま `claude:blocked` を付けると、ルーティンがもう一度起動します。
 
 ```markdown

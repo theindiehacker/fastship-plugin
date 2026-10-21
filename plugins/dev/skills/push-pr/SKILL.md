@@ -6,7 +6,7 @@ model: sonnet
 
 # Pull Request 作成・更新
 
-ルーティン (`/dev:implement` など) から使うときは、チャットを誰も見ていない。`AskUserQuestion` やユーザーへの確認・案内の代わりに、`/dev:blocked` の「2. 止める」で人間に返す。
+ルーティン (`/dev:implement` など) から使うときは、チャットを誰も見ていない。判断を求める確認 (`AskUserQuestion` など) の代わりに、`/dev:blocked` の「2. 止める」で人間に返す。知らせるだけの案内 (「ユーザーに伝える」など) は、PR にコメントして続ける。ただし更新フローの 7-a の確認は行わず、7-b の部分更新だけを行う (前のセッションが書いた本文も「ユーザ追記あり」に当たり、毎回止まってしまうため)。
 
 ## 手順
 
@@ -107,7 +107,7 @@ PR テンプレートの正本は **FastShip プラグインの `${CLAUDE_PLUGIN
 
 読んだテンプレートに従って PR を作成する。**各セクションの埋め方（Sub Issue からの転記・🙆‍♂️ やったこと の書き方など）はテンプレートの HTML コメントに集約しているので、それを順守する**（SKILL.md に複製しない）。取得に失敗した場合のみ「💡 概要 / 🙆‍♂️ やったこと / 🙅‍♂️ やらないこと / ✔️ 動作確認」の構成で書く。
 
-対応する Sub Issue (`.github/ISSUE_TEMPLATE/todo.md` 構造) があれば、コメントの転記表に従って各セクションを書く。💡 概要 には `Closes #<Sub Issue の番号>` を 1 行で必ず書く (マージで Sub Issue が閉じ、後続の Sub Issue の実装が始まる)。完了条件は ✔️ 動作確認 にそのまま貼らず、確認した方法と結果を書く。無い PR (バグ修正・ドキュメントのみ等) は直接埋める。
+対応する Sub Issue (`.github/ISSUE_TEMPLATE/todo.md` 構造) があれば、コメントの転記表に従って各セクションを書く。完了条件は ✔️ 動作確認 にそのまま貼らず、確認した方法と結果を書く。無い PR (バグ修正・ドキュメントのみ等) は直接埋める。
 
 ### 4. チェックリスト
 
@@ -251,15 +251,13 @@ gh api --method POST "repos/{owner}/{repo}/pulls/${PR_NUMBER}/ccr/ready_for_revi
 ### 9. 既存 Diff コメントの削除
 
 更新前の古い Diff コメントを削除してから新しいコメントを投稿する。
-既存のレビューコメントを取得し、自分が投稿したコメントを削除する:
+削除するのは、ステップ 10 で投稿した Diff コメント (本文が `<!-- fastship:diff -->` で始まる) だけにする。
+claude.ai/code ではルーティン・レビュー・開発者が同じ GitHub アカウントで動くため、投稿者で絞ると指摘や返信まで消してしまう:
 
 ```bash
 # PR_NUMBER はステップ 1-a の値をリテラルで埋める
-CURRENT_USER=$(gh api user --jq .login)
-
-# 自分が投稿した Diff コメントの ID を取得して削除
-gh api repos/{owner}/{repo}/pulls/${PR_NUMBER}/comments \
-  --jq ".[] | select(.user.login == \"${CURRENT_USER}\") | .id" \
+gh api "repos/{owner}/{repo}/pulls/${PR_NUMBER}/comments?per_page=100" \
+  --jq '.[] | select(.body | startswith("<!-- fastship:diff -->")) | .id' \
   | while read -r comment_id; do
     gh api repos/{owner}/{repo}/pulls/comments/${comment_id} --method DELETE
   done
@@ -280,6 +278,7 @@ PR 作成・更新後、レビュアーが実装意図を理解できるよう�
   - 注意が必要なロジック
   - レビュアーが「なぜこうしたのか？」と疑問に思いそうな箇所
 - コメントは日本語で記載する
+- 本文の先頭に `<!-- fastship:diff -->` と改行を付ける (ステップ 9 で、これだけを削除するため)
 - 自明な変更（import の追加、フォーマット変更など）にはコメント不要
 - `side` は追加・変更行なら `RIGHT`、削除行なら `LEFT` を指定する
 - **プレフィックス (`[must]` / `[imo]` / `[ask]` / `[nits]`) は付けない** — 作成者の Diff コメントはレビュー指摘ではなく実装意図の補足説明なので、説明文として淡々と書く。
@@ -302,13 +301,13 @@ cat > /tmp/pr_review.json <<EOF
       "path": "対象ファイルパス",
       "line": 42,
       "side": "RIGHT",
-      "body": "コメント内容"
+      "body": "<!-- fastship:diff -->\nコメント内容"
     },
     {
       "path": "別のファイルパス",
       "line": 10,
       "side": "RIGHT",
-      "body": "別のコメント"
+      "body": "<!-- fastship:diff -->\n別のコメント"
     }
   ]
 }

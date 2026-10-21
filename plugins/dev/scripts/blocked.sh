@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # ルーティンの開始と、claude:blocked で人間に返す処理。手順は skills/blocked/SKILL.md を参照。
 #   blocked.sh start <番号> <進行中ラベル>
-#   blocked.sh stop  <番号> <進行中ラベル> <質問の本文ファイル> [<Sub Issue の番号>]
+#   blocked.sh stop  <番号> <進行中ラベル> <質問の本文ファイル>
 # claude.ai/code では GraphQL が 403 になるため、gh api (REST) だけを使う。PR も Issue の API で扱える。
 set -euo pipefail
 
@@ -79,16 +79,13 @@ start() { # <番号> <進行中ラベル>
   previous "$number"
 }
 
-stop() { # <番号> <進行中ラベル> <質問の本文ファイル> [<Sub Issue の番号>]
-  local number=$1 label=$2 file=$3 sub=${4:-}
+stop() { # <番号> <進行中ラベル> <質問の本文ファイル>
+  local number=$1 label=$2 file=$3
   comment "$number" "$BLOCKED_MARK
 $(cat "$file")" > /dev/null
 
   # 進行中ラベルを先に外す。付いたまま claude:blocked を足すと、ルーティンがもう一度起動する
   remove_label "$number" "$label"
-  if [ -n "$sub" ]; then
-    remove_label "$sub" "$label"
-  fi
   add_label "$number" "$BLOCKED_LABEL"
   echo "BLOCKED: #$number"
 }
@@ -98,7 +95,7 @@ case "${1:-}" in
   stop) shift; stop "$@" ;;
   *)
     echo "使い方: $0 start <番号> <進行中ラベル>" >&2
-    echo "        $0 stop <番号> <進行中ラベル> <質問の本文ファイル> [<Sub Issue の番号>]" >&2
+    echo "        $0 stop <番号> <進行中ラベル> <質問の本文ファイル>" >&2
     exit 1
     ;;
 esac
