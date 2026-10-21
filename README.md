@@ -144,22 +144,29 @@ GitHub の UI で **New issue** → **🚀 バックログ** を選び、背景�
 Claude Code からも `/dev:issue` で起票できます。Slack (Claude Tag) からは使えません (org のプラグインしか使えず、org の GitHub 同期は private リポジトリしか受け付けないため)。
 
 ### 0.14.0 に上げたとき
- - `/dev:setup` を実行し直してください。`.github/ISSUE_TEMPLATE/backlog.md` の差分 (`labels: ["claude:analysis"]`) を見せて上書きしてよいか聞かれたら、上書きしてください。テンプレートをカスタマイズしていて上書きしない場合は、frontmatter の `labels` を `["claude:analysis"]` に直してください。
- - ⑫ 成功指標の確認と ⑬ 振り返りを外しました。フローは ⑪ マージで終わり、成功指標は ④ 承認の判断に使います。次を行ってください。
-   - `/dev:setup` で `claude:shipped`・`claude:retrospective` を消すか聞かれたら、消してください
-   - https://claude.ai/code/routines で、`{リポジトリ名} / 振り返り` のルーティンを消してください
-   - FastShip プロジェクトの `⑫ 成功指標の確認待ち` のビューを、画面で消してください (ビューは API で消せません)
-   - [4. Auto-add](#4-auto-add) のフィルタから `"claude:shipped"` を外してください (残っていても害はありません)
- - `/dev:setup` を実行し直すと、FastShip プロジェクトに `⏳ 進行中` のビューが足されます。動かなかった・途中で止まった Issue / PR が載ります ([🛟 ルーティンの前提](#-ルーティンの前提))。setup を使わずにつないだ場合は、[📋 FastShip プロジェクト](#-fastship-プロジェクト) の表のとおりに画面で作ってください。
- - `/dev:setup` で、Actions の Claude レビュー (claude-code-action) を PR で自動で動かさないか聞かれたら、止めてください。⑨ と二重にレビューし、Actions の時間を使うためです。コメントでの依頼 (`/code-review` など) は残ります。org の必須ワークフローで動いているときは、org の管理者に止めてもらってください。
- - `claude:approved` をなくし、レビューの ✅ を PR の Ready で示すようにしました。実装は PR を Draft で作り、⑨ が ✅ のときに Ready にします。次を行ってください。
-   - `/dev:setup` で `claude:approved` を消すか聞かれたら、消してください
-   - FastShip プロジェクトの `⑪ マージ待ち` のフィルタを、画面で `is:pr is:open -is:draft -label:"claude:blocked" -label:"claude:under-review"` に直してください (ビューは API で直せません)
-   - [4. Auto-add](#4-auto-add) のフィルタから `"claude:approved"` を外してください (残っていても害はありません)
-   - 上げる前に作った open の PR は Ready のため、✅ の前でも `⑪ マージ待ち` に出ます。`claude:under-review` を付け直すと、⑨ が Draft に戻してレビューし直します
- - ルーティンを 1 つ (`{リポジトリ名} / FastShip`) にまとめました。Issue / PR のラベルを見て、課題分析・リファインメント・実装・レビューを選びます。次を行ってください。
-   - `/dev:setup` を実行し直すと、`{リポジトリ名} / FastShip` のルーティンが作られます
-   - https://claude.ai/code/routines で、`{リポジトリ名} / 課題分析`・`/ リファインメント`・`/ 実装`・`/ レビュー` のルーティンを消してください (API では消せません)。残すと同じイベントで二重に起動し、Sub Issue が閉じたときのリファインメントが二重に動きます
+仕組みを減らしました。
+
+ - ⑫ 成功指標の確認と ⑬ 振り返りを外しました。フローは ⑪ マージで終わり、成功指標は ④ 承認の判断に使います。Sub Issue がすべて閉じると、親 Issue も閉じます
+ - 1 PR で済む Issue は、Sub Issue を作らずに実装します
+ - 「🚀 バックログ」で起票すると、`claude:analysis` が自動で付きます
+ - `claude:approved` をなくしました。実装は PR を Draft で作り、⑨ が ✅ のときに Ready にします
+ - ルーティンを 1 つ (`{リポジトリ名} / FastShip`) にまとめました
+ - FastShip プロジェクトに `⏳ 進行中` のビューを足しました ([🛟 ルーティンの前提](#-ルーティンの前提))
+
+導入済みのリポジトリでは、次を行ってください。
+
+1. `/dev:setup` を実行し直す。聞かれたら次のように答える
+   - `.github/ISSUE_TEMPLATE/backlog.md` を上書きするか: 上書きする。カスタマイズしていて上書きしないなら、frontmatter の `labels` を `["claude:analysis"]` に直す
+   - `claude:shipped`・`claude:retrospective`・`claude:approved` を消すか: 消す
+   - Actions の Claude レビュー (claude-code-action) を PR で自動で動かさないか: 止める。⑨ と二重にレビューし、Actions の時間を使うため。コメントでの依頼 (`/code-review` など) は残る。org の必須ワークフローで動いているなら、org の管理者に止めてもらう
+2. https://claude.ai/code/routines で、`{リポジトリ名} / 課題分析`・`/ リファインメント`・`/ 実装`・`/ レビュー`・`/ 振り返り` を消す (API では消せない)。残すと `/ FastShip` と同じイベントで二重に起動する
+3. FastShip プロジェクトのビューを画面で直す (API では直せない)
+   - `⑫ 成功指標の確認待ち` を消す
+   - `⑪ マージ待ち` のフィルタを `is:pr is:open -is:draft -label:"claude:blocked" -label:"claude:under-review"` にする
+   - `⏳ 進行中` は setup が足す。setup を使わずにつないだなら、[📋 FastShip プロジェクト](#-fastship-プロジェクト) の表のとおりに作る
+4. [4. Auto-add](#4-auto-add) のフィルタから `"claude:shipped"`・`"claude:approved"` を外す (残っていても害はない)
+
+上げる前に作った open の PR は Ready のため、✅ の前でも `⑪ マージ待ち` に出ます。`claude:under-review` を付け直すと、⑨ が Draft に戻してレビューし直します。
 
 ## 🧰 スキル
 
