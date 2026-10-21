@@ -47,6 +47,87 @@ graph LR;
     ClaudeCode -.->|❓ 質問・差し戻し<br/>+ 🏷️ <code>claude:blocked</code>| Repository
 ```
 
+## 🚀 導入
+
+### 1. 前提
+ - claude.ai のアカウント (Pro / Max / Team / Enterprise)。Claude Code on the Web とスケジュール済みタスク (ルーティン) を使います。
+ - 対象リポジトリに [Claude GitHub App](https://github.com/apps/claude) が入っていること。ルーティンは、この App が受け取るラベルのイベントで起動します。
+ - [claude.ai/code](https://claude.ai/code) のクラウド環境。ルーティンはこの環境で動きます。
+ - ローカルの Claude Code。claude.ai のアカウントでログインします。`/dev:setup` はローカルで実行します。
+   - ルーティンは RemoteTrigger ツールで作るため、API キーでログインしていると手動で作ることになります。
+   - claude.ai/code では FastShip プロジェクトの API が 403 になり、プロジェクトだけ手動でつなぐことになります。
+ - ローカルの `gh` と `jq`。`gh` は `project` スコープ付きでログインします (`gh auth login -s project`。ログイン済みなら `gh auth refresh -s project`)。
+
+### 2. プラグインを入れる
+ローカルの Claude Code で実行します。1 行目は依存の `security-guidance` のためです。
+
+```text
+/plugin marketplace add anthropics/claude-plugins-official
+/plugin marketplace add theindiehacker/fastship-plugin
+/plugin install dev@fastship
+```
+
+### 3. `/dev:setup` を実行する
+対象リポジトリで `/dev:setup` を実行します。別のリポジトリに入れるときは `/dev:setup owner/repo` と指定します。導入済みのリポジトリで実行すると、最新版に更新します。
+
+| 作られるもの | 場所 |
+|:--|:--|
+| Organization のテンプレートリポジトリの中身 (あれば。複数あれば選ぶ) | 対象リポジトリ (PR) |
+| `.claude/settings.json` (マーケットプレイスを追加し、`dev@fastship` を有効にする) | 対象リポジトリ (PR) |
+| Issue テンプレート (`backlog.md` / `todo.md`) | 対象リポジトリの `.github/ISSUE_TEMPLATE/` (PR) |
+| PR テンプレート (`PULL_REQUEST_TEMPLATE.md`) | 対象リポジトリの `.github/` (PR) |
+| ラベル 9 種 (「🏷️ ラベル」を参照) | 対象リポジトリ |
+| ルーティン 5 つ (`{リポジトリ名} / {工程}`。工程は 課題分析・リファインメント・実装・レビュー・振り返り) | https://claude.ai/code/routines |
+| FastShip プロジェクト (「📋 FastShip プロジェクト」を参照) | owner の GitHub Projects |
+
+ - 内容が違うテンプレートが既にあれば、差分を見せて上書きしてよいか確認されます。
+ - 対象リポジトリに `.github/ISSUE_TEMPLATE/` が無いと、コピーした後は org の `<owner>/.github` にある Issue テンプレートと `config.yml` が使われなくなります。org にそれらがあれば、対象リポジトリにもコピーするか確認されます。
+
+次の 2 つは API で設定できないため、setup の案内に従って手で設定します。終わったら、setup が作った PR をマージします。
+
+ - **クラウド環境の Setup script**: クラウドセッションは `.claude/settings.json` のプラグインを読みません。ルーティンの環境 (claude.ai の環境設定画面) の Setup script に次を追加します (setup の 4.3 と同じ。変えるときは両方を直す)。
+   ```bash
+   {
+     claude plugin marketplace add anthropics/claude-plugins-official &&
+     claude plugin marketplace add theindiehacker/fastship-plugin &&
+     claude plugin install dev@fastship
+   } || echo "⚠️ dev@fastship を入れられませんでした" >&2
+   ```
+ - **FastShip プロジェクトの Auto-add**: [setup を使わずにつなぐ](#setup-を使わずにつなぐ) の 3 と同じです。
+
+### 4. 起票する
+**claude.ai**
+
+1. https://claude.ai/customize/plugins で「Add」を押し、`theindiehacker/fastship-plugin` をマーケットプレイスとして追加して、`dev` を有効にします。メンバーそれぞれが行います (org の GitHub 同期は private リポジトリしか受け付けないため、使えません)。
+   - 依存の `security-guidance` も有効にしてください。無いと `dev` が読み込まれません。一覧に無ければ、同じ画面で `anthropics/claude-plugins-official` を追加します。
+2. GitHub コネクタを有効にし、起票先のリポジトリが見えるようにします。`/dev:issue` は次の順に使って起票します。
+   - GitHub コネクタ
+   - 無ければ、会話に追加したリポジトリに `gh api` (REST)。claude.ai/code で、[3. `/dev:setup` を実行する](#3-devsetup-を実行する) の Setup script を入れた環境を選んだ場合です。claude.ai/code は Customize > Plugins ではなく Setup script で `dev` を入れます。claude.ai のチャットに `gh` はありません
+   - どちらも使えなければ本文を渡すので、GitHub の UI で起票して `claude:analysis` を付けます
+3. `/dev:issue [owner/repo] {やりたいこと}` を実行します。背景と参考資料を聞かれ、内容を確認すると `claude:analysis` 付きで起票され、③ 課題分析が始まります。起票先では `/dev:setup` を済ませておいてください。済んでいないと課題分析は始まりません。
+
+Claude Code からも、同じく `/dev:issue` で起票できます。
+
+**Slack (Claude Tag)**
+
+未対応です。Claude Tag は org のプラグインしか使えず、org の GitHub 同期は private リポジトリしか受け付けないためです。claude.ai から起票してください。
+
+## 🧰 スキル
+
+| スキル | 使う人・場面 | すること |
+|:--|:--|:--|
+| `/dev:setup [owner/repo]` | 🧑‍💻 開発者 (導入・更新) | ラベル・ルーティン・テンプレート・FastShip プロジェクトを導入し、PR を作る |
+| `/dev:issue [owner/repo] {内容}` | 🧑 誰でも (① 起票) | 背景と参考資料を聞き、`claude:analysis` を付けて起票する |
+| `/dev:analysis {Issue}` | 課題分析ルーティン (③) | 課題・解決策・成功指標を書き、`claude:analyzed` を付ける |
+| `/dev:refine {Issue}` | リファインメントルーティン (⑤⑥) | 1 PR で終わる Sub Issue に分解し、`claude:implement` を付ける |
+| `/dev:implement {Sub Issue / PR}` | 実装ルーティン (⑦⑧) | ドメイン駆動設計 + テスト駆動開発で実装し、PR を作って `claude:under-review` を付ける |
+| `/dev:review {PR}` | レビュールーティン (⑨⑩) | コードレビューとセキュリティレビューをし、✅ なら `claude:approved` を付ける |
+| `/dev:retrospective` | 振り返りルーティン (週1回) | 開発を振り返り、改善 Issue を最大 3 件起票する |
+| `/dev:blocked` | 課題分析・リファインメント・実装・レビューのルーティン | 多重起動を防ぎ、判断できないときは質問して `claude:blocked` を付ける |
+| `/dev:push-pr` | 🧑‍💻 開発者 / 実装ルーティン | PR テンプレートに沿って PR を作成・更新する |
+
+このほか、クラウドセッションの開始時に、mise とツールを入れて lefthook の Git フック (pre-commit) を設定する SessionStart フックがあります (`mise.toml` があるリポジトリだけ)。
+
 ## 🏷️ ラベル
 
 | ラベル | 付ける人 | 意味 |
@@ -91,9 +172,9 @@ flowchart LR
  - テンプレートは https://github.com/orgs/theindiehacker/projects/6 です。`/dev:setup` が、テンプレートをコピーして対象リポジトリにつなぎます (setup の 4.4)。
 
 ### setup を使わずにつなぐ
-1. owner の Projects に `FastShip プロジェクト` が既にあれば、それを使います (2 に進む)。無ければ、テンプレートを開き、メニューの「Make a copy」で owner にコピーします。タイトルは `FastShip プロジェクト` にします。ビューと組み込みのワークフローは引き継がれます。
+1. owner の Projects に `FastShip プロジェクト` が既にあれば、それを使います。上の表のビューがあるかを名前とフィルタで確かめ、無いものは UI で作ってから 2 に進みます。同じ名前でフィルタが違うものは、新しく作らずにそのビューのフィルタを直します (重複させないため)。プロジェクトが無ければ、テンプレートを開き、メニューの「Make a copy」で owner にコピーします。タイトルは `FastShip プロジェクト` にします。ビューと組み込みのワークフロー (Auto-add を除く) は引き継がれます。
 2. 対象リポジトリの Projects タブで「Link a project」を押し、1 のプロジェクトをリンクします。
-3. プロジェクトの Workflows で「Auto-add to project」を開き、Repository に対象リポジトリ、Filters に下の値を入れて「Save and turn on workflow」を押します。Auto-add はリポジトリごとに 1 つ要り、プランごとに数の上限があります (Free 1 / Pro・Team 5 / Enterprise 20)。
+3. プロジェクトの Workflows で「Auto-add to project」を開いて Edit を押し、Repository に対象リポジトリ、Filters に下の値を入れて「Save and turn on workflow」を押します。2 つ目以降のリポジトリは、既存の Auto-add のメニューから Duplicate して増やします (既存の Auto-add の Repository を変えると、前のリポジトリが入らなくなります)。Auto-add はリポジトリごとに 1 つ要り、GitHub のプランごとに数の上限があります (Free 1 / Pro・Team 5 / Enterprise 20)。
 
    ```text
    is:issue,pr label:"claude:analysis","claude:analyzed","claude:refine","claude:implement","claude:under-review","claude:approved","claude:blocked","claude:shipped"
