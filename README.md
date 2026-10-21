@@ -143,6 +143,11 @@ Claude Code からも `/dev:issue` で起票できます。Slack (Claude Tag) �
 
 ### 0.14.0 に上げたとき
  - `/dev:setup` を実行し直してください。`.github/ISSUE_TEMPLATE/backlog.md` の差分 (`labels: ["claude:analysis"]`) を見せて上書きしてよいか聞かれたら、上書きしてください。テンプレートをカスタマイズしていて上書きしない場合は、frontmatter の `labels` を `["claude:analysis"]` に直してください。
+ - ⑫ 成功指標の確認と ⑬ 振り返りを外しました。フローは ⑪ マージで終わり、成功指標は ④ 承認の判断に使います。次を行ってください。
+   - `/dev:setup` で `claude:shipped`・`claude:retrospective` を消すか聞かれたら、消してください
+   - https://claude.ai/code/routines で、`{リポジトリ名} / 振り返り` のルーティンを消してください
+   - FastShip プロジェクトの `⑫ 成功指標の確認待ち` のビューを、画面で消してください (ビューは API で消せません)
+   - [4. Auto-add](#4-auto-add) のフィルタから `"claude:shipped"` を外してください (残っていても害はありません)
 
 ## 🧰 スキル
 
@@ -206,14 +211,6 @@ flowchart LR
 ### 0.12.0 に上げたとき
  - `/dev:setup` を実行し直し、ラベルを作ってプロジェクトにつないでください。
  - 0.12.0 より前に課題分析が終わり、承認を待っている Issue には、`claude:analyzed` を手で付けてください。
-
-### 0.14.0 に上げたとき
-⑫ 成功指標の確認と ⑬ 振り返りを外しました。フローは ⑪ マージで終わります。成功指標は、④ 承認の判断に使います。
-
- - `/dev:setup` を実行し直してください。`claude:shipped`・`claude:retrospective` を消すか聞かれます
- - https://claude.ai/code/routines で、`{リポジトリ名} / 振り返り` のルーティンを消してください
- - FastShip プロジェクトの `⑫ 成功指標の確認待ち` のビューを、画面で消してください (ビューは API で消せません)
- - [4. Auto-add](#4-auto-add) のフィルタから `"claude:shipped"` を外してください (残っていても害はありません)
 
 ## 🧑‍💻 人間が判断すること
 
