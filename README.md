@@ -27,22 +27,18 @@ graph LR;
         refinement(["✂️ <b  style='font-size: larger;'>〇〇 / リファインメント</b><br/>Sub Issue に分解する<br/>1 PR で済むなら分けない"])
         implement(["🧑‍💻 <b  style='font-size: larger;'>〇〇 / 実装</b><br/>ドメイン駆動設計 + テスト駆動開発"])
         review(["✔️ <b  style='font-size: larger;'>〇〇 / レビュー</b><br/>コードレビュー / セキュリティレビュー"])
-
-        retrospective(["♻️️ <b  style='font-size: larger;'>〇〇 / 振り返り</b><br/>週1回、開発の進め方と成功指標の結果を振り返り、改善点を起票する"])
     end
 
     Claude -->|① Issue を起票<br/>+ 🏷️ <code>claude:analysis</code>| Repository -->|② 起動| analysis
     analysis -->|③ 課題・解決策・成功指標を<br/>Issue に追記<br/>+ 🏷️ <code>claude:analyzed</code>| Repository
     Developer(("🧑‍💻")) -->|④ 確認・承認<br/>+ 🏷️ <code>claude:refine</code>| Project
-    Repository -->|⑤ 起動| refinement -->|⑥ Sub Issue を起票する<br/>(1 PR で済むなら Issue のまま)<br/>+ 🏷️ <code>claude:implement</code><br/>Sub Issue がすべて閉じたら<br/>親 Issue に + 🏷️ <code>claude:shipped</code>| Repository
+    Repository -->|⑤ 起動| refinement -->|⑥ Sub Issue を起票する<br/>(1 PR で済むなら Issue のまま)<br/>+ 🏷️ <code>claude:implement</code>| Repository
     
     Repository -->|⑦ 起動| implement -->|⑧ PR を作成| Repository
     
     Repository -->|⑨ 起動| review -->|⑩ ✅ / 🛑<br/>✅ なら + 🏷️ <code>claude:approved</code>| Repository
 
-    Developer -->|⑪ マージ・リリース<br/>⑫ 成功指標を確認| Project
-
-    retrospective -->|⑬ 振り返りと改善 Issue を起票<br/>+ 🏷️ <code>claude:analysis</code>| Repository
+    Developer -->|⑪ マージ・リリース| Project
 
     ClaudeCode -.->|❓ 質問・差し戻し<br/>+ 🏷️ <code>claude:blocked</code>| Repository
 ```
@@ -68,7 +64,7 @@ flowchart LR
 dev は技術スタックに依存しません。bun / Biome・uv / Ruff / Pyright で開発するなら、`/plugin install stack@fastship` も実行します ([🧰 技術スタック](#-技術スタック-stack-プラグイン))。
 
 ### 2. `/dev:setup` を実行する
-対象リポジトリで `/dev:setup` を実行します (別のリポジトリなら `/dev:setup owner/repo`)。ラベル・ルーティン 5 つ・テンプレート・FastShip プロジェクトを用意し、PR を作ります。stack を入れていれば、技術スタックも入れるか聞きます。導入済みなら最新版に更新します。
+対象リポジトリで `/dev:setup` を実行します (別のリポジトリなら `/dev:setup owner/repo`)。ラベル・ルーティン 4 つ・テンプレート・FastShip プロジェクトを用意し、PR を作ります。stack を入れていれば、技術スタックも入れるか聞きます。導入済みなら最新版に更新します。
 
 3 と 4 は API で設定できないため、setup が案内したら画面で設定します。
 
@@ -116,7 +112,7 @@ claude ラベルの付いた Issue / PR が、FastShip プロジェクトに自�
 4. 右の欄を消して下を貼り、**Save and turn on workflow**
 
    ```text
-   is:issue,pr label:"claude:analysis","claude:analyzed","claude:refine","claude:implement","claude:under-review","claude:approved","claude:blocked","claude:shipped"
+   is:issue,pr label:"claude:analysis","claude:analyzed","claude:refine","claude:implement","claude:under-review","claude:approved","claude:blocked"
    ```
 
    ![フィルタを貼って保存する](docs/images/github-4-filter.png)
@@ -147,6 +143,11 @@ Claude Code からも `/dev:issue` で起票できます。Slack (Claude Tag) �
 
 ### 0.14.0 に上げたとき
  - `/dev:setup` を実行し直してください。`.github/ISSUE_TEMPLATE/backlog.md` の差分 (`labels: ["claude:analysis"]`) を見せて上書きしてよいか聞かれたら、上書きしてください。テンプレートをカスタマイズしていて上書きしない場合は、frontmatter の `labels` を `["claude:analysis"]` に直してください。
+ - ⑫ 成功指標の確認と ⑬ 振り返りを外しました。フローは ⑪ マージで終わり、成功指標は ④ 承認の判断に使います。次を行ってください。
+   - `/dev:setup` で `claude:shipped`・`claude:retrospective` を消すか聞かれたら、消してください
+   - https://claude.ai/code/routines で、`{リポジトリ名} / 振り返り` のルーティンを消してください
+   - FastShip プロジェクトの `⑫ 成功指標の確認待ち` のビューを、画面で消してください (ビューは API で消せません)
+   - [4. Auto-add](#4-auto-add) のフィルタから `"claude:shipped"` を外してください (残っていても害はありません)
 
 ## 🧰 スキル
 
@@ -158,7 +159,6 @@ Claude Code からも `/dev:issue` で起票できます。Slack (Claude Tag) �
 | `/dev:refine {Issue}` | リファインメントルーティン (⑤⑥) | 1 PR で終わる Sub Issue に分解し、`claude:implement` を付ける。1 PR で済むなら分けず、Issue に完了条件を書き足して `claude:implement` を付ける |
 | `/dev:implement {Sub Issue / Issue / PR}` | 実装ルーティン (⑦⑧) | ドメイン駆動設計 + テスト駆動開発で実装し、PR を作って `claude:under-review` を付ける |
 | `/dev:review {PR}` | レビュールーティン (⑨⑩) | コードレビューとセキュリティレビューをし、✅ なら `claude:approved` を付ける |
-| `/dev:retrospective` | 振り返りルーティン (週1回) | 開発を振り返り、改善 Issue を最大 3 件起票する |
 | `/dev:blocked` | 課題分析・リファインメント・実装・レビューのルーティン | 多重起動を防ぎ、判断できないときは質問して `claude:blocked` を付ける |
 | `/dev:push-pr` | 🧑‍💻 開発者 / 実装ルーティン | PR テンプレートに沿って PR を作成・更新する |
 
@@ -174,9 +174,7 @@ Claude Code からも `/dev:issue` で起票できます。Slack (Claude Tag) �
 | `claude:implement` | 🧠 Claude | Sub Issue (1 PR で済むときは Issue) の実装を始める |
 | `claude:under-review` | 🧠 Claude | PR のレビューを始める |
 | `claude:approved` | 🧠 Claude | レビューが ✅ になった (ルーティンは起動しない) |
-| `claude:shipped` | 🧠 Claude | Sub Issue がすべて閉じ、成功指標の確認を待っている (ルーティンは起動しない) |
 | `claude:blocked` | 🧠 Claude | 人間の回答を待っている |
-| `claude:retrospective` | 🧠 Claude | 振り返りの結果 (ルーティンは起動しない) |
 
 ## 📋 FastShip プロジェクト
 
@@ -188,8 +186,7 @@ flowchart LR
     analyzed -->|🧑‍💻 承認<br/>+ <code>claude:refine</code>| refine["✂️ リファインメント<br/><code>claude:refine</code>"]
     refine --> implement["🧑‍💻 実装<br/><code>claude:implement</code>"] --> review["✔️ レビュー<br/><code>claude:under-review</code>"]
     review --> approved[["⑪ マージ待ち<br/><code>claude:approved</code>"]]
-    approved -->|🧑‍💻 マージ<br/>Sub Issue がすべて閉じる| shipped[["⑫ 成功指標の確認待ち<br/><code>claude:shipped</code>"]]
-    shipped -->|🧑‍💻 結果をコメントして閉じる| done(("✅"))
+    approved -->|🧑‍💻 マージ<br/>Sub Issue がすべて閉じると<br/>親 Issue も閉じる| done(("✅"))
     analysis & refine & implement & review -.-> blocked[["❓ 回答待ち<br/><code>claude:blocked</code>"]]
 ```
 
@@ -198,13 +195,12 @@ flowchart LR
 | ④ 承認待ち | `is:issue is:open label:"claude:analyzed"` | 課題・解決策・成功指標を読み、承認か差し戻しか |
 | ❓ 回答待ち | `is:open label:"claude:blocked"` | Claude の質問への回答 |
 | ⑪ マージ待ち | `is:pr is:open label:"claude:approved" -label:"claude:blocked" -label:"claude:under-review"` | マージ・リリースするか |
-| ⑫ 成功指標の確認待ち | `is:issue is:open label:"claude:shipped"` | 成功指標を満たしたか |
 
  - プロジェクトの Status と Board は、工程と連動しません。GitHub の Status はラベルの変化で変えられないため、ラベルを正にしています。
- - `claude:analyzed` と `claude:shipped` は、課題分析・リファインメント・振り返りが Issue の状態から決めて付け外しします (`scripts/waiting.sh`)。手で付け外ししても、次にそれらが動いたときに状態に合わせ直されます。
-   - `claude:analyzed`: 課題分析が、最後の承認 (`claude:refine` を付けた) より後に終わった
-   - `claude:shipped`: 承認待ちではなく、Sub Issue がすべて閉じて 1 つ以上が完了し (すべて見送りなら付かない)、成功指標 が書いてある
-   - どちらも、進行中ラベル (`claude:analysis` / `claude:refine` など) か `claude:blocked` が付いている間は付きません
+ - `claude:analyzed` は、課題分析・リファインメントが Issue の状態から決めて付け外しします (`scripts/waiting.sh`)。手で付け外ししても、次にそれらが動いたときに状態に合わせ直されます。
+   - 課題分析が、最後の承認 (`claude:refine` を付けた) より後に終わったときに付きます
+   - 進行中ラベル (`claude:analysis` / `claude:refine` など) か `claude:blocked` が付いている間は付きません
+ - Sub Issue がすべて閉じて 1 つ以上が完了すると、リファインメントが親 Issue を閉じます。すべて見送りなら、閉じずに残します。1 PR で済む Issue は、PR の `Closes` で閉じます。
  - テンプレートは https://github.com/orgs/theindiehacker/projects/6 です。`/dev:setup` が、テンプレートをコピーして対象リポジトリにつなぎます (setup の 4.4)。
 
 ### setup を使わずにつなぐ
@@ -215,13 +211,12 @@ flowchart LR
 
 ### 0.12.0 に上げたとき
  - `/dev:setup` を実行し直し、ラベルを作ってプロジェクトにつないでください。
- - 0.12.0 より前に課題分析が終わり、承認を待っている Issue には、`claude:analyzed` を手で付けてください。成功指標の確認を待っている Issue には、週1回の振り返りが `claude:shipped` を付けます。
+ - 0.12.0 より前に課題分析が終わり、承認を待っている Issue には、`claude:analyzed` を手で付けてください。
 
 ## 🧑‍💻 人間が判断すること
 
-1. **④ 承認** (`④ 承認待ち`): 課題分析で追記された課題・解決策・成功指標を確認し、優先順位の高い Issue から `claude:refine` を付けます。方向がずれている場合は、Issue にコメントして `claude:analysis` を付け直します。見送るときは、Issue を閉じます。
+1. **④ 承認** (`④ 承認待ち`): 課題分析で追記された課題・解決策・成功指標を確認し、解く価値があるかを判断します。優先順位の高い Issue から `claude:refine` を付けます。方向がずれている場合は、Issue にコメントして `claude:analysis` を付け直します。見送るときは、Issue を閉じます。
 2. **⑪ マージ・リリース** (`⑪ マージ待ち`): `claude:approved` が付き (レビューが ✅)、CI が通った PR を確認し、マージ・リリースします。CI の結果はビューに出ないため、PR で確かめてください。✅ の後に自分で push したとき (コンフリクトの解消など) は、`claude:approved` を外して `claude:under-review` を付け、再レビューを受けてください。
-3. **⑫ 成功指標の確認** (`⑫ 成功指標の確認待ち`): Sub Issue がすべて閉じると、親 Issue に `claude:shipped` が付きます (付く条件は「📋 FastShip プロジェクト」を参照)。リリース後に成功指標を満たしたかを Issue にコメントし、Issue を閉じます。結果は週1回の振り返りで使います。閉じるまでは、振り返りの確認待ちに載ります。
 
 ## ❓ 質問・差し戻し
 
