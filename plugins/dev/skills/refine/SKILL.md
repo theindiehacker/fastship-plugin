@@ -1,6 +1,6 @@
 ---
 name: refine
-description: FastShip の ⑤⑥ リファインメント。claude:refine が付いた (承認済みの) Issue を、1 PR で終わる Sub Issue に分解して起票し、親 Issue に紐付ける。依存の無い Sub Issue に claude:implement を付けて実装を始める。Sub Issue が閉じたときは、依存が解けた Sub Issue に claude:implement を付ける。リファインメントルーティンから使う。使い方: /dev:refine {Issue の番号}
+description: FastShip の ⑤⑥ リファインメント。claude:refine が付いた (承認済みの) Issue を、1 PR で終わる Sub Issue に分解して起票し、親 Issue に紐付ける。依存の無い Sub Issue に claude:implement を付けて実装を始める。Sub Issue が閉じたときは、依存が解けた Sub Issue に claude:implement を付け、すべて閉じたら親 Issue に claude:shipped (成功指標の確認待ち) を付ける。リファインメントルーティンから使う。使い方: /dev:refine {Issue の番号}
 argument-hint: "{Issue の番号}"
 ---
 
@@ -21,6 +21,12 @@ gh api "repos/{owner}/{repo}/issues/123" --jq .state
 
  - `closed` なら、Sub Issue が閉じて起動しています。6 に進んでください。
  - `open` なら、`/dev:blocked` の「1. 始める」を、進行中ラベル `claude:refine` で行ってください。`STOP` と出たら、何もせずに終えてください。
+   - `CONTINUE` と出たら、`claude:analyzed` と `claude:shipped` を外してください (下のコマンド)。承認されたので承認待ちから外し、やり直しで Sub Issue を足す間は成功指標の確認待ちに載せないためです。
+
+```bash
+gh api --method DELETE "repos/{owner}/{repo}/issues/123/labels/claude:analyzed" > /dev/null 2>&1 || true
+gh api --method DELETE "repos/{owner}/{repo}/issues/123/labels/claude:shipped" > /dev/null 2>&1 || true
+```
 
 ## 2. 読む
 Issue の本文とコメント、既にある Sub Issue をすべて読んでください。
@@ -109,12 +115,17 @@ gh api --paginate "repos/{owner}/{repo}/issues/<Sub Issue の番号>/comments" -
 gh api --method POST "repos/{owner}/{repo}/issues/<Sub Issue の番号>/labels" -f "labels[]=claude:implement" > /dev/null
 ```
 
-2. 下の形式で `/tmp/refine_done.md` を書き、親 Issue にコメントしてから `claude:refine` を外してください。外しておくと、やり直すときに開発者が付け直せます。
+2. 下の形式で `/tmp/refine_done.md` を書き、次を 1 回の Bash で実行してください。親 Issue にコメントしてから `claude:refine` を外し、ラベルを合わせます。
+   - `claude:refine` を外しておくと、やり直すときに開発者が付け直せます。
+   - `claude:analyzed` をもう一度外すのは、課題分析と並んで動いたときに、課題分析が後から付けることがあるためです。
+   - `shipped.sh` は、Sub Issue がすべて閉じていれば `claude:shipped` を付けます。やり直しで残りの Sub Issue を閉じた場合のためです。
 
 ```bash
 jq -n --rawfile body /tmp/refine_done.md '{body:$body}' \
   | gh api --method POST "repos/{owner}/{repo}/issues/123/comments" --input - > /dev/null
 gh api --method DELETE "repos/{owner}/{repo}/issues/123/labels/claude:refine" > /dev/null
+gh api --method DELETE "repos/{owner}/{repo}/issues/123/labels/claude:analyzed" > /dev/null 2>&1 || true
+bash "${CLAUDE_PLUGIN_ROOT}/scripts/shipped.sh" sync 123
 ```
 
 ```markdown
@@ -148,4 +159,12 @@ gh api "repos/{owner}/{repo}/issues/123" --jq '.parent_issue_url // empty | spli
 gh api --paginate "repos/{owner}/{repo}/issues/<親 Issue の番号>/sub_issues" --jq '.[] | "#\(.number) \(.state) [\([.labels[].name] | join(", "))] \(.title)"'
 ```
 
-同時に閉じた Sub Issue のセッションが並んで動いても、ラベルを付けるだけなので問題ありません。
+3. 親 Issue のラベルを合わせてください。Sub Issue がすべて閉じていれば `SHIPPED` と出て、親 Issue に `claude:shipped` が付きます。FastShip プロジェクトの成功指標の確認待ちに載り、開発者が ⑫ で確かめます。
+
+```bash
+bash "${CLAUDE_PLUGIN_ROOT}/scripts/shipped.sh" sync <親 Issue の番号>
+```
+
+ - 次のときは付けません (`NOT SHIPPED` / `SKIP`)。完了した Sub Issue が無い (すべて見送り)、成功指標 が空、親 Issue が閉じている、親 Issue に進行中ラベルか `claude:blocked` が付いている。進行中ラベルの付いた Issue にラベルを足すと、そのルーティンがもう一度起動するためです。
+
+同時に閉じた Sub Issue のセッションが並んで動いても、ラベルを付けるだけなので問題ありません。`shipped.sh` は付け外しの直前に読み直すため、後に動いたセッションの結果が残ります。
