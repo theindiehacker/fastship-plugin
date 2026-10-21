@@ -143,7 +143,7 @@ flowchart LR
 ```
 
 ### 4.3 クラウド環境
-クラウドセッションは 2 の設定を読まないため、4.2 の環境の Setup script (claude.ai の環境設定画面) に次を追加するよう案内してください。環境の名前と、スクショ付きの手順 https://github.com/theindiehacker/fastship-plugin/blob/main/docs/manual-steps.md#1-クラウド環境にプラグインを入れる を伝えます。手順書にも同じスクリプトがあるため、変えるときは両方を直してください。
+クラウドセッションは 2 の設定を読まないため、4.2 の環境の Setup script (claude.ai の環境設定画面) に次を追加するよう案内してください。環境の名前と、スクショ付きの手順 https://github.com/theindiehacker/fastship-plugin#3-クラウド環境 を伝えます。README にも同じスクリプトがあるため、変えるときは両方を直してください。
 
 ```bash
 {
@@ -217,7 +217,7 @@ gh project link <n> --owner <owner> --repo {owner/repo}
 
 5. Auto-add workflow は API で作れないため、ユーザーに UI で設定してもらい、終わったと答えてもらってください。下のラベルが付いた Issue / PR が、プロジェクトに自動で入るようになります。手順は文章で説明せず、次の 2 つだけを伝えてください。
    - Workflows の URL: `https://github.com/<kind>/<owner>/projects/<n>/workflows`
-   - スクショ付きの手順: https://github.com/theindiehacker/fastship-plugin/blob/main/docs/manual-steps.md#2-fastship-プロジェクトの-auto-add
+   - スクショ付きの手順: https://github.com/theindiehacker/fastship-plugin#4-auto-add
    - Auto-add workflow はリポジトリごとに 1 つ要り、数にはプランごとの上限があります (Free 1 / Pro・Team 5 / Enterprise 20)。リンク済みのリポジトリ (下のコマンド) が上限より多ければ、ユーザーに伝えてください。
 
 ```bash
