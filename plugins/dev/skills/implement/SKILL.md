@@ -1,12 +1,14 @@
 ---
 name: implement
-description: FastShip の ⑦⑧ 実装。claude:implement が付いた Sub Issue を、ドメイン駆動設計とテスト駆動開発で実装する。Sub Issue に紐付けた (Closes #N) テスト付きの PR を作り、claude:under-review でレビューに回す。レビューの指摘 (🛑 など) と CI の失敗に対応する。判断できないときは claude:blocked で人間に返す。PR で止めた後の再開 (PR に claude:implement) にも使う。実装ルーティンから使う。使い方: /dev:implement {Sub Issue または PR の番号}
+description: FastShip の ⑦⑧ 実装。claude:implement が付いた Sub Issue (1 PR で済む Issue はその Issue) を、ドメイン駆動設計とテスト駆動開発で実装する。Sub Issue に紐付けた (Closes #N) テスト付きの PR を作り、claude:under-review でレビューに回す。レビューの指摘 (🛑 など) と CI の失敗に対応する。判断できないときは claude:blocked で人間に返す。PR で止めた後の再開 (PR に claude:implement) にも使う。実装ルーティンから使う。使い方: /dev:implement {Sub Issue または PR の番号}
 argument-hint: "{Sub Issue または PR の番号}"
 ---
 
 # 🧑‍💻 実装
 
 `claude:implement` が付いた Sub Issue を実装し、PR を作ってレビューに回してください。レビューで 🛑 が付いたら、このセッションが対応します。
+
+1 PR で済む Issue は、リファインメントが Sub Issue を作らず、Issue そのものに `claude:implement` を付けます。そのときは、この Issue を Sub Issue と読み替えてください (`Closes #<Issue>` で紐付けます)。
 
 GitHub は `gh api` (REST) で操作します。コマンドの `123` はトリガーになった Issue / PR の番号、`<Sub Issue>` は Sub Issue の番号、`<PR>` は PR の番号に置き換えてください。
 
@@ -41,7 +43,7 @@ gh api "repos/{owner}/{repo}/issues/<親 Issue>" --jq '.title, .body'
 gh api --paginate "repos/{owner}/{repo}/issues/<Sub Issue>/dependencies/blocked_by" --jq '.[] | "#\(.number) \(.state) \(.title)"'
 ```
 
- - Sub Issue の やること / やらないこと / 完了条件 が、実装する範囲です。
+ - Sub Issue の やること / やらないこと / 完了条件 が、実装する範囲です。Issue をそのまま実装するときは、解決策 と、リファインメントが書き足した やらないこと / 完了条件 が範囲です。
  - 4 つ目のコマンドで出る Issue (Blocked by) は、この Sub Issue の依存です。先に終わった作業なので、そのコードを使ってください。
  - 親 Issue の 課題 / 解決策 は、なぜ作るのかと、どんな言葉で呼ぶのかを知るために読んでください。
  - リポジトリの規約 (`CLAUDE.md` など) と、近いコードとそのテストを読み、次を確かめてください: 層の分け方、名前の付け方、テストの書き方。
