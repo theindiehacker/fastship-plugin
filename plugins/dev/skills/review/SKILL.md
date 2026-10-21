@@ -6,40 +6,45 @@ argument-hint: "{PR の番号}"
 
 # ✔️ レビュー
 
-`claude:under-review` が付いた PR をレビューし、✅ / 🛑 を返してください。🛑 の指摘は、PR を作った実装のセッションが直し、`claude:under-review` を付け直して再レビューを頼みます。開発者は `claude:approved` が付いた PR をマージします。
+`claude:under-review` が付いた PR をレビューし、✅ / 🛑 を返してください。🛑 の指摘は、PR を作った実装のセッションが直し、`claude:under-review` を付け直して再レビューを頼みます。開発者は、`claude:approved` が付き CI が通った PR をマージします。
 
-GitHub は `gh api` (REST) で操作します。コマンドの `123` は PR の番号、`<base>` / `<head>` / `<sha>` は 1 で出た値、`<Sub Issue>` は Sub Issue の番号に置き換えてください。
+GitHub は `gh api` (REST) で操作します。コマンドの `123` は PR の番号、`<base>` は 1 で出たベースブランチ、`<sha>` は 1 で控えた sha、`<Sub Issue>` は Sub Issue の番号に置き換えてください。
 
 ## 1. 始める
 1. `/dev:blocked` の「1. 始める」を、進行中ラベル `claude:under-review` で行ってください。`STOP` と出たら、何もせずに終えてください。
+   - 「前回の質問と回答」が出たら、止めたレビューの再開です。回答を読んでから続けてください。
 2. `claude:approved` を外し、PR を取得してください。前の ✅ を、レビューが終わるまで残さないためです。
 
 ```bash
 gh api --method DELETE "repos/{owner}/{repo}/issues/123/labels/claude:approved" > /dev/null 2>&1 || true
-gh api "repos/{owner}/{repo}/pulls/123" --jq '.state, .base.ref, .head.ref, .head.sha'
+gh api "repos/{owner}/{repo}/pulls/123" --jq '.state, .base.ref'
 ```
 
  - `open` でなければ、`claude:under-review` を外して終えてください (下の 1 つ目のコマンド)。
- - `open` なら、head を checkout してください (下の 2 つ目のコマンド)。出た sha を控えてください。4 で、レビューした commit を示すのに使います。
+ - `open` なら、PR の head を checkout してください (下の 2 つ目のコマンド)。最後に出た sha を控えてください。4 で、レビューした commit を示すのに使います。
+   - フォークの PR も取れるよう、ブランチ名ではなく `refs/pull/123/head` を取ります。
+   - `origin/HEAD` をベースに向けるのは、`/security-review` が `origin/HEAD` と比べるためです。
 
 ```bash
 gh api --method DELETE "repos/{owner}/{repo}/issues/123/labels/claude:under-review" > /dev/null
-git fetch origin "+refs/heads/<base>:refs/remotes/origin/<base>" "+refs/heads/<head>:refs/remotes/origin/<head>" \
-  && git checkout --detach "origin/<head>" && git rev-parse HEAD
+git fetch origin "+refs/heads/<base>:refs/remotes/origin/<base>" "+refs/pull/123/head:refs/remotes/origin/pr/123" \
+  && git checkout --detach origin/pr/123 && git remote set-head origin "<base>" && git rev-parse HEAD
 ```
 
 ## 2. 読む
-PR の本文と、紐付いた Sub Issue・親 Issue を読んでください。PR の本文の `Closes #N` の N が Sub Issue です。2 つ目のコマンドの最後の行が親 Issue の番号です。空なら親は無いので、3 つ目は飛ばしてください。
+PR と、紐付いた Sub Issue・親 Issue を、コメントまで読んでください。PR の本文の `Closes #N` の N が Sub Issue です。3 つ目のコマンドの最後の行が親 Issue の番号です。空なら親は無いので、5 つ目は飛ばしてください。
 
 ```bash
 gh api "repos/{owner}/{repo}/pulls/123" --jq '.title, .body'
+gh api --paginate "repos/{owner}/{repo}/issues/123/comments" --jq '.[] | "### \(.created_at)\n\(.body)\n"'
 gh api "repos/{owner}/{repo}/issues/<Sub Issue>" --jq '.title, .body, (.parent_issue_url // "" | split("/") | last)'
+gh api --paginate "repos/{owner}/{repo}/issues/<Sub Issue>/comments" --jq '.[] | "### \(.created_at)\n\(.body)\n"'
 gh api "repos/{owner}/{repo}/issues/<親 Issue>" --jq '.title, .body'
 ```
 
- - Sub Issue の 完了条件 / やらないこと が、PR の範囲です。Sub Issue が無い PR は、💡 概要 を範囲としてください。
- - リポジトリの規約 (`CLAUDE.md` など) のうち、変更ファイルに当たるものを読んでください。
- - 前の ⑨ のレビュー (本文が `<!-- fastship:review -->` で始まる) があれば、再レビューです。前の指摘と、実装の返信 (本文が `<!-- fastship:reply -->` で始まる) を読んでください。
+ - Sub Issue の 完了条件 / やらないこと が、PR の範囲です。コメントで変わっていれば、変わった後に従ってください。Sub Issue が無い PR は、💡 概要 を範囲としてください。
+ - リポジトリの規約 (`CLAUDE.md` など) は、ベースの版を読んでください (`git show origin/<base>:CLAUDE.md`)。PR が規約のファイルを変えていれば、その変更もレビューしてください。
+ - 前の ⑨ のレビュー (本文が `<!-- fastship:review -->` で始まる) があれば、再レビューです。前の指摘と、実装の返信 (本文が `<!-- fastship:reply -->` で始まる。PR のコメントか行コメントへの返信) を読んでください。
 
 ```bash
 gh api --paginate "repos/{owner}/{repo}/pulls/123/reviews" \
@@ -65,15 +70,15 @@ gh api --paginate "repos/{owner}/{repo}/pulls/123/comments" \
 
 ### 再レビューのとき
  - 前の `[must]` が直ったかを確かめてください。採用しない理由が返信されていて、理由が妥当なら、`[must]` に数えないでください。
- - 新しく `[must]` にするのは、前回の後の push で入った問題か、前回見落としたバグ・脆弱性だけにしてください。前回出さなかった好みの指摘を `[must]` にすると、再レビューが終わらなくなるためです。
+ - 新しく指摘するのは、前回の後の push で変わったところと、前回見落としたバグ・脆弱性だけにしてください。前回出さなかった好みの指摘を足すと、再レビューが終わらなくなるためです。
 
 ## 4. 返す (⑩)
 `[must]` が 0 件なら ✅、1 件以上なら 🛑 です。
 
-1. 下の形式で `/tmp/review.json` を書き、PR にレビューを投稿してください。
+1. 下の形式で `/tmp/review.json` を書き、`jq . /tmp/review.json > /dev/null` で JSON として正しいかを確かめてから、PR にレビューを投稿してください。
    - `event` は `COMMENT` にしてください。Approve / Request changes は、PR の作成者と同じアカウントでは使えません。
    - `commit_id` は、1 で控えた sha にしてください。
-   - 指摘は、差分の行に行コメントで付けてください (`side` は追加・変更行なら `RIGHT`、削除行なら `LEFT`)。差分の行に付けられない指摘は、本文に書いてください。
+   - 指摘は、差分の行に行コメントで付けてください (`side` は追加・変更行なら `RIGHT`、削除行なら `LEFT`)。差分の行に付けられない指摘は、本文に書いてください。422 で行を解決できないと出たら、その指摘を本文に移して投稿し直してください。
    - 本文と行コメントの先頭に `<!-- fastship:review -->` と改行を付けてください。実装は、このマーカーで ⑨ のレビューを見分けます。
 
 ```bash
@@ -94,7 +99,7 @@ gh api --method POST "repos/{owner}/{repo}/pulls/123/reviews" --input /tmp/revie
 本文:
 
 ```markdown
-## ✅ レビュー: マージできます
+## ✅ レビュー: 問題ありません
 <🛑 のときは「## 🛑 レビュー: 直してほしい点があります」>
 
 - コードレビュー: `[must]` <件数> / そのほか <件数>
@@ -105,14 +110,20 @@ gh api --method POST "repos/{owner}/{repo}/pulls/123/reviews" --input /tmp/revie
 <差分の行に付けられない指摘>
 ```
 
-2. PR の head が、1 で控えた sha のままかを確かめてください。
-   - 同じなら、✅ のときは `claude:approved` を付け、✅ / 🛑 どちらも `claude:under-review` を外してください。
-   - 違えば、ラベルは変えずに終えてください。新しい push は、実装が `claude:under-review` を付け直して再レビューを頼みます。
+2. 次を 1 回の Bash で実行し、ラベルを付け替えてください。`<判定>` は `✅` か `🛑` にしてください。
+   - レビューの間に新しい push があれば (`MOVED`)、`claude:under-review` を付け直して、新しい head のレビューを頼み直します。
+   - `claude:under-review` を先に外すのは、付いたまま別のラベルを足すと、ルーティンがもう一度起動するためです。
 
 ```bash
-gh api "repos/{owner}/{repo}/pulls/123" --jq .head.sha
-gh api --method POST "repos/{owner}/{repo}/issues/123/labels" -f "labels[]=claude:approved" > /dev/null
-gh api --method DELETE "repos/{owner}/{repo}/issues/123/labels/claude:under-review" > /dev/null
+HEAD_SHA=$(gh api "repos/{owner}/{repo}/pulls/123" --jq .head.sha)
+gh api --method DELETE "repos/{owner}/{repo}/issues/123/labels/claude:under-review" > /dev/null 2>&1 || true
+if [ "$HEAD_SHA" != "<sha>" ]; then
+  gh api --method POST "repos/{owner}/{repo}/issues/123/labels" -f "labels[]=claude:under-review" > /dev/null && echo MOVED
+elif [ "<判定>" = "✅" ]; then
+  gh api --method POST "repos/{owner}/{repo}/issues/123/labels" -f "labels[]=claude:approved" > /dev/null && echo APPROVED
+else
+  echo CHANGES
+fi
 ```
 
 ## 判断できないとき

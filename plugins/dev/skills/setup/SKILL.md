@@ -48,7 +48,7 @@ gh label create claude:analysis --color d97757 --description "🤔 課題分析�
 gh label create claude:refine --color d97757 --description "✂️ 課題分析の結果を承認し、リファインメントを始める" --force -R {owner/repo}
 gh label create claude:implement --color d97757 --description "🧑‍💻 Sub Issue の実装を始める" --force -R {owner/repo}
 gh label create claude:under-review --color d97757 --description "✔️ PR のレビューを始める" --force -R {owner/repo}
-gh label create claude:approved --color 0e8a16 --description "✅ レビューを通った (マージできる)" --force -R {owner/repo}
+gh label create claude:approved --color 0e8a16 --description "✅ レビューを通った" --force -R {owner/repo}
 gh label create claude:blocked --color b60205 --description "❓ 人間の回答を待っている" --force -R {owner/repo}
 gh label create claude:retrospective --color d97757 --description "♻️ 振り返りの結果" --force -R {owner/repo}
 ```
