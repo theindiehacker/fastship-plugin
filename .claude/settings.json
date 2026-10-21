@@ -1,7 +1,8 @@
 {
   "permissions": {
     "allow": [
-      "mcp__claude-code-remote__delete_trigger"
+      "mcp__claude-code-remote__delete_trigger",
+      "mcp__claude-code-remote__send_message"
     ],
     "deny": [
       "Read(**/.env)",
