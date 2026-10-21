@@ -65,8 +65,10 @@ flowchart LR
 /plugin install dev@fastship
 ```
 
+dev は技術スタックに依存しません。bun / Biome・uv / Ruff / Pyright で開発するなら、`/plugin install stack@fastship` も実行します ([🧰 技術スタック](#-技術スタック-stack-プラグイン))。
+
 ### 2. `/dev:setup` を実行する
-対象リポジトリで `/dev:setup` を実行します (別のリポジトリなら `/dev:setup owner/repo`)。ラベル・ルーティン 5 つ・テンプレート・FastShip プロジェクトを用意し、PR を作ります。導入済みなら最新版に更新します。
+対象リポジトリで `/dev:setup` を実行します (別のリポジトリなら `/dev:setup owner/repo`)。ラベル・ルーティン 5 つ・テンプレート・FastShip プロジェクトを用意し、PR を作ります。stack を入れていれば、技術スタックも入れるか聞きます。導入済みなら最新版に更新します。
 
 3 と 4 は API で設定できないため、setup が案内したら画面で設定します。
 
@@ -89,6 +91,12 @@ flowchart LR
    ```
 
    ![セットアップスクリプトに貼る](docs/images/claude-2-setup-script.png)
+
+   setup で技術スタックを入れたなら、次の行も足します。stack は dev と一緒には入りません。
+
+   ```bash
+   claude plugin install stack@fastship || echo "⚠️ stack@fastship を入れられませんでした" >&2
+   ```
 
 ### 4. Auto-add
 claude ラベルの付いた Issue / PR が、FastShip プロジェクトに自動で載るようにします。リポジトリごとに 1 回です。
@@ -146,7 +154,7 @@ Claude Code からも `/dev:issue` で起票できます。Slack (Claude Tag) �
 | `/dev:blocked` | 課題分析・リファインメント・実装・レビューのルーティン | 多重起動を防ぎ、判断できないときは質問して `claude:blocked` を付ける |
 | `/dev:push-pr` | 🧑‍💻 開発者 / 実装ルーティン | PR テンプレートに沿って PR を作成・更新する |
 
-このほか、クラウドセッションの開始時に、mise とツールを入れて lefthook の Git フック (pre-commit) を設定する SessionStart フックがあります (`mise.toml` があるリポジトリだけ)。
+`/dev:implement` は、リポジトリの検査 (`CLAUDE.md`・CI に書かれたテスト・lint・型チェック) を自分で実行してから PR を作ります。技術スタックの hook (stack プラグイン) は要りません。
 
 ## 🏷️ ラベル
 
@@ -221,15 +229,25 @@ Claude だけで判断できないことがあると、ルーティンは処理�
 
 ## 🧰 技術スタック (stack プラグイン)
 
-`dev` プラグインは `stack` プラグインを一緒に入れます。`stack` は bun / Biome・uv / Ruff / Pyright・shadcn/ui・Tailwind CSS で開発するリポジトリに、次を配ります。道具と設定は `/dev:setup` (中で `/stack:setup`) でリポジトリに入れます。
+`stack` は、使うリポジトリだけが入れるプラグインです。dev とは別に入れます。bun / Biome・uv / Ruff / Pyright・shadcn/ui・Tailwind CSS で開発するリポジトリに、次を配ります。
 
 | 配るもの | 内容 |
 |:--|:--|
-| 🚀 SessionStart | Claude Code on the web で、mise のツールと、`bun.lock`・`uv.lock` の依存を入れる |
+| 🚀 SessionStart | Claude Code on the web で、mise のツールと、`bun.lock`・`uv.lock` の依存を入れ、lefthook の Git フック (pre-commit) を設定する |
 | 🚫 PreToolUse | bun・uv のリポジトリで npm・pip などを止め、bun・uv を使わせる |
 | ✏️ PostToolUse | Claude が編集したファイルを Biome・Ruff で整形する |
 | ✔️ Stop | 変更したファイルが Biome・tsc・Ruff・Pyright を通るまで、作業を続けさせる |
 | 🎨 `/stack:ui` | shadcn/ui・Tailwind CSS の書き方 |
 | 📚 依存 | Context7 (版に合ったドキュメント)・pyright-lsp (編集した直後の型エラー) |
 
-ローカルで pyright-lsp を使うには、`pyright-langserver` を PATH に入れてください (例: `uv tool install pyright`)。
+1. ローカルで `/plugin install stack@fastship` を実行してから、`/dev:setup` で技術スタックを入れると答えます。setup が `/stack:setup` で道具と設定を入れ、リポジトリの `.claude/settings.json` で stack を有効にします。
+2. クラウド環境のセットアップスクリプトに、`claude plugin install stack@fastship` の行を足します ([3. クラウド環境](#3-クラウド環境))。
+
+hook は、道具と設定 (`mise.toml`・lock ファイル・`node_modules` の Biome・`.venv` の Ruff など) があるリポジトリでだけ動きます。ローカルで pyright-lsp を使うには、`pyright-langserver` を PATH に入れてください (例: `uv tool install pyright`)。
+
+### 0.13.0 に上げたとき
+dev は stack を一緒に入れなくなりました。stack を使っているリポジトリでは、次を行ってください。
+
+ - クラウド環境のセットアップスクリプトに、`claude plugin install stack@fastship` の行を足す。足さないと、ルーティンで stack の hook が動きません
+ - リポジトリの `.claude/settings.json` の `enabledPlugins` に、`"stack@fastship": true` を足す
+ - ローカルの `/plugin` の **Installed** に stack が無ければ、`/plugin install stack@fastship` で入れる

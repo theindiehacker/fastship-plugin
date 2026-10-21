@@ -1,14 +1,19 @@
 ---
 name: setup
-description: 対象リポジトリに組織推奨の開発スタックとラベル駆動開発 (ラベル・ルーティン・FastShip プラグイン・FastShip プロジェクト) を導入し、コミット・PR 作成まで行う。導入済みなら最新版に更新する。使い方 → /dev:setup [owner/repo]
+description: 対象リポジトリにラベル駆動開発 (ラベル・ルーティン・FastShip プラグイン・FastShip プロジェクト) を導入し、コミット・PR 作成まで行う。stack プラグインが入っていれば、技術スタックも入れるか聞く。導入済みなら最新版に更新する。使い方 → /dev:setup [owner/repo]
 argument-hint: "[owner/repo]"
 ---
 
 # セットアップ手順
-## 1. ボイラープレートの導入
-Organization のテンプレートリポジトリを対象リポジトリに導入してください。複数あればユーザーに確認し、無ければスキップしてください。
+## 1. 技術スタック (stack プラグインが入っているときだけ)
+`/stack:setup` スキルが使えなければ (stack プラグインが入っていなければ)、1 は飛ばしてください。dev は技術スタックに依存しません。
 
-続けて `/stack:setup` で、技術スタック (bun / Biome・knip・uv / Ruff / Pyright・lefthook) の設定を入れてください。テンプレートで入ったものは残し、足りないものだけを足します。
+使えるなら、次を行うかをユーザーに聞いてください。技術スタックはリポジトリごとに違うため、勧めずに聞くだけにします。行わないと答えたものは飛ばします。
+
+ - ボイラープレート: Organization のテンプレートリポジトリ (`gh repo list <owner> --limit 1000 --json name,isTemplate --jq '.[] | select(.isTemplate) | .name'`) を対象リポジトリに導入する。無ければ聞きません
+ - 技術スタック: `/stack:setup` で、bun / Biome・uv / Ruff / Pyright・lefthook の設定を入れる。ボイラープレートで入ったものは残し、足りないものだけを足します
+
+`/stack:setup` を行ったら、2 の `enabledPlugins` に `"stack@fastship": true` も足してください。stack の hook (整形・lint・型チェック) が、このリポジトリで動くようになります。
 
 ## 2. FastShip プラグインの設定 (ローカル)
 対象リポジトリの `.claude/settings.json` に次をマージしてください。他のキーは残してください。
@@ -154,8 +159,13 @@ flowchart LR
 } || echo "⚠️ dev@fastship を入れられませんでした" >&2
 ```
 
- - 1 行目は依存 (`security-guidance`・`context7`・`pyright-lsp`) のためです。無いと `dev` が読み込まれません。`stack` は同じマーケットプレイスにあるため、`dev` と一緒に入ります
+ - 1 行目は依存 (`security-guidance`。stack なら `context7`・`pyright-lsp` も) のためです。無いと `dev` が読み込まれません
  - Setup script は 0 以外で終わるとセッションが始まらないため、失敗しても警告だけ出します
+ - 1 で `/stack:setup` を行ったら、次の行も足すよう案内してください。stack は dev と一緒には入りません。環境は他のリポジトリと共有しますが、stack の hook は道具と設定 (`mise.toml`・lock ファイル・`node_modules` の Biome・`.venv` の Ruff など) が無いリポジトリでは何もしません
+
+```bash
+claude plugin install stack@fastship || echo "⚠️ stack@fastship を入れられませんでした" >&2
+```
 
 ### 4.4 FastShip プロジェクト
 対象リポジトリを、owner の FastShip プロジェクト (GitHub Project) につなぎます。開発者は、プロジェクトのビューで次に判断することを確かめます。テンプレートは https://github.com/orgs/theindiehacker/projects/6 です。
