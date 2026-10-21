@@ -1,6 +1,6 @@
 ---
 name: analysis
-description: FastShip の ③ 課題分析。claude:analysis が付いた Issue の課題の解像度と解決策の質を上げ、測定できる成功指標を決めて、Issue の 課題 / 解決策 / 成功指標 に書く。終わったら開発者に承認 (claude:refine) を依頼する。差し戻し (コメント + claude:analysis の付け直し) では、コメントを反映して分析し直す。課題分析ルーティンから使う。使い方: /dev:analysis {Issue の番号}
+description: FastShip の ③ 課題分析。claude:analysis が付いた Issue の課題の解像度と解決策の質を上げ、測定できる成功指標を決めて、Issue の 課題 / 解決策 / 成功指標 に書く。終わったら開発者に承認 (claude:refine) を依頼し、claude:analyzed (承認待ち) を付ける。差し戻し (コメント + claude:analysis の付け直し) では、コメントを反映して分析し直す。課題分析ルーティンから使う。使い方: /dev:analysis {Issue の番号}
 argument-hint: "{Issue の番号}"
 ---
 
@@ -12,6 +12,12 @@ GitHub は `gh api` (REST) で操作します。コマンドの `123` は Issue 
 
 ## 1. 始める
 `/dev:blocked` の「1. 始める」を、進行中ラベル `claude:analysis` で行ってください。`STOP` と出たら、何もせずに終えてください。
+
+`CONTINUE` と出たら、判断待ちのラベルを合わせてください。`claude:analysis` が付いているので、`claude:analyzed` と `claude:shipped` が外れます。差し戻しで分析し直している間、FastShip プロジェクトの承認待ち・成功指標の確認待ちに載せないためです。
+
+```bash
+bash "${CLAUDE_PLUGIN_ROOT}/scripts/waiting.sh" sync 123
+```
 
 ## 2. 読む
 Issue の本文とコメントをすべて読んでください。
@@ -72,12 +78,16 @@ jq -n --rawfile body /tmp/issue_body.md '{body:$body}' \
 ```
 
 ## 5. 承認を依頼する
-下の形式で `/tmp/analysis_done.md` を書き、コメントしてから `claude:analysis` を外してください。外しておくと、差し戻しのときに開発者が付け直せます。
+下の形式で `/tmp/analysis_done.md` を書き、次を 1 回の Bash で実行してください。コメントし、`claude:analysis` を外してから、判断待ちのラベルを合わせます。
+
+ - `claude:analysis` を外しておくと、差し戻しのときに開発者が付け直せます。付いたままラベルを足すと、課題分析ルーティンがもう一度起動するため、合わせるのは外した後です。
+ - `waiting.sh` は、この完了コメントが最後の承認 (`claude:refine` を付けた) より新しければ、`claude:analyzed` を付けます。FastShip プロジェクトの承認待ちに載ります。リファインメントが動いている間 (`claude:refine` が付いている) は付けず、リファインメントが終わるときに付けます。
 
 ```bash
 jq -n --rawfile body /tmp/analysis_done.md '{body:$body}' \
   | gh api --method POST "repos/{owner}/{repo}/issues/123/comments" --input - > /dev/null
 gh api --method DELETE "repos/{owner}/{repo}/issues/123/labels/claude:analysis" > /dev/null
+bash "${CLAUDE_PLUGIN_ROOT}/scripts/waiting.sh" sync 123
 ```
 
 ```markdown

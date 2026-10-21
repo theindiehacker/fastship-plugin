@@ -1,6 +1,6 @@
 ---
 name: refine
-description: FastShip の ⑤⑥ リファインメント。claude:refine が付いた (承認済みの) Issue を、1 PR で終わる Sub Issue に分解して起票し、親 Issue に紐付ける。依存の無い Sub Issue に claude:implement を付けて実装を始める。Sub Issue が閉じたときは、依存が解けた Sub Issue に claude:implement を付ける。リファインメントルーティンから使う。使い方: /dev:refine {Issue の番号}
+description: FastShip の ⑤⑥ リファインメント。claude:refine が付いた (承認済みの) Issue を、1 PR で終わる Sub Issue に分解して起票し、親 Issue に紐付ける。依存の無い Sub Issue に claude:implement を付けて実装を始める。Sub Issue が閉じたときは、依存が解けた Sub Issue に claude:implement を付け、判断待ちのラベル (claude:analyzed / claude:shipped) を合わせる。Sub Issue がすべて閉じると、親 Issue に claude:shipped (成功指標の確認待ち) が付く。リファインメントルーティンから使う。使い方: /dev:refine {Issue の番号}
 argument-hint: "{Issue の番号}"
 ---
 
@@ -21,6 +21,11 @@ gh api "repos/{owner}/{repo}/issues/123" --jq .state
 
  - `closed` なら、Sub Issue が閉じて起動しています。6 に進んでください。
  - `open` なら、`/dev:blocked` の「1. 始める」を、進行中ラベル `claude:refine` で行ってください。`STOP` と出たら、何もせずに終えてください。
+   - `CONTINUE` と出たら、判断待ちのラベルを合わせてください (下のコマンド)。`claude:refine` が付いているので、`claude:analyzed` と `claude:shipped` が外れます。承認されたので承認待ちから外し、やり直しで Sub Issue を足す間は成功指標の確認待ちに載せないためです。
+
+```bash
+bash "${CLAUDE_PLUGIN_ROOT}/scripts/waiting.sh" sync 123
+```
 
 ## 2. 読む
 Issue の本文とコメント、既にある Sub Issue をすべて読んでください。
@@ -109,12 +114,15 @@ gh api --paginate "repos/{owner}/{repo}/issues/<Sub Issue の番号>/comments" -
 gh api --method POST "repos/{owner}/{repo}/issues/<Sub Issue の番号>/labels" -f "labels[]=claude:implement" > /dev/null
 ```
 
-2. 下の形式で `/tmp/refine_done.md` を書き、親 Issue にコメントしてから `claude:refine` を外してください。外しておくと、やり直すときに開発者が付け直せます。
+2. 下の形式で `/tmp/refine_done.md` を書き、次を 1 回の Bash で実行してください。親 Issue にコメントしてから `claude:refine` を外し、判断待ちのラベルを合わせます。
+   - `claude:refine` を外しておくと、やり直すときに開発者が付け直せます。
+   - リファインメントの間に差し戻されて課題分析が終わっていれば、`claude:analyzed` が付きます (承認待ち)。やり直しで残りの Sub Issue を閉じて、すべて閉じていれば `claude:shipped` が付きます。
 
 ```bash
 jq -n --rawfile body /tmp/refine_done.md '{body:$body}' \
   | gh api --method POST "repos/{owner}/{repo}/issues/123/comments" --input - > /dev/null
 gh api --method DELETE "repos/{owner}/{repo}/issues/123/labels/claude:refine" > /dev/null
+bash "${CLAUDE_PLUGIN_ROOT}/scripts/waiting.sh" sync 123
 ```
 
 ```markdown
@@ -136,10 +144,11 @@ Sub Issue に分けました。上から着手順です。
 ## 6. 後続に着手する (Sub Issue が閉じたとき)
 閉じた Sub Issue には `claude:refine` が無いため、`/dev:blocked` の「1. 始める」は行いません。コメントもしません。
 
-1. 親 Issue の番号を取得してください。何も出なければ Sub Issue ではないので、何もせずに終えてください。
+1. 親 Issue の番号を取得してください。何も出なければ、Sub Issue ではないか、親 Issue が別のリポジトリにあります。何もせずに終えてください。以降のコマンドは、このリポジトリの番号として扱うためです。
 
 ```bash
-gh api "repos/{owner}/{repo}/issues/123" --jq '.parent_issue_url // empty | split("/") | last'
+gh api "repos/{owner}/{repo}/issues/123" \
+  --jq '.repository_url as $repo | .parent_issue_url // empty | select(startswith($repo + "/issues/")) | split("/") | last'
 ```
 
 2. 親 Issue の Sub Issue を読み、5 の条件をすべて満たすものに `claude:implement` を付けてください。確かめ方は 5 と同じです。
@@ -148,4 +157,10 @@ gh api "repos/{owner}/{repo}/issues/123" --jq '.parent_issue_url // empty | spli
 gh api --paginate "repos/{owner}/{repo}/issues/<親 Issue の番号>/sub_issues" --jq '.[] | "#\(.number) \(.state) [\([.labels[].name] | join(", "))] \(.title)"'
 ```
 
-同時に閉じた Sub Issue のセッションが並んで動いても、ラベルを付けるだけなので問題ありません。
+3. 親 Issue の判断待ちのラベルを合わせてください。Sub Issue がすべて閉じていれば `claude:shipped=yes` と出て、親 Issue に `claude:shipped` が付きます。FastShip プロジェクトの成功指標の確認待ちに載り、開発者が ⑫ で確かめます。付かないときは、理由が括弧の中に出ます。
+
+```bash
+bash "${CLAUDE_PLUGIN_ROOT}/scripts/waiting.sh" sync <親 Issue の番号>
+```
+
+同時に閉じた Sub Issue のセッションが並んで動くと、古い状態でラベルを付け外しすることがあります。`waiting.sh` は状態からラベルを決めるので、次に実行したとき (遅くとも週 1 回の振り返り) に直ります。
