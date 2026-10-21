@@ -97,10 +97,13 @@ PR を作った後は、レビュー・コメント・CI の結果でこのセ�
    - 採用するなら直して push してください。バグの指摘は、再現するテストを先に書いてから直してください (4 と同じ)。
    - PR は作り直さないでください。やったことが変わったときだけ、`/dev:push-pr` の 7-b の手順で本文を部分更新してください。
    - どの指摘にも、何をしたか (採用しないなら理由) を返信してください。返信の先頭には `<!-- fastship:reply -->` と改行を付けてください。
- - push したら、すぐに `claude:approved` を外し (下のコマンド)、`claude:under-review` を付け直して ⑨ に再レビューを頼んでください (5 の 4 と同じ)。⑨ は PR 全体を見直し、✅ / 🛑 を付け直します。
+ - push したら、すぐに下のコマンドで `claude:approved` を外し、⑨ に再レビューを頼んでください。⑨ は PR 全体を見直し、✅ / 🛑 を付け直します。
+   - `claude:under-review` が付いていれば、⑨ がレビュー中です。付け直さないでください。⑨ が終わるときに push に気づき、新しい head のレビューを頼み直します。5 の 4 のように外して付け直すと、レビューが 2 つ同時に動くためです。
 
 ```bash
 gh api --method DELETE "repos/{owner}/{repo}/issues/<PR>/labels/claude:approved" > /dev/null 2>&1 || true
+gh api "repos/{owner}/{repo}/issues/<PR>" --jq '.labels[].name' | grep -qxF claude:under-review \
+  || gh api --method POST "repos/{owner}/{repo}/issues/<PR>/labels" -f "labels[]=claude:under-review" > /dev/null
 ```
 
  - ✅ (`claude:approved` が付いた) のレビューの `[imo]` / `[nits]` / `[ask]` は、返信だけにしてください。それだけのために push すると、再レビューで ✅ が外れるためです。ほかに対応の要る指摘が無ければ何もしないでください。マージは開発者が行います。

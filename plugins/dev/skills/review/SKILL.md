@@ -75,15 +75,11 @@ gh api --paginate "repos/{owner}/{repo}/pulls/123/comments" \
 ## 4. 返す (⑩)
 `[must]` が 0 件なら ✅、1 件以上なら 🛑 です。
 
-1. 下の形式で `/tmp/review.json` を書き、`jq . /tmp/review.json > /dev/null` で JSON として正しいかを確かめてから、PR にレビューを投稿してください。
+1. 下の形式で `/tmp/review.json` を書き、`jq . /tmp/review.json > /dev/null` で JSON として正しいかを確かめてください。
    - `event` は `COMMENT` にしてください。Approve / Request changes は、PR の作成者と同じアカウントでは使えません。
    - `commit_id` は、1 で控えた sha にしてください。
    - 指摘は、差分の行に行コメントで付けてください (`side` は追加・変更行なら `RIGHT`、削除行なら `LEFT`)。差分の行に付けられない指摘は、本文に書いてください。422 で行を解決できないと出たら、その指摘を本文に移して投稿し直してください。
    - 本文と行コメントの先頭に `<!-- fastship:review -->` と改行を付けてください。実装は、このマーカーで ⑨ のレビューを見分けます。
-
-```bash
-gh api --method POST "repos/{owner}/{repo}/pulls/123/reviews" --input /tmp/review.json > /dev/null
-```
 
 ```json
 {
@@ -110,14 +106,23 @@ gh api --method POST "repos/{owner}/{repo}/pulls/123/reviews" --input /tmp/revie
 <差分の行に付けられない指摘>
 ```
 
-2. 次を 1 回の Bash で実行し、ラベルを付け替えてください。`<判定>` は `✅` か `🛑` にしてください。
-   - レビューの間に新しい push があれば (`MOVED`)、`claude:under-review` を付け直して、新しい head のレビューを頼み直します。
-   - `claude:under-review` を先に外すのは、付いたまま別のラベルを足すと、ルーティンがもう一度起動するためです。
+2. PR の head が 1 で控えた sha のままなら、レビューを投稿してください。`MOVED` と出たら、レビューの間に新しい push があったので、投稿せずに 3 に進んでください。古い commit への指摘で、実装を起こさないためです。
 
 ```bash
-HEAD_SHA=$(gh api "repos/{owner}/{repo}/pulls/123" --jq .head.sha)
+if [ "$(gh api "repos/{owner}/{repo}/pulls/123" --jq .head.sha)" = "<sha>" ]; then
+  gh api --method POST "repos/{owner}/{repo}/pulls/123/reviews" --input /tmp/review.json > /dev/null && echo POSTED
+else
+  echo MOVED
+fi
+```
+
+3. 次を 1 回の Bash で実行し、ラベルを付け替えてください。`<判定>` は `✅` か `🛑` にしてください。
+   - `claude:under-review` を先に外すのは、付いたまま別のラベルを足すと、ルーティンがもう一度起動するためです。
+   - 外してから head を確かめるのは、実装の push と行き違わないためです。外す前の push はここで `claude:under-review` を付け直して頼み直し (`MOVED`)、外した後の push は実装が付け直します。
+
+```bash
 gh api --method DELETE "repos/{owner}/{repo}/issues/123/labels/claude:under-review" > /dev/null 2>&1 || true
-if [ "$HEAD_SHA" != "<sha>" ]; then
+if [ "$(gh api "repos/{owner}/{repo}/pulls/123" --jq .head.sha)" != "<sha>" ]; then
   gh api --method POST "repos/{owner}/{repo}/issues/123/labels" -f "labels[]=claude:under-review" > /dev/null && echo MOVED
 elif [ "<判定>" = "✅" ]; then
   gh api --method POST "repos/{owner}/{repo}/issues/123/labels" -f "labels[]=claude:approved" > /dev/null && echo APPROVED
