@@ -1,12 +1,12 @@
 ---
 name: refine
-description: FastShip の ⑤⑥ リファインメント。claude:refine が付いた (承認済みの) Issue を、1 PR で終わる Sub Issue に分解して起票し、親 Issue に紐付ける。1 PR で済む Issue は分けず、完了条件・やらないことを書き足して Issue に claude:implement を付ける。依存の無い Sub Issue に claude:implement を付けて実装を始める。Sub Issue が閉じたときは、依存が解けた Sub Issue に claude:implement を付け。リファインメントルーティンから使う。使い方: /dev:refine {Issue の番号}
+description: FastShip の ⑤⑥ リファインメント。claude:refine が付いた (承認済みの) Issue を、1 PR で終わる Sub Issue に分解して起票し、親 Issue に紐付ける。1 PR で済む Issue は分けず、完了条件・やらないことを書き足して Issue に claude:implement を付ける。依存の無い Sub Issue に claude:implement を付けて実装を始める。Sub Issue が閉じたときは、依存が解けた Sub Issue に claude:implement を付け、すべて閉じていれば親 Issue を閉じる。リファインメントルーティンから使う。使い方: /dev:refine {Issue の番号}
 argument-hint: "{Issue の番号}"
 ---
 
 # ✂️ リファインメント
 
-`claude:refine` が付いた Issue を Sub Issue に分解し、実装を始めてください。1 PR で済む Issue は分けずに、Issue をそのまま実装に回します (3 の「1 PR で済むとき」)。Sub Issue が閉じて起動したときは、1 で見分けて 6 だけを行います。
+`claude:refine` が付いた Issue を Sub Issue に分解し、実装を始めてください。1 PR で済む Issue は分けずに、Issue をそのまま実装に回します (3 の「1 PR で済むとき」)。Sub Issue が閉じて起動したときは、1 で見分けて 6 だけを行います (すべて閉じていれば、親 Issue も閉じます)。
 
 GitHub は `gh api` (REST) で操作します。コマンドの `123` は、トリガーになった Issue の番号に置き換えてください。
 
@@ -190,4 +190,16 @@ gh api "repos/{owner}/{repo}/issues/123" \
 
 ```bash
 gh api --paginate "repos/{owner}/{repo}/issues/<親 Issue の番号>/sub_issues" --jq '.[] | "#\(.number) \(.state) [\([.labels[].name] | join(", "))] \(.title)"'
+```
+
+4. 親 Issue を閉じるかを決めてください。次をすべて満たせば、下のコマンドで親 Issue を完了として閉じます。フローは ⑪ マージで終わるためです (1 PR で済む Issue が PR の `Closes` で閉じるのとそろえます)。
+   - 3 の一覧の Sub Issue がすべて closed で、1 つ以上が完了 (`state_reason` が `completed`) である。すべて見送り (`not_planned`) なら、開発者が判断できるよう閉じずに残します
+   - 親 Issue に `claude:analysis` / `claude:analyzed` / `claude:refine` / `claude:blocked` が付いていない。差し戻し・やり直し・質問の途中で閉じないためです
+
+   親 Issue には `claude:implement` が付かないので、閉じてもリファインメントは起動しません。
+
+```bash
+gh api --paginate "repos/{owner}/{repo}/issues/<親 Issue の番号>/sub_issues" --jq '.[] | "#\(.number) \(.state) \(.state_reason)"'
+gh api "repos/{owner}/{repo}/issues/<親 Issue の番号>" --jq '[.labels[].name] | join(", ")'
+gh api --method PATCH "repos/{owner}/{repo}/issues/<親 Issue の番号>" -f state=closed -f state_reason=completed > /dev/null
 ```

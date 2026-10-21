@@ -186,7 +186,7 @@ flowchart LR
     analyzed -->|🧑‍💻 承認<br/>+ <code>claude:refine</code>| refine["✂️ リファインメント<br/><code>claude:refine</code>"]
     refine --> implement["🧑‍💻 実装<br/><code>claude:implement</code>"] --> review["✔️ レビュー<br/><code>claude:under-review</code>"]
     review --> approved[["⑪ マージ待ち<br/><code>claude:approved</code>"]]
-    approved -->|🧑‍💻 マージ| done(("✅"))
+    approved -->|🧑‍💻 マージ<br/>Sub Issue がすべて閉じると<br/>親 Issue も閉じる| done(("✅"))
     analysis & refine & implement & review -.-> blocked[["❓ 回答待ち<br/><code>claude:blocked</code>"]]
 ```
 
@@ -200,6 +200,7 @@ flowchart LR
  - `claude:analyzed` は、課題分析・リファインメントが Issue の状態から決めて付け外しします (`scripts/waiting.sh`)。手で付け外ししても、次にそれらが動いたときに状態に合わせ直されます。
    - 課題分析が、最後の承認 (`claude:refine` を付けた) より後に終わったときに付きます
    - 進行中ラベル (`claude:analysis` / `claude:refine` など) か `claude:blocked` が付いている間は付きません
+ - Sub Issue がすべて閉じて 1 つ以上が完了すると、リファインメントが親 Issue を閉じます。すべて見送りなら、閉じずに残します。1 PR で済む Issue は、PR の `Closes` で閉じます。
  - テンプレートは https://github.com/orgs/theindiehacker/projects/6 です。`/dev:setup` が、テンプレートをコピーして対象リポジトリにつなぎます (setup の 4.4)。
 
 ### setup を使わずにつなぐ
