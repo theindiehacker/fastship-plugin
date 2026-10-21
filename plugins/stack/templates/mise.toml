@@ -1,5 +1,7 @@
 [tools]
 bun = "latest"
+# Biome・tsc の起動スクリプト (node_modules/.bin) は node で動く
+node = "latest"
 uv = "latest"
 lefthook = "latest"
 

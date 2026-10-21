@@ -24,6 +24,7 @@ stack プラグインの hook (整形・lint・型チェック) は、ここで�
 `mise.toml` に `templates/mise.toml` をマージしてください。既にあるツールと設定は残します。
 
  - `"latest"` は `mise latest <ツール>` の版に置き換えてください。
+ - 使わない言語のツールは消してください。JavaScript / TypeScript が無ければ bun・node、Python が無ければ uv です。node は、Biome・tsc の起動スクリプト (`node_modules/.bin`) を動かすために要ります。無いと、node を入れていないマシンで hook と lefthook が止まります。
  - `mise install` の後、`mise lock` で `mise.lock` を作ってください。Claude Code on the web は lock の URL からツールを入れます。
 
 ## 3. JavaScript / TypeScript (パッケージの dir ごと)

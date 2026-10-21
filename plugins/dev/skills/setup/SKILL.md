@@ -17,7 +17,7 @@ Organization のテンプレートリポジトリを対象リポジトリに導�
 {
   "extraKnownMarketplaces": {
     "fastship": {
-      "source": {"source": "github", "repo": "theindiehacker/fastship-plugin"}
+      "source": { "source": "github", "repo": "theindiehacker/fastship-plugin" }
     }
   },
   "enabledPlugins": {
@@ -77,6 +77,7 @@ RemoteTrigger ツールで次のルーティンをそれぞれ用意し、URL (`
 | リポジトリ | 対象リポジトリのみ |
 | 環境 | 既存の ` / 課題分析` / ` / リファインメント` / ` / 実装` / ` / レビュー` / ` / 振り返り` ルーティンと同じ (無ければユーザーに確認) |
 | モデル | `claude-opus-5-5` |
+| ツール | claude.ai の既定 (`session_context.allowed_tools` を `["preset:default"]` にする) |
 | コネクタ | なし |
 | 通知 | プッシュ通知のみ |
 | プロンプト | 下記 |
