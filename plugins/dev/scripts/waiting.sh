@@ -53,7 +53,9 @@ sync() { # <Issue の番号>
   done
 
   if [ -z "$reason" ]; then
-    done_at=$(latest "issues/$number/comments" "(.body // \"\") | startswith(\"$ANALYSIS_MARK\")")
+    # 完了コメントのマーカーは誰でも書けるため、リポジトリのメンバーのコメントだけを数える。ルーティンは開発者のアカウントで書く
+    done_at=$(latest "issues/$number/comments" \
+      "((.body // \"\") | startswith(\"$ANALYSIS_MARK\")) and (.author_association | test(\"^(OWNER|MEMBER|COLLABORATOR)$\"))")
     ok_at=$(latest "issues/$number/events" '.event == "labeled" and .label.name == "claude:refine"')
     if [ -n "$done_at" ] && [[ $done_at > $ok_at ]]; then
       analyzed=yes
