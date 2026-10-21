@@ -38,7 +38,7 @@ graph LR;
     
     Repository -->|⑦ 起動| implement -->|⑧ PR を作成| Repository
     
-    Repository -->|⑨ 起動| review -->|⑩ ✅ / 🛑| Repository
+    Repository -->|⑨ 起動| review -->|⑩ ✅ / 🛑<br/>✅ なら + 🏷️ <code>claude:approved</code>| Repository
 
     Developer -->|⑪ マージ・リリース<br/>⑫ 成功指標を確認| Project
 
@@ -55,13 +55,14 @@ graph LR;
 | `claude:refine` | 🧑‍💻 開発者 | 課題分析の結果を承認し、リファインメントを始める |
 | `claude:implement` | 🧠 Claude | Sub Issue の実装を始める |
 | `claude:under-review` | 🧠 Claude | PR のレビューを始める |
+| `claude:approved` | 🧠 Claude | レビューが ✅ になった (ルーティンは起動しない) |
 | `claude:blocked` | 🧠 Claude | 人間の回答を待っている |
 | `claude:retrospective` | 🧠 Claude | 振り返りの結果 (ルーティンは起動しない) |
 
 ## 🧑‍💻 人間が判断すること
 
 1. **④ 承認**: 課題分析で追記された課題・解決策・成功指標を確認し、優先順位の高い Issue から `claude:refine` を付けます。方向がずれている場合は、Issue にコメントして `claude:analysis` を付け直します。
-2. **⑪ マージ・リリース**: レビューが ✅ になった PR を確認し、マージ・リリースします。
+2. **⑪ マージ・リリース**: `claude:approved` が付き (レビューが ✅)、CI が通った PR を確認し、マージ・リリースします。✅ の後に自分で push したとき (コンフリクトの解消など) は、`claude:approved` を外して `claude:under-review` を付け、再レビューを受けてください。
 3. **⑫ 成功指標の確認**: リリース後に成功指標を満たしたかを Issue にコメントし、Issue を閉じます。結果は週1回の振り返りで使います。閉じるまでは、振り返りの確認待ちに載ります。
 
 ## ❓ 質問・差し戻し
@@ -74,4 +75,4 @@ Claude だけで判断できないことがあると、ルーティンは処理�
 
 同じ Issue / PR で動くセッションは 1 つだけです。後から起動したセッションは何もせずに終わります。
 
-レビューの 🛑 は実装のセッションが対応します。Claude だけで判断できない指摘は、同じ手順で `claude:blocked` を付けて人間に返します。
+レビューの 🛑 は実装のセッションが対応します。Claude だけで判断できない指摘は、同じ手順で `claude:blocked` を付けて人間に返します。人が作った PR も、`claude:under-review` を付けるとレビューします。

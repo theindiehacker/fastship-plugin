@@ -38,13 +38,18 @@ start_ids() { # <番号> <時刻>  その時刻以降の着手コメントの ID
     | sort -n
 }
 
-previous() { # <番号>  最新の質問と、それ以降のコメントを出力する。着手と振り返りのコメントは除く
+previous() { # <番号> <進行中ラベル>  そのラベルで止めた最新の質問と、それ以降のコメントを出力する。着手・振り返り・ほかの質問のコメントは除く
+  # PR では実装とレビューが止めるため、質問の先頭のラベルで見分ける。ラベルの無い質問 (0.9.0 以前) はどれにも当てはめる
+  # 質問の後に同じラベルの着手コメントが 2 つ以上 (このセッションの分を含む) あれば、再開済みなので出さない
   gh api --paginate "$REPO/issues/$1/comments" --jq '.[] | {user: .user.login, created_at, body}' \
-    | jq -rs --arg mark "$BLOCKED_MARK" --arg start "$START_MARK" --arg retro "$RETRO_MARK" '
-        (map(.body | startswith($mark)) | rindex(true)) as $i
-        | if $i == null then empty
+    | jq -rs --arg mark "$BLOCKED_MARK" --arg start "$START_MARK" --arg retro "$RETRO_MARK" --arg label "$2" '
+        def question: .body | startswith($mark)
+          and (startswith($mark + "<!-- " + $label + " -->") or (startswith($mark + "<!--") | not));
+        def started: .body | startswith($start) and contains("`" + $label + "`");
+        (map(question) | rindex(true)) as $i
+        | if $i == null or ([.[$i + 1:][] | select(started)] | length) > 1 then empty
           else "--- 前回の質問と回答 ---",
-            (.[$i:][] | select(.body | startswith($start) or startswith($retro) | not)
+            (.[$i], (.[$i + 1:][] | select(.body | startswith($start) or startswith($retro) or startswith($mark) | not))
               | "### \(.user) (\(.created_at))\n\(.body)\n")
           end'
 }
@@ -76,12 +81,12 @@ start() { # <番号> <進行中ラベル>
 
   remove_label "$number" "$BLOCKED_LABEL"
   echo "CONTINUE"
-  previous "$number"
+  previous "$number" "$label"
 }
 
 stop() { # <番号> <進行中ラベル> <質問の本文ファイル>
   local number=$1 label=$2 file=$3
-  comment "$number" "$BLOCKED_MARK
+  comment "$number" "$BLOCKED_MARK<!-- $label -->
 $(cat "$file")" > /dev/null
 
   # 進行中ラベルを先に外す。付いたまま claude:blocked を足すと、ルーティンがもう一度起動する

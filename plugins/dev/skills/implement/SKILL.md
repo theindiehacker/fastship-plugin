@@ -68,7 +68,7 @@ gh api "repos/{owner}/{repo}/issues/<親 Issue>" --jq '.title, .body'
    - ベースは、リポジトリのデフォルトブランチにしてください。`Closes #N` は、デフォルトブランチへのマージでしか Issue を閉じません。
    - 💡 概要 に `Closes #<Sub Issue>` を 1 行で書いてください。マージすると Sub Issue が閉じ、後続の Sub Issue の実装が始まります。
    - Draft ではなく、Ready for review で作ってください。
-   - push-pr のステップ 11 は、レビューの依頼 (`/security-review` のコメント) だけ行ってください。CI の監視とレビューへの対応は 6 で行います。
+   - push-pr のステップ 11 は行わないでください。CI へのレビューの依頼 (`/code-review` / `/security-review` のコメント) もしません。レビューは ⑨ が行い (4)、CI とレビューへの対応は 6 で行います。
 2. `subscribe_pr_activity` で PR を購読してください。レビューと CI の結果で、このセッションが起こされるようになります (既に購読していても問題ありません)。
 3. Sub Issue に紐付いたことを確かめてください。2 行とも出なければ、本文やベースを直してください。
 
@@ -91,16 +91,22 @@ PR を作った後は、レビュー・コメント・CI の結果でこのセ�
 
  - 次のときは何もしないでください。
    - `claude:blocked` が付いている、またはこのセッションが `/dev:blocked` の「2. 止める」を行った後 (再開は新しいセッションが行います)
-   - 起こされたコメントが、このセッションの返信 (本文が `<!-- fastship:reply -->` で始まる) である
+   - 起こされたコメントが、⑨ のレビュー以外の FastShip のコメント (本文が `<!-- fastship:` で始まり、`<!-- fastship:review -->` ではない) である。このセッションの返信や、⑨ の着手・質問のコメントです
  - CI が失敗したら、原因を直して push してください。
- - レビューの指摘 (⑨ レビューの 🛑、CI のレビュー `/code-review` / `/security-review` の指摘、開発者のコメント) が付いたら、すべて読み、1 つずつ採否を決めてください。
+ - レビューの指摘 (⑨ のレビュー、bot のレビュー、開発者のコメント) が付いたら、すべて読み、1 つずつ採否を決めてください。⑨ のレビューは本文と行コメントが `<!-- fastship:review -->` で始まり、`[must]` が 🛑 の理由です。`[imo]` / `[nits]` / `[ask]` はマージを止めません。
    - 採用するなら直して push してください。バグの指摘は、再現するテストを先に書いてから直してください (4 と同じ)。
    - PR は作り直さないでください。やったことが変わったときだけ、`/dev:push-pr` の 7-b の手順で本文を部分更新してください。
    - どの指摘にも、何をしたか (採用しないなら理由) を返信してください。返信の先頭には `<!-- fastship:reply -->` と改行を付けてください。
- - 直したら、指摘したレビューに再レビューを頼んでください。
-   - ⑨ レビューの 🛑: `claude:under-review` を付け直す (5 の 4 と同じ)
-   - CI のレビュー: `/code-review` / `/security-review` をコメントする (`/dev:push-pr` のステップ 11 と同じ)
- - ✅ で、ほかに対応の要る指摘が無ければ何もしないでください。マージは開発者が行います。
+ - push したら、すぐに下のコマンドで `claude:approved` を外し、⑨ に再レビューを頼んでください。⑨ は PR 全体を見直し、✅ / 🛑 を付け直します。
+   - `claude:under-review` が付いていれば、⑨ がレビュー中です。付け直さないでください。⑨ が終わるときに push に気づき、新しい head のレビューを頼み直します。5 の 4 のように外して付け直すと、レビューが 2 つ同時に動くためです。
+
+```bash
+gh api --method DELETE "repos/{owner}/{repo}/issues/<PR>/labels/claude:approved" > /dev/null 2>&1 || true
+gh api "repos/{owner}/{repo}/issues/<PR>" --jq '.labels[].name' | grep -qxF claude:under-review \
+  || gh api --method POST "repos/{owner}/{repo}/issues/<PR>/labels" -f "labels[]=claude:under-review" > /dev/null
+```
+
+ - ✅ (`claude:approved` が付いた) のレビューの `[imo]` / `[nits]` / `[ask]` は、返信だけにしてください。それだけのために push すると、再レビューで ✅ が外れるためです。ほかに対応の要る指摘が無ければ何もしないでください。マージは開発者が行います。
 
 ## 判断できないとき
 次のように Claude だけで判断できないときは、推測で作らず、`/dev:blocked` の「2. 止める」で人間に返してください。PR を作った後は PR の番号で実行し、`unsubscribe_pr_activity` で PR の購読を外してください。Sub Issue の `claude:implement` は残ります (5 を参照)。
