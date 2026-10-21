@@ -8,6 +8,8 @@ argument-hint: "[owner/repo]"
 ## 1. ボイラープレートの導入
 Organization のテンプレートリポジトリを対象リポジトリに導入してください。複数あればユーザーに確認し、無ければスキップしてください。
 
+続けて `/stack:setup` で、技術スタック (bun / Biome・uv / Ruff / Pyright・lefthook) の設定を入れてください。テンプレートで入ったものは残し、足りないものだけを足します。
+
 ## 2. FastShip プラグインの設定 (ローカル)
 対象リポジトリの `.claude/settings.json` に次をマージしてください。他のキーは残してください。
 
@@ -140,5 +142,5 @@ flowchart LR
 } || echo "⚠️ dev@fastship を入れられませんでした" >&2
 ```
 
- - 1 行目は依存の `security-guidance` のためです。無いと `dev` が読み込まれません
+ - 1 行目は依存 (`security-guidance`・`context7`・`pyright-lsp`) のためです。無いと `dev` が読み込まれません。`stack` は同じマーケットプレイスにあるため、`dev` と一緒に入ります
  - Setup script は 0 以外で終わるとセッションが始まらないため、失敗しても警告だけ出します

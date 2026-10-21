@@ -76,3 +76,18 @@ Claude だけで判断できないことがあると、ルーティンは処理�
 同じ Issue / PR で動くセッションは 1 つだけです。後から起動したセッションは何もせずに終わります。
 
 レビューの 🛑 は実装のセッションが対応します。Claude だけで判断できない指摘は、同じ手順で `claude:blocked` を付けて人間に返します。人が作った PR も、`claude:under-review` を付けるとレビューします。
+
+## 🧰 技術スタック (stack プラグイン)
+
+`dev` プラグインは `stack` プラグインを一緒に入れます。`stack` は bun / Biome・uv / Ruff / Pyright・shadcn/ui・Tailwind CSS で開発するリポジトリに、次を配ります。道具と設定は `/dev:setup` (中で `/stack:setup`) でリポジトリに入れます。
+
+| 配るもの | 内容 |
+|:--|:--|
+| 🚀 SessionStart | Claude Code on the web で、mise のツールと、`bun.lock`・`uv.lock` の依存を入れる |
+| 🚫 PreToolUse | bun・uv のリポジトリで npm・pip などを止め、bun・uv を使わせる |
+| ✏️ PostToolUse | Claude が編集したファイルを Biome・Ruff で整形する |
+| ✔️ Stop | 変更したファイルが Biome・tsc・Ruff・Pyright を通るまで、作業を続けさせる |
+| 🎨 `/stack:ui` | shadcn/ui・Tailwind CSS の書き方 |
+| 📚 依存 | Context7 (版に合ったドキュメント)・pyright-lsp (編集した直後の型エラー) |
+
+ローカルで pyright-lsp を使うには、`pyright-langserver` を PATH に入れてください (例: `uv tool install pyright`)。

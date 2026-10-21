@@ -1,0 +1,30 @@
+[tool.ruff]
+line-length = 120
+
+[tool.ruff.lint]
+select = ["ALL"]
+ignore = [
+    "COM812",  # 末尾カンマの有無は ruff format が決めるため、lint では見ない (両方有効だと競合する)
+    "CPY001",  # 著作権表記はファイルごとではなく、リポジトリ直下の LICENSE で管理する
+    "ERA001",  # コメントアウトしたコードを許す
+    "FIX002",  # TODO コメントを許す
+    "PLR0913", # 引数の数を制限しない (DI で協力者を受け取る設計が主)
+    "PLR0917", # 位置引数の数も、PLR0913 と同じ理由で制限しない
+    "TRY003",  # 例外に長いメッセージを渡すことを許す
+    "D",       # docstring を必須にしない
+    "EM",      # 例外のメッセージを変数に入れてから渡さなくてよい
+    "TD",      # TODO コメントの書式を問わない
+]
+
+[tool.ruff.lint.per-file-ignores]
+# テストは assert を使い、期待値を直接書く
+"**/{test,tests}/**/*.py" = ["S101", "PLR2004", "INP001", "SLF001"]
+
+[tool.ruff.lint.flake8-tidy-imports]
+ban-relative-imports = "all"  # 相対インポートを禁止
+
+[tool.pyright]
+# uv が作る .venv のパッケージで型を解決する (venv を有効にしていない hook・LSP からも)
+venvPath = "."
+venv = ".venv"
+typeCheckingMode = "standard"
