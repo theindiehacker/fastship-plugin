@@ -1,6 +1,6 @@
 ---
 name: setup
-description: 対象リポジトリにラベル駆動開発 (ラベル・ルーティン・FastShip プラグイン・FastShip プロジェクト) を導入し、コミット・PR 作成まで行う。stack プラグインが入っていれば、技術スタックも入れるか聞く。導入済みなら最新版に更新する。使い方 → /dev:setup [owner/repo]
+description: 対象リポジトリにラベル駆動開発 (ラベル・ルーティン・FastShip プラグイン・FastShip プロジェクト) を導入し、コミット・PR 作成まで行う。stack プラグインが入っていれば、技術スタックも入れるか聞く。Actions の Claude レビューが PR で自動で動くなら、止めるか聞く。導入済みなら最新版に更新する。使い方 → /dev:setup [owner/repo]
 argument-hint: "[owner/repo]"
 ---
 
@@ -245,3 +245,27 @@ gh api --paginate "repos/{owner/repo}/issues?state=open&per_page=100" \
 ```
 
 7. プロジェクトの URL をユーザーに伝えてください。
+
+## 5. Actions の Claude レビュー
+FastShip の PR は ⑨ がレビューします。PR のイベントで Actions の Claude レビュー (claude-code-action) が自動で動くと、レビューが二重になり、GitHub Actions の時間も使います。FastShip の Claude の作業はルーティン (サブスク) で動かすため、Actions の Claude は人が頼んだときだけ動くようにします。
+
+1. claude-code-action を使うワークフローを探してください。他のワークフローを `uses:` で呼ぶもの (reusable workflow) は、呼び先も確かめてください。
+
+```bash
+grep -rlE 'anthropics/claude-code(-base)?-action' .github/workflows/
+```
+
+2. 見つかったワークフローの `on:` から、人が頼まなくても動くトリガーを洗い出してください。
+   - PR のイベント (`pull_request` / `pull_request_target`)。`types` の `opened`・`ready_for_review`・`synchronize`・`reopened`・`labeled` など、どれもまとめて確かめます。`types` が無ければ `opened`・`synchronize`・`reopened` で動きます。
+   - コメント・レビューのイベント (`issue_comment` / `pull_request_review_comment` / `pull_request_review`) のうち、`if:` で本文 (`/code-review`・`@claude` など) を絞っていないもの。⑨ のレビューや実装の返信でも動きます。
+3. 2 で出たら、ワークフローとトリガーを見せ、⑨ と二重になり Actions の時間を使うことを伝えて、自動の起動を止めるか確認してください。
+   - 止めるなら、PR のイベントを `on:` から外してください。本文を絞っていないコメントのトリガーは、`if:` で本文を絞ってください。コメントでの依頼 (`/code-review` など) は残します。
+   - `on:` に何も残らなければ、ワークフローを消すか確認してください。
+   - 止めないと答えたら残し、FastShip の PR でも二重に動くことを伝えてください。
+   - 変えたら、2・3 と同じコミットに入れてください。
+4. org の必須ワークフロー (Rulesets) に claude-code-action があれば、リポジトリからは止められません。下の 1 つ目のコマンドで必須ワークフローを出し、2 つ目で読んで 2 と同じように確かめてください。出たら、org の管理者に止めてもらうよう伝えてください。読めなければ (404 など)、ユーザーに聞いてください。
+
+```bash
+gh api "repos/{owner/repo}/rules/branches/<デフォルトブランチ>" --jq '.[] | select(.type == "workflows") | .parameters.workflows[] | "\(.repository_id) \(.path) \(.ref)"'
+gh api "repositories/<repository_id>/contents/<path>?ref=<ref>" --jq .content | base64 -d
+```

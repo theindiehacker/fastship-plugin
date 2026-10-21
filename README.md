@@ -43,6 +43,8 @@ graph LR;
     ClaudeCode -.->|❓ 質問・差し戻し<br/>+ 🏷️ <code>claude:blocked</code>| Repository
 ```
 
+Claude の作業 (課題分析・リファインメント・実装・レビュー) は、すべてルーティン (claude.ai のサブスク) で動かします。GitHub Actions の時間は使いません。Actions の Claude レビュー (claude-code-action) が PR で自動で動くリポジトリでは、⑨ と二重になるため、`/dev:setup` が止めるか確認します。CI (required workflow など) は push のたびに動くため、実装は CI とレビューの指摘への修正をまとめて 1 回で push します。
+
 ## 🚀 導入
 
 ```mermaid
@@ -64,7 +66,7 @@ flowchart LR
 dev は技術スタックに依存しません。bun / Biome・uv / Ruff / Pyright で開発するなら、`/plugin install stack@fastship` も実行します ([🧰 技術スタック](#-技術スタック-stack-プラグイン))。
 
 ### 2. `/dev:setup` を実行する
-対象リポジトリで `/dev:setup` を実行します (別のリポジトリなら `/dev:setup owner/repo`)。ラベル・ルーティン 4 つ・テンプレート・FastShip プロジェクトを用意し、PR を作ります。stack を入れていれば、技術スタックも入れるか聞きます。導入済みなら最新版に更新します。
+対象リポジトリで `/dev:setup` を実行します (別のリポジトリなら `/dev:setup owner/repo`)。ラベル・ルーティン 4 つ・テンプレート・FastShip プロジェクトを用意し、PR を作ります。stack を入れていれば、技術スタックも入れるか聞きます。Actions の Claude レビューが PR で自動で動くなら、止めるか聞きます。導入済みなら最新版に更新します。
 
 3 と 4 は API で設定できないため、setup が案内したら画面で設定します。
 
@@ -148,6 +150,7 @@ Claude Code からも `/dev:issue` で起票できます。Slack (Claude Tag) �
    - https://claude.ai/code/routines で、`{リポジトリ名} / 振り返り` のルーティンを消してください
    - FastShip プロジェクトの `⑫ 成功指標の確認待ち` のビューを、画面で消してください (ビューは API で消せません)
    - [4. Auto-add](#4-auto-add) のフィルタから `"claude:shipped"` を外してください (残っていても害はありません)
+ - `/dev:setup` で、Actions の Claude レビュー (claude-code-action) を PR で自動で動かさないか聞かれたら、止めてください。⑨ と二重にレビューし、Actions の時間を使うためです。コメントでの依頼 (`/code-review` など) は残ります。org の必須ワークフローで動いているときは、org の管理者に止めてもらってください。
 
 ## 🧰 スキル
 
