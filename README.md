@@ -53,28 +53,35 @@ graph LR;
  - claude.ai のアカウント (Pro / Max / Team / Enterprise)。Claude Code on the Web とスケジュール済みタスク (ルーティン) を使います。
  - 対象リポジトリに [Claude GitHub App](https://github.com/apps/claude) が入っていること。ルーティンは、この App が受け取るラベルのイベントで起動します。
  - [claude.ai/code](https://claude.ai/code) のクラウド環境。ルーティンはこの環境で動きます。
- - ローカルの Claude Code と、`gh auth login` 済みの `gh`。`/dev:setup` はローカルで実行します。claude.ai/code では FastShip プロジェクトの API が 403 になり、プロジェクトだけ手動でつなぐことになります。
+ - ローカルの Claude Code。claude.ai のアカウントでログインします。`/dev:setup` はローカルで実行します。
+   - ルーティンは RemoteTrigger ツールで作るため、API キーでログインしていると手動で作ることになります。
+   - claude.ai/code では FastShip プロジェクトの API が 403 になり、プロジェクトだけ手動でつなぐことになります。
+ - ローカルの `gh` と `jq`。`gh` は `project` スコープ付きでログインします (`gh auth login -s project`。ログイン済みなら `gh auth refresh -s project`)。
 
 ### 2. プラグインを入れる
-ローカルの Claude Code で実行します。
+ローカルの Claude Code で実行します。1 行目は依存の `security-guidance` のためです。
 
 ```text
+/plugin marketplace add anthropics/claude-plugins-official
 /plugin marketplace add theindiehacker/fastship-plugin
 /plugin install dev@fastship
 ```
 
-依存の `security-guidance` は `claude-plugins-official` から入ります。入らなければ、先に `/plugin marketplace add anthropics/claude-plugins-official` を実行してください。
-
 ### 3. `/dev:setup` を実行する
-対象リポジトリで `/dev:setup owner/repo` を実行します。導入済みのリポジトリで実行すると、最新版に更新します。
+対象リポジトリで `/dev:setup` を実行します。別のリポジトリに入れるときは `/dev:setup owner/repo` と指定します。導入済みのリポジトリで実行すると、最新版に更新します。
 
 | 作られるもの | 場所 |
 |:--|:--|
+| Organization のテンプレートリポジトリの中身 (あれば。複数あれば選ぶ) | 対象リポジトリ (PR) |
 | `.claude/settings.json` (マーケットプレイスを追加し、`dev@fastship` を有効にする) | 対象リポジトリ (PR) |
-| Issue / PR テンプレート (`backlog.md` / `todo.md` / `PULL_REQUEST_TEMPLATE.md`) | 対象リポジトリの `.github/` (PR) |
+| Issue テンプレート (`backlog.md` / `todo.md`) | 対象リポジトリの `.github/ISSUE_TEMPLATE/` (PR) |
+| PR テンプレート (`PULL_REQUEST_TEMPLATE.md`) | 対象リポジトリの `.github/` (PR) |
 | ラベル 9 種 (「🏷️ ラベル」を参照) | 対象リポジトリ |
 | ルーティン 5 つ (`{リポジトリ名} / 課題分析` / `リファインメント` / `実装` / `レビュー` / `振り返り`) | https://claude.ai/code/routines |
 | FastShip プロジェクト (「📋 FastShip プロジェクト」を参照) | owner の GitHub Projects |
+
+ - 内容が違うテンプレートが既にあれば、差分を見せて上書きしてよいか確認されます。
+ - 対象リポジトリに `.github/ISSUE_TEMPLATE/` が無いと、コピーした後は org の `<owner>/.github` にある Issue テンプレートと `config.yml` が使われなくなります。org にそれらがあれば、対象リポジトリにもコピーするか確認されます。
 
 次の 2 つは API で設定できないため、setup の案内に従って手で設定します。終わったら、setup が作った PR をマージします。
 
@@ -86,13 +93,17 @@ graph LR;
      claude plugin install dev@fastship
    } || echo "⚠️ dev@fastship を入れられませんでした" >&2
    ```
- - **FastShip プロジェクトの Auto-add**: 「setup を使わずにつなぐ」の 3 と同じです。
+ - **FastShip プロジェクトの Auto-add**: [setup を使わずにつなぐ](#setup-を使わずにつなぐ) の 3 と同じです。
 
 ### 4. 起票する
 **claude.ai**
 
-1. https://claude.ai/customize/plugins で「Add」を押し、`theindiehacker/fastship-plugin` をマーケットプレイスとして追加して、`dev` を有効にします。依存の `security-guidance` も有効にしてください。メンバーそれぞれが行います (org の GitHub 同期は private リポジトリしか受け付けないため、使えません)。
-2. 会話に、起票先のリポジトリを追加します (GitHub 連携)。`/dev:issue` は `gh api` (REST) で起票します。
+1. https://claude.ai/customize/plugins で「Add」を押し、`theindiehacker/fastship-plugin` をマーケットプレイスとして追加して、`dev` を有効にします。メンバーそれぞれが行います (org の GitHub 同期は private リポジトリしか受け付けないため、使えません)。
+   - 依存の `security-guidance` も有効にしてください。無いと `dev` が読み込まれません。一覧に無ければ、同じ画面で `anthropics/claude-plugins-official` を追加します。
+2. GitHub コネクタを有効にし、起票先のリポジトリが見えるようにします。`/dev:issue` は次の順に使って起票します。
+   - GitHub コネクタ
+   - 無ければ、会話に追加したリポジトリに `gh api` (REST)
+   - どちらも使えなければ本文を渡すので、GitHub の UI で起票して `claude:analysis` を付けます
 3. `/dev:issue [owner/repo] {やりたいこと}` を実行します。背景と参考資料を聞かれ、内容を確認すると `claude:analysis` 付きで起票され、③ 課題分析が始まります。起票先で `/dev:setup` が済んでいなければ止まります。
 
 Claude Code からも、同じく `/dev:issue` で起票できます。
@@ -163,7 +174,7 @@ flowchart LR
 ### setup を使わずにつなぐ
 1. owner の Projects に `FastShip プロジェクト` が既にあれば、それを使います (2 に進む)。無ければ、テンプレートを開き、メニューの「Make a copy」で owner にコピーします。タイトルは `FastShip プロジェクト` にします。ビューと組み込みのワークフローは引き継がれます。
 2. 対象リポジトリの Projects タブで「Link a project」を押し、1 のプロジェクトをリンクします。
-3. プロジェクトの Workflows で「Auto-add to project」を開き、Repository に対象リポジトリ、Filters に下の値を入れて「Save and turn on workflow」を押します。Auto-add はリポジトリごとに 1 つ要り、プランごとに数の上限があります (Free 1 / Pro・Team 5 / Enterprise 20)。
+3. プロジェクトの Workflows で「Auto-add to project」を開いて Edit を押し、Repository に対象リポジトリ、Filters に下の値を入れて「Save and turn on workflow」を押します。2 つ目以降のリポジトリは、既存の Auto-add のメニューから Duplicate して増やします (既存の Auto-add の Repository を変えると、前のリポジトリが入らなくなります)。Auto-add はリポジトリごとに 1 つ要り、プランごとに数の上限があります (Free 1 / Pro・Team 5 / Enterprise 20)。
 
    ```text
    is:issue,pr label:"claude:analysis","claude:analyzed","claude:refine","claude:implement","claude:under-review","claude:approved","claude:blocked","claude:shipped"
