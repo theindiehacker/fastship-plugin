@@ -7,6 +7,7 @@ set -euo pipefail
 
 START_MARK='<!-- fastship:start -->'
 BLOCKED_MARK='<!-- fastship:blocked -->'
+RETRO_MARK='<!-- fastship:retrospective'
 BLOCKED_LABEL='claude:blocked'
 REPO='repos/{owner}/{repo}'
 
@@ -37,13 +38,13 @@ start_ids() { # <番号> <時刻>  その時刻以降の着手コメントの ID
     | sort -n
 }
 
-previous() { # <番号>  最新の質問と、それ以降のコメントを出力する
+previous() { # <番号>  最新の質問と、それ以降のコメントを出力する。着手と振り返りのコメントは除く
   gh api --paginate "$REPO/issues/$1/comments" --jq '.[] | {user: .user.login, created_at, body}' \
-    | jq -rs --arg mark "$BLOCKED_MARK" --arg start "$START_MARK" '
+    | jq -rs --arg mark "$BLOCKED_MARK" --arg start "$START_MARK" --arg retro "$RETRO_MARK" '
         (map(.body | startswith($mark)) | rindex(true)) as $i
         | if $i == null then empty
           else "--- 前回の質問と回答 ---",
-            (.[$i:][] | select(.body | startswith($start) | not)
+            (.[$i:][] | select(.body | startswith($start) or startswith($retro) | not)
               | "### \(.user) (\(.created_at))\n\(.body)\n")
           end'
 }

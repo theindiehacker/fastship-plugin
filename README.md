@@ -42,6 +42,8 @@ graph LR;
 
     Developer -->|⑪ マージ・リリース<br/>⑫ 成功指標を確認| Project
 
+    retrospective -->|⑬ 振り返りと改善 Issue を起票<br/>+ 🏷️ <code>claude:analysis</code>| Repository
+
     ClaudeCode -.->|❓ 質問・差し戻し<br/>+ 🏷️ <code>claude:blocked</code>| Repository
 ```
 
@@ -54,12 +56,13 @@ graph LR;
 | `claude:implement` | 🧠 Claude | Sub Issue の実装を始める |
 | `claude:under-review` | 🧠 Claude | PR のレビューを始める |
 | `claude:blocked` | 🧠 Claude | 人間の回答を待っている |
+| `claude:retrospective` | 🧠 Claude | 振り返りの結果 (ルーティンは起動しない) |
 
 ## 🧑‍💻 人間が判断すること
 
 1. **④ 承認**: 課題分析で追記された課題・解決策・成功指標を確認し、優先順位の高い Issue から `claude:refine` を付けます。方向がずれている場合は、Issue にコメントして `claude:analysis` を付け直します。
 2. **⑪ マージ・リリース**: レビューが ✅ になった PR を確認し、マージ・リリースします。
-3. **⑫ 成功指標の確認**: リリース後に成功指標を満たしたかを Issue にコメントします。結果は週1回の振り返りで使います。
+3. **⑫ 成功指標の確認**: リリース後に成功指標を満たしたかを Issue にコメントし、Issue を閉じます。結果は週1回の振り返りで使います。閉じるまでは、振り返りの確認待ちに載ります。
 
 ## ❓ 質問・差し戻し
 
