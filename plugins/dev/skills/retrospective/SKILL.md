@@ -1,6 +1,6 @@
 ---
 name: retrospective
-description: FastShip の ♻️ 振り返り。前回の振り返りから今までにマージした PR・クローズした Issue・claude:blocked の件数・成功指標 (⑫) の報告と確認待ちを集めて振り返り (確認待ちの親 Issue には claude:shipped を付け直す)、結果を振り返り Issue (claude:retrospective) に残して閉じる。改善点は重複を除いて最大 3 件起票し、claude:analysis を付けて課題分析を始める。振り返りルーティンから週 1 回使う。使い方: /dev:retrospective
+description: FastShip の ♻️ 振り返り。前回の振り返りから今までにマージした PR・クローズした Issue・claude:blocked の件数・成功指標 (⑫) の報告と確認待ちを集めて振り返り (確認待ちの親 Issue の claude:shipped を合わせ直す)、結果を振り返り Issue (claude:retrospective) に残して閉じる。改善点は重複を除いて最大 3 件起票し、claude:analysis を付けて課題分析を始める。振り返りルーティンから週 1 回使う。使い方: /dev:retrospective
 ---
 
 # ♻️ 振り返り
@@ -41,12 +41,12 @@ gh api --paginate "repos/{owner}/{repo}/issues/comments?since=<since>&per_page=1
 ### 成功指標 (⑫)
 親 Issue は自動では閉じないため、Sub Issue がすべて閉じた親 Issue を、成功指標を確かめる対象にします。
 
- - open の親 Issue で、Sub Issue がすべて閉じたもの (下の 1 つ目のコマンド)。それぞれ 2 つ目のコマンドで `claude:shipped` を合わせ、`SHIPPED` と出たものだけを対象にしてください。リファインメントが起動しなかったとき (`claude:implement` の無い Sub Issue を手で閉じたなど) の付け漏れも、ここで直ります
+ - open の親 Issue で、Sub Issue がすべて閉じたもの・`claude:shipped` が付いたもの (下の 1 つ目のコマンド)。それぞれ 2 つ目のコマンドで `claude:shipped` を合わせ、`SHIPPED` と出たものだけを対象にしてください。リファインメントが起動しなかったとき (`claude:implement` の無い Sub Issue を手で閉じた、Sub Issue を開き直したなど) の付け漏れ・外し漏れも、ここで直ります
  - 1 つ目の出力で `completed` かつ `subs=` が 1 以上の Issue (期間に閉じた親 Issue)
 
 ```bash
 gh api --paginate "repos/{owner}/{repo}/issues?state=open&per_page=100" --jq '.[]
-  | select((.pull_request | not) and .sub_issues_summary.total > 0 and .sub_issues_summary.completed == .sub_issues_summary.total)
+  | select((.pull_request | not) and (([.labels[].name] | index("claude:shipped")) or (.sub_issues_summary.total > 0 and .sub_issues_summary.completed == .sub_issues_summary.total)))
   | "#\(.number) \(.title)"'
 bash "${CLAUDE_PLUGIN_ROOT}/scripts/shipped.sh" sync <番号>
 gh api "repos/{owner}/{repo}/issues/<番号>" --jq .body

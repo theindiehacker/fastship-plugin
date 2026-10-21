@@ -37,7 +37,10 @@ sync() { # <親 Issue の番号>
   done
 
   subs=$(gh api --paginate "$REPO/issues/$number/sub_issues" --jq '.[] | "\(.state) \(.state_reason)"')
-  if [ -z "$subs" ]; then
+  # 差し戻して分析し直した Issue は、承認されるまで成功指標の確認に回さない
+  if grep -qxF claude:analyzed <<< "$labels"; then
+    reason='承認待ちです'
+  elif [ -z "$subs" ]; then
     reason='Sub Issue がありません'
   elif grep -q '^open ' <<< "$subs"; then
     reason='open の Sub Issue があります'

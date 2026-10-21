@@ -83,13 +83,17 @@ jq -n --rawfile body /tmp/issue_body.md '{body:$body}' \
 
  - `claude:analysis` を外しておくと、差し戻しのときに開発者が付け直せます。
  - `claude:analyzed` を付けると、FastShip プロジェクトの承認待ちに載ります。`claude:analysis` を先に外すのは、付いたまま足すと課題分析ルーティンがもう一度起動するためです。
- - 分析の間に開発者が `claude:refine` を付けていたら (承認済み)、`claude:analyzed` は付けません。
+ - 分析の間に開発者が `claude:refine` を付けていたら (承認済み)、`claude:analyzed` は付けません。今のラベルではなく、`claude:analysis` と `claude:refine` のどちらが後に付いたかをイベントで見ます。リファインメントが先に終わって `claude:refine` が外れていても見分けるためです。
+ - `claude:shipped` も外します。分析の間に Sub Issue が閉じて付いた場合に、承認待ちと成功指標の確認待ちの両方に載せないためです。
 
 ```bash
 jq -n --rawfile body /tmp/analysis_done.md '{body:$body}' \
   | gh api --method POST "repos/{owner}/{repo}/issues/123/comments" --input - > /dev/null
 gh api --method DELETE "repos/{owner}/{repo}/issues/123/labels/claude:analysis" > /dev/null
-gh api "repos/{owner}/{repo}/issues/123" --jq '.labels[].name' | grep -qxF claude:refine \
+gh api --method DELETE "repos/{owner}/{repo}/issues/123/labels/claude:shipped" > /dev/null 2>&1 || true
+gh api --paginate "repos/{owner}/{repo}/issues/123/events" \
+  --jq '.[] | select(.event == "labeled" and (.label.name == "claude:analysis" or .label.name == "claude:refine")) | .label.name' \
+  | tail -1 | grep -qxF claude:refine \
   || gh api --method POST "repos/{owner}/{repo}/issues/123/labels" -f "labels[]=claude:analyzed" > /dev/null
 ```
 

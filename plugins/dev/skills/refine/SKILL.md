@@ -165,6 +165,6 @@ gh api --paginate "repos/{owner}/{repo}/issues/<親 Issue の番号>/sub_issues"
 bash "${CLAUDE_PLUGIN_ROOT}/scripts/shipped.sh" sync <親 Issue の番号>
 ```
 
- - 次のときは付けません (`NOT SHIPPED` / `SKIP`)。完了した Sub Issue が無い (すべて見送り)、成功指標 が空、親 Issue が閉じている、親 Issue に進行中ラベルか `claude:blocked` が付いている。進行中ラベルの付いた Issue にラベルを足すと、そのルーティンがもう一度起動するためです。
+ - 次のときは付けません (`NOT SHIPPED` / `SKIP`)。完了した Sub Issue が無い (すべて見送り)、成功指標 が空、親 Issue が閉じている、親 Issue が承認待ち (`claude:analyzed`)、親 Issue に進行中ラベルか `claude:blocked` が付いている。進行中ラベルの付いた Issue にラベルを足すと、そのルーティンがもう一度起動するためです。
 
 同時に閉じた Sub Issue のセッションが並んで動いても、ラベルを付けるだけなので問題ありません。`shipped.sh` は付け外しの直前に読み直すため、後に動いたセッションの結果が残ります。
