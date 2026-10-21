@@ -8,7 +8,7 @@ argument-hint: "[owner/repo]"
 ## 1. ボイラープレートの導入
 Organization のテンプレートリポジトリを対象リポジトリに導入してください。複数あればユーザーに確認し、無ければスキップしてください。
 
-続けて `/stack:setup` で、技術スタック (bun / Biome・uv / Ruff / Pyright・lefthook) の設定を入れてください。テンプレートで入ったものは残し、足りないものだけを足します。
+続けて `/stack:setup` で、技術スタック (bun / Biome・knip・uv / Ruff / Pyright・lefthook) の設定を入れてください。テンプレートで入ったものは残し、足りないものだけを足します。
 
 ## 2. FastShip プラグインの設定 (ローカル)
 対象リポジトリの `.claude/settings.json` に次をマージしてください。他のキーは残してください。
@@ -115,13 +115,20 @@ PR のレビューを /dev:review で行ってください。
 flowchart LR
     list["list"] --> exists{"名前が ' / {ルーティン}' で終わり<br/>sources の先頭が対象リポジトリ"}
     exists -->|ある| get["get"] --> update["update<br/>プロンプトとモデルだけ差し替える"]
-    exists -->|ない| create["create<br/>振り返りは cron_expression を付ける"] --> clear["update<br/>コネクタを外し、プッシュ通知のみにする"] -->|振り返り以外| trigger["create_webhook_trigger"]
+    exists -->|ない| more{"has_more"}
+    more -->|true| ask["ユーザーに確認"]
+    ask -->|ある| get
+    ask -->|ない| create
+    more -->|false| create["create<br/>振り返りは cron_expression を付ける"] --> clear["update<br/>コネクタを外し、プッシュ通知のみにする"] -->|振り返り以外| trigger["create_webhook_trigger"]
 ```
 
- - 既存の `update`: `get` した `job_config` を丸ごと送り、`ccr.events[0].data.message.content` と `ccr.session_context.model` だけを変える。トリガーは API から見えず重複に気づけないため、追加しない。0.3.0 以前に作った実装のルーティンには PR のトリガーが無いので、https://claude.ai/code/routines で確認し、無ければ手動で追加するよう案内する
+ - `list`: 返るのは 20 件までで、続きは取れない (`next_cursor` を渡しても同じページが返る)。`has_more` が true のときに見つからないルーティンは、無いとみなさない (重複して作らないため)。https://claude.ai/code/routines に `{リポジトリ名} / {工程}` があるかユーザーに確認し、あれば URL の `trig_…` で `get` する。無ければ `create` する
+ - 既存の `update`: `get` した `job_config` を丸ごと送り、`ccr.events[0].data.message.content` と `ccr.session_context.model` だけを変える。トリガーは API から見えず重複に気づけないため、追加しない。次のルーティンには PR のトリガーが無いので、https://claude.ai/code/routines で確認し、無ければ手動で追加するよう案内する
+   - 0.3.0 以前に作った実装のルーティン
+   - 0.12.1 以前に作った実装・レビューのルーティン (PR のトリガーの field を誤っていて、作れなかった)
  - `create`: `/schedule` スキルの書き方に従う。`run_once_at` は付けない。`cron_expression` は振り返りだけに付ける。実装は PR を作るので、`session_context` に `"autofix_on_pr_create": true` を付ける
  - 新規の `update`: `{"clear_mcp_connections": true, "notifications": {"channel": {"email": false, "push": true, "slack": false}}}` を送る (`create` は接続済みのコネクタをすべて付けるため)
- - `create_webhook_trigger`: 下記の body を、`{ラベル}` をトリガーのラベルに置き換えて送る。実装は PR 用に、`events` を `["pull_request.labeled"]`、`field` を `pull_request.labels` に変えた body も送る。レビューは `events` を `["pull_request.labeled"]`、`field` を `pull_request.labels`、`{ラベル}` を `claude:under-review` にした body だけを送る。リファインメントは Sub Issue の完了用に、`events` を `["issues.closed"]`、`{ラベル}` を `claude:implement` にした body も送る (実装は Sub Issue の `claude:implement` を閉じるまで外さないため、Sub Issue だけに絞れる)。振り返りは cron で動くため送らない
+ - `create_webhook_trigger`: 下記の body を、`{ラベル}` をトリガーのラベルに置き換えて送る。実装は PR 用に、`events` を `["pull_request.labeled"]`、`field` を `pr.labels` に変えた body も送る。レビューは `events` を `["pull_request.labeled"]`、`field` を `pr.labels`、`{ラベル}` を `claude:under-review` にした body だけを送る。PR のラベルの field は `pr.labels` で、`pull_request.labels` は `unknown field` で拒否される。リファインメントは Sub Issue の完了用に、`events` を `["issues.closed"]`、`{ラベル}` を `claude:implement` にした body も送る (実装は Sub Issue の `claude:implement` を閉じるまで外さないため、Sub Issue だけに絞れる)。振り返りは cron で動くため送らない
  - RemoteTrigger や Claude GitHub App が使えない場合は、上の表の内容で https://claude.ai/code/routines から手動で作るよう案内する
 
 ```json
@@ -136,7 +143,7 @@ flowchart LR
 ```
 
 ### 4.3 クラウド環境
-クラウドセッションは 2 の設定を読まないため、4.2 の環境の Setup script (claude.ai の環境設定画面) に次を追加するよう案内してください。環境の名前と、スクショ付きの手順 https://github.com/theindiehacker/fastship-plugin/blob/main/docs/manual-steps.md#1-クラウド環境にプラグインを入れる を伝えます。手順書にも同じスクリプトがあるため、変えるときは両方を直してください。
+クラウドセッションは 2 の設定を読まないため、4.2 の環境の Setup script (claude.ai の環境設定画面) に次を追加するよう案内してください。環境の名前と、スクショ付きの手順 https://github.com/theindiehacker/fastship-plugin#3-クラウド環境 を伝えます。README にも同じスクリプトがあるため、変えるときは両方を直してください。
 
 ```bash
 {
@@ -210,7 +217,7 @@ gh project link <n> --owner <owner> --repo {owner/repo}
 
 5. Auto-add workflow は API で作れないため、ユーザーに UI で設定してもらい、終わったと答えてもらってください。下のラベルが付いた Issue / PR が、プロジェクトに自動で入るようになります。手順は文章で説明せず、次の 2 つだけを伝えてください。
    - Workflows の URL: `https://github.com/<kind>/<owner>/projects/<n>/workflows`
-   - スクショ付きの手順: https://github.com/theindiehacker/fastship-plugin/blob/main/docs/manual-steps.md#2-fastship-プロジェクトの-auto-add
+   - スクショ付きの手順: https://github.com/theindiehacker/fastship-plugin#4-auto-add
    - Auto-add workflow はリポジトリごとに 1 つ要り、数にはプランごとの上限があります (Free 1 / Pro・Team 5 / Enterprise 20)。リンク済みのリポジトリ (下のコマンド) が上限より多ければ、ユーザーに伝えてください。
 
 ```bash
