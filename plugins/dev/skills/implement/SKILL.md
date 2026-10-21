@@ -27,7 +27,7 @@ gh api "repos/{owner}/{repo}/pulls?state=open&per_page=100" \
   --jq '.[] | select((.body // "") | split("\n") | map(rtrimstr("\r")) | index("Closes #<Sub Issue>")) | .number'
 ```
 
-PR で続けるときは、PR のブランチを checkout し、`subscribe_pr_activity` で PR を購読してください。レビューと CI の結果で、このセッションが起こされるようになります。PR が無いときは、「前回の質問」に作業ブランチがあればそれを checkout してください。
+PR で続けるときは、PR のブランチを checkout し、`subscribe_pr_activity` で PR を購読してください。レビューと CI の結果で、このセッションが起こされるようになります。PR が無いときは、「前回の質問」に作業ブランチがあればそれを checkout してください。無ければ、セッションの作業ブランチ (指定が無ければベースブランチの最新から作る) で作業してください。
 
 ## 2. 読む
 Sub Issue と親 Issue を読んでください。
@@ -59,18 +59,20 @@ gh api "repos/{owner}/{repo}/issues/<親 Issue>" --jq '.title, .body'
  - テストは公開された振る舞い (関数・API・画面) を通して書き、内部の作りに依存させないでください。
  - 期待値は完了条件から決めてください。実装と同じ計算で期待値を作らないでください。
  - 自動テストで確かめられない完了条件 (見た目・外部サービスなど) は、確かめた方法と結果を PR の ✔️ 動作確認 に書いてください。
- - 最後に、リポジトリのテスト・lint・型チェックをすべて通してください。
+ - 最後に、リポジトリにあるテスト・lint・型チェックをすべて通してください。
 
 ## 5. PR を作る
 1. `/dev:push-pr` で PR を作ってください。
    - 💡 概要 に `Closes #<Sub Issue>` を 1 行で書いてください。マージすると Sub Issue が閉じ、後続の Sub Issue の実装が始まります。
    - Draft ではなく、Ready for review で作ってください。
-2. Sub Issue に紐付いたことを確かめてから、`claude:under-review` を付けてください。⑨ レビューが始まります。
+2. Sub Issue に紐付いたことを確かめてから (出なければ本文を直す)、`claude:under-review` を付けてください。⑨ レビューが始まります。
 
 ```bash
 gh api "repos/{owner}/{repo}/pulls/<PR>" --jq .body | tr -d '\r' | grep -xF "Closes #<Sub Issue>"
 gh api --method POST "repos/{owner}/{repo}/issues/<PR>/labels" -f "labels[]=claude:under-review" > /dev/null
 ```
+
+3. `subscribe_pr_activity` で PR を購読してください。レビューと CI の結果で、このセッションが起こされるようになります (既に購読していても問題ありません)。
 
 Sub Issue の `claude:implement` は外さないでください。リファインメントは、このラベルが付いた Sub Issue が閉じたときに後続に着手します。
 
