@@ -104,7 +104,7 @@ graph LR;
    - GitHub コネクタ
    - 無ければ、会話に追加したリポジトリに `gh api` (REST)
    - どちらも使えなければ本文を渡すので、GitHub の UI で起票して `claude:analysis` を付けます
-3. `/dev:issue [owner/repo] {やりたいこと}` を実行します。背景と参考資料を聞かれ、内容を確認すると `claude:analysis` 付きで起票され、③ 課題分析が始まります。起票先で `/dev:setup` が済んでいなければ止まります。
+3. `/dev:issue [owner/repo] {やりたいこと}` を実行します。背景と参考資料を聞かれ、内容を確認すると `claude:analysis` 付きで起票され、③ 課題分析が始まります。起票先では `/dev:setup` を済ませておいてください。済んでいないと課題分析は始まりません。
 
 Claude Code からも、同じく `/dev:issue` で起票できます。
 
@@ -123,7 +123,7 @@ Claude Code からも、同じく `/dev:issue` で起票できます。
 | `/dev:implement {Sub Issue / PR}` | 実装ルーティン (⑦⑧) | ドメイン駆動設計 + テスト駆動開発で実装し、PR を作って `claude:under-review` を付ける |
 | `/dev:review {PR}` | レビュールーティン (⑨⑩) | コードレビューとセキュリティレビューをし、✅ なら `claude:approved` を付ける |
 | `/dev:retrospective` | 振り返りルーティン (週1回) | 開発を振り返り、改善 Issue を最大 3 件起票する |
-| `/dev:blocked` | 各ルーティン | 多重起動を防ぎ、判断できないときは質問して `claude:blocked` を付ける |
+| `/dev:blocked` | 課題分析・リファインメント・実装・レビューのルーティン | 多重起動を防ぎ、判断できないときは質問して `claude:blocked` を付ける |
 | `/dev:push-pr` | 🧑‍💻 開発者 / 実装ルーティン | PR テンプレートに沿って PR を作成・更新する |
 
 このほか、クラウドセッションの開始時に mise とツールを入れるフックがあります (`mise.toml` があるリポジトリだけ)。
@@ -172,7 +172,7 @@ flowchart LR
  - テンプレートは https://github.com/orgs/theindiehacker/projects/6 です。`/dev:setup` が、テンプレートをコピーして対象リポジトリにつなぎます (setup の 4.4)。
 
 ### setup を使わずにつなぐ
-1. owner の Projects に `FastShip プロジェクト` が既にあれば、それを使います (2 に進む)。無ければ、テンプレートを開き、メニューの「Make a copy」で owner にコピーします。タイトルは `FastShip プロジェクト` にします。ビューと組み込みのワークフローは引き継がれます。
+1. owner の Projects に `FastShip プロジェクト` が既にあれば、それを使います (2 に進む)。無ければ、テンプレートを開き、メニューの「Make a copy」で owner にコピーします。タイトルは `FastShip プロジェクト` にします。ビューと組み込みのワークフロー (Auto-add を除く) は引き継がれます。
 2. 対象リポジトリの Projects タブで「Link a project」を押し、1 のプロジェクトをリンクします。
 3. プロジェクトの Workflows で「Auto-add to project」を開いて Edit を押し、Repository に対象リポジトリ、Filters に下の値を入れて「Save and turn on workflow」を押します。2 つ目以降のリポジトリは、既存の Auto-add のメニューから Duplicate して増やします (既存の Auto-add の Repository を変えると、前のリポジトリが入らなくなります)。Auto-add はリポジトリごとに 1 つ要り、プランごとに数の上限があります (Free 1 / Pro・Team 5 / Enterprise 20)。
 
