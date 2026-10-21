@@ -48,6 +48,7 @@ gh label create claude:analysis --color d97757 --description "🤔 課題分析�
 gh label create claude:refine --color d97757 --description "✂️ 課題分析の結果を承認し、リファインメントを始める" --force -R {owner/repo}
 gh label create claude:implement --color d97757 --description "🧑‍💻 Sub Issue の実装を始める" --force -R {owner/repo}
 gh label create claude:under-review --color d97757 --description "✔️ PR のレビューを始める" --force -R {owner/repo}
+gh label create claude:approved --color 0e8a16 --description "✅ レビューを通った (マージできる)" --force -R {owner/repo}
 gh label create claude:blocked --color b60205 --description "❓ 人間の回答を待っている" --force -R {owner/repo}
 gh label create claude:retrospective --color d97757 --description "♻️ 振り返りの結果" --force -R {owner/repo}
 ```
@@ -60,6 +61,7 @@ RemoteTrigger ツールで次のルーティンをそれぞれ用意し、URL (`
 | 課題分析 | `{リポジトリ名} / 課題分析` | `issues.labeled` で、Issue のラベルに `claude:analysis` を含む場合 |
 | リファインメント | `{リポジトリ名} / リファインメント` | `issues.labeled` で、Issue のラベルに `claude:refine` を含む場合。`issues.closed` で、Issue のラベルに `claude:implement` を含む場合。closed は、Sub Issue が閉じたときに後続の Sub Issue に着手するのに使う |
 | 実装 | `{リポジトリ名} / 実装` | `issues.labeled` / `pull_request.labeled` で、Issue / PR のラベルに `claude:implement` を含む場合。PR は、PR で止めたときの再開に使う |
+| レビュー | `{リポジトリ名} / レビュー` | `pull_request.labeled` で、PR のラベルに `claude:under-review` を含む場合。実装は push を終えてからこのラベルを付けるため、`opened` / `synchronize` は使わない |
 | 振り返り | `{リポジトリ名} / 振り返り` | cron で毎週月曜 8:37 (JST)。`cron_expression` は UTC で `37 23 * * 0` |
 
 どのルーティンも次の設定にしてください。
@@ -67,7 +69,7 @@ RemoteTrigger ツールで次のルーティンをそれぞれ用意し、URL (`
 | 項目 | 値 |
 |:--|:--|
 | リポジトリ | 対象リポジトリのみ |
-| 環境 | 既存の ` / 課題分析` / ` / リファインメント` / ` / 実装` / ` / 振り返り` ルーティンと同じ (無ければユーザーに確認) |
+| 環境 | 既存の ` / 課題分析` / ` / リファインメント` / ` / 実装` / ` / レビュー` / ` / 振り返り` ルーティンと同じ (無ければユーザーに確認) |
 | モデル | `claude-opus-5-5` |
 | コネクタ | なし |
 | 通知 | プッシュ通知のみ |
@@ -91,6 +93,12 @@ Issue のリファインメントを /dev:refine で行ってください。
 Issue / PR の実装を /dev:implement で行ってください。
 ```
 
+レビュー:
+
+```text
+PR のレビューを /dev:review で行ってください。
+```
+
 振り返り:
 
 ```text
@@ -107,7 +115,7 @@ flowchart LR
  - 既存の `update`: `get` した `job_config` を丸ごと送り、`ccr.events[0].data.message.content` と `ccr.session_context.model` だけを変える。トリガーは API から見えず重複に気づけないため、追加しない。0.3.0 以前に作った実装のルーティンには PR のトリガーが無いので、https://claude.ai/code/routines で確認し、無ければ手動で追加するよう案内する
  - `create`: `/schedule` スキルの書き方に従う。`run_once_at` は付けない。`cron_expression` は振り返りだけに付ける。実装は PR を作るので、`session_context` に `"autofix_on_pr_create": true` を付ける
  - 新規の `update`: `{"clear_mcp_connections": true, "notifications": {"channel": {"email": false, "push": true, "slack": false}}}` を送る (`create` は接続済みのコネクタをすべて付けるため)
- - `create_webhook_trigger`: 下記の body を、`{ラベル}` をトリガーのラベルに置き換えて送る。実装は PR 用に、`events` を `["pull_request.labeled"]`、`field` を `pull_request.labels` に変えた body も送る。リファインメントは Sub Issue の完了用に、`events` を `["issues.closed"]`、`{ラベル}` を `claude:implement` にした body も送る (実装は Sub Issue の `claude:implement` を閉じるまで外さないため、Sub Issue だけに絞れる)。振り返りは cron で動くため送らない
+ - `create_webhook_trigger`: 下記の body を、`{ラベル}` をトリガーのラベルに置き換えて送る。実装は PR 用に、`events` を `["pull_request.labeled"]`、`field` を `pull_request.labels` に変えた body も送る。レビューは `events` を `["pull_request.labeled"]`、`field` を `pull_request.labels`、`{ラベル}` を `claude:under-review` にした body だけを送る。リファインメントは Sub Issue の完了用に、`events` を `["issues.closed"]`、`{ラベル}` を `claude:implement` にした body も送る (実装は Sub Issue の `claude:implement` を閉じるまで外さないため、Sub Issue だけに絞れる)。振り返りは cron で動くため送らない
  - RemoteTrigger や Claude GitHub App が使えない場合は、上の表の内容で https://claude.ai/code/routines から手動で作るよう案内する
 
 ```json
