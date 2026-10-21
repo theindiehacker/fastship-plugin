@@ -102,7 +102,7 @@ graph LR;
    - 依存の `security-guidance` も有効にしてください。無いと `dev` が読み込まれません。一覧に無ければ、同じ画面で `anthropics/claude-plugins-official` を追加します。
 2. GitHub コネクタを有効にし、起票先のリポジトリが見えるようにします。`/dev:issue` は次の順に使って起票します。
    - GitHub コネクタ
-   - 無ければ、会話に追加したリポジトリに `gh api` (REST)。claude.ai/code で、3 の Setup script を入れた環境を選んだ場合です。claude.ai/code は Customize > Plugins ではなく Setup script で `dev` を入れます。claude.ai のチャットに `gh` はありません
+   - 無ければ、会話に追加したリポジトリに `gh api` (REST)。claude.ai/code で、[3. `/dev:setup` を実行する](#3-devsetup-を実行する) の Setup script を入れた環境を選んだ場合です。claude.ai/code は Customize > Plugins ではなく Setup script で `dev` を入れます。claude.ai のチャットに `gh` はありません
    - どちらも使えなければ本文を渡すので、GitHub の UI で起票して `claude:analysis` を付けます
 3. `/dev:issue [owner/repo] {やりたいこと}` を実行します。背景と参考資料を聞かれ、内容を確認すると `claude:analysis` 付きで起票され、③ 課題分析が始まります。起票先では `/dev:setup` を済ませておいてください。済んでいないと課題分析は始まりません。
 
@@ -172,7 +172,7 @@ flowchart LR
  - テンプレートは https://github.com/orgs/theindiehacker/projects/6 です。`/dev:setup` が、テンプレートをコピーして対象リポジトリにつなぎます (setup の 4.4)。
 
 ### setup を使わずにつなぐ
-1. owner の Projects に `FastShip プロジェクト` が既にあれば、それを使います。上の表のビューがあるかを名前とフィルタで確かめ、無いものは UI で作ってから 2 に進みます。無ければ、テンプレートを開き、メニューの「Make a copy」で owner にコピーします。タイトルは `FastShip プロジェクト` にします。ビューと組み込みのワークフロー (Auto-add を除く) は引き継がれます。
+1. owner の Projects に `FastShip プロジェクト` が既にあれば、それを使います。上の表のビューがあるかを名前とフィルタで確かめ、無いものは UI で作ってから 2 に進みます。同じ名前でフィルタが違うものは、新しく作らずにそのビューのフィルタを直します (重複させないため)。プロジェクトが無ければ、テンプレートを開き、メニューの「Make a copy」で owner にコピーします。タイトルは `FastShip プロジェクト` にします。ビューと組み込みのワークフロー (Auto-add を除く) は引き継がれます。
 2. 対象リポジトリの Projects タブで「Link a project」を押し、1 のプロジェクトをリンクします。
 3. プロジェクトの Workflows で「Auto-add to project」を開いて Edit を押し、Repository に対象リポジトリ、Filters に下の値を入れて「Save and turn on workflow」を押します。2 つ目以降のリポジトリは、既存の Auto-add のメニューから Duplicate して増やします (既存の Auto-add の Repository を変えると、前のリポジトリが入らなくなります)。Auto-add はリポジトリごとに 1 つ要り、GitHub のプランごとに数の上限があります (Free 1 / Pro・Team 5 / Enterprise 20)。
 
