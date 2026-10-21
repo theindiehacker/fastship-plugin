@@ -1,0 +1,12 @@
+[tools]
+bun = "latest"
+uv = "latest"
+lefthook = "latest"
+
+[settings]
+experimental = true
+# mise.lock に版とダウンロードの URL を残す。Claude Code on the web は lock の URL からツールを入れる
+lockfile = true
+
+[hooks]
+postinstall = "lefthook install"
