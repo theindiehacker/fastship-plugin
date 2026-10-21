@@ -33,7 +33,7 @@ gh api --paginate "repos/{owner}/{repo}/issues/123/sub_issues" --jq '.[] | "#\(.
 
  - 課題 / 解決策 / 成功指標 が分解の元です。リポジトリのコードとドキュメントも読み、どこを変えるかを確かめてください。
  - リファインメントの完了コメント (`<!-- fastship:refine -->` で始まる) があれば、やり直しです。それ以降の開発者のコメントを反映してください。
- - 完了コメントが無いのに Sub Issue があれば、前のセッションが途中で止まっています。同じ作業の Sub Issue を重複して作らないでください。依存の登録も途中かもしれません。
+ - 完了コメントが無いのに Sub Issue があれば、前のセッションが途中で止まっています。同じ作業の Sub Issue を重複して作らないでください。
  - 既にある Sub Issue の依存は、下のコマンドで確かめてください。
 
 ```bash
@@ -51,8 +51,8 @@ gh api --paginate "repos/{owner}/{repo}/issues/<Sub Issue の番号>/dependencie
 ### やり直しのとき
  - 着手前の Sub Issue (5 の条件のうち、依存 以外を満たすもの) は、本文と依存を直すか、不要なら閉じてください。
  - 着手済みの Sub Issue は変えないでください。足りない作業は、新しい Sub Issue にしてください。
- - Sub Issue を閉じるときは、先にそれに依存している Sub Issue を下の 2 つ目のコマンドで確かめてください。閉じた後に、その依存を外すか付け替えてください。閉じた Issue への依存は解けた扱いになり、5 で実装が始まってしまうためです。
- - 依存を足すときは、4 の 3 のコマンドを使ってください。外すときは、外す依存の `id` で下の 4 つ目のコマンドを使ってください。
+ - Sub Issue を閉じる前に、それに依存している Sub Issue を下の 2 つ目のコマンドで確かめてください。代わりの依存が要れば、閉じる前に足してください。閉じた Issue への依存は解けた扱いになり、5 や 6 で実装が始まってしまうためです。閉じた後に、閉じた Issue への依存を外してください。
+ - 依存を足すときは 4 の 3 のコマンドを、外すときは外す依存の `id` で下の 4 つ目のコマンドを使ってください。
 
 ```bash
 jq -n --rawfile body /tmp/sub_issue.md '{body:$body}' \
@@ -69,17 +69,16 @@ gh api --method DELETE "repos/{owner}/{repo}/issues/<Sub Issue の番号>/depend
  - 解決策 がリポジトリの今の作りと合わず、どう分けるかで結果が大きく変わる
 
 ## 4. 起票する
-着手順 (依存される側が先) に、1 つずつ起票して親 Issue に紐付け、依存を登録してください。先に起票した Sub Issue を、後の Sub Issue の依存にできます。
+着手順 (依存される側が先) に、1 つずつ起票し、依存を登録してから親 Issue に紐付けてください。先に起票した Sub Issue を、後の Sub Issue の依存にできます。
 
 1. `${CLAUDE_PLUGIN_ROOT}/templates/ISSUE_TEMPLATE/todo.md` の欄に沿って、`/tmp/sub_issue.md` に本文を書いてください。
    - 先頭の YAML frontmatter は含めないでください。HTML コメントは残し、その下に書いてください。
    - タイトルは、何を変えるかが分かる短い文にしてください。
-2. 起票して、出力された `id` で親 Issue に紐付けてください。ラベルはまだ付けません。紐付けと依存の登録の前に実装が始まらないようにするためです。
+2. 起票して、出力された `number` と `id` を控えてください。
 
 ```bash
 jq -n --arg title "<タイトル>" --rawfile body /tmp/sub_issue.md '{title:$title, body:$body}' \
   | gh api --method POST "repos/{owner}/{repo}/issues" --input - --jq '"number=\(.number) id=\(.id)"'
-gh api --method POST "repos/{owner}/{repo}/issues/123/sub_issues" -F sub_issue_id=<id> > /dev/null
 ```
 
 3. 依存があれば、依存先ごとに Blocked by に登録してください。依存先は番号ではなく `id` で指定します。先に起票した Sub Issue の `id` は 2 の出力にあります。ほかの Issue の `id` は、下の 2 つ目のコマンドで取れます。
@@ -87,6 +86,12 @@ gh api --method POST "repos/{owner}/{repo}/issues/123/sub_issues" -F sub_issue_i
 ```bash
 gh api --method POST "repos/{owner}/{repo}/issues/<Sub Issue の番号>/dependencies/blocked_by" -F issue_id=<依存の id> > /dev/null
 gh api "repos/{owner}/{repo}/issues/<依存の番号>" --jq .id
+```
+
+4. 2 の `id` で親 Issue に紐付けてください。紐付けは依存を登録した後に行い、ラベルはまだ付けません。親 Issue に紐付くと、ほかの Sub Issue が閉じたときに 6 で実装が始まることがあるためです。
+
+```bash
+gh api --method POST "repos/{owner}/{repo}/issues/123/sub_issues" -F sub_issue_id=<id> > /dev/null
 ```
 
 ## 5. 着手する
