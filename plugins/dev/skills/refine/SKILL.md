@@ -37,7 +37,7 @@ gh api --paginate "repos/{owner}/{repo}/issues/123/sub_issues" --jq '.[] | "#\(.
  - 既にある Sub Issue の依存は、下のコマンドで確かめてください。
 
 ```bash
-gh api --paginate "repos/{owner}/{repo}/issues/<Sub Issue の番号>/dependencies/blocked_by" --jq '.[] | "#\(.number) \(.state) \(.title)"'
+gh api --paginate "repos/{owner}/{repo}/issues/<Sub Issue の番号>/dependencies/blocked_by" --jq '.[] | "#\(.number) id=\(.id) \(.state) \(.title)"'
 ```
 
 ## 3. 分解する
@@ -52,7 +52,7 @@ gh api --paginate "repos/{owner}/{repo}/issues/<Sub Issue の番号>/dependencie
  - 着手前の Sub Issue (5 の条件のうち、依存 以外を満たすもの) は、本文と依存を直すか、不要なら閉じてください。
  - 着手済みの Sub Issue は変えないでください。足りない作業は、新しい Sub Issue にしてください。
  - Sub Issue を閉じる前に、それに依存している Sub Issue を下の 2 つ目のコマンドで確かめてください。代わりの依存が要れば、閉じる前に足してください。閉じた Issue への依存は解けた扱いになり、5 や 6 で実装が始まってしまうためです。閉じた後に、閉じた Issue への依存を外してください。
- - 依存を足すときは 4 の 3 のコマンドを、外すときは外す依存の `id` で下の 4 つ目のコマンドを使ってください。
+ - 依存を足すときは 4 の 3 のコマンドを、外すときは外す依存の `id` (2 のコマンドで出ます) で下の 4 つ目のコマンドを使ってください。
 
 ```bash
 jq -n --rawfile body /tmp/sub_issue.md '{body:$body}' \
@@ -81,7 +81,7 @@ jq -n --arg title "<タイトル>" --rawfile body /tmp/sub_issue.md '{title:$tit
   | gh api --method POST "repos/{owner}/{repo}/issues" --input - --jq '"number=\(.number) id=\(.id)"'
 ```
 
-3. 依存があれば、依存先ごとに Blocked by に登録してください。依存先は番号ではなく `id` で指定します。先に起票した Sub Issue の `id` は 2 の出力にあります。ほかの Issue の `id` は、下の 2 つ目のコマンドで取れます。
+3. 依存があれば、依存先ごとに Blocked by に登録してください。依存先は番号ではなく `id` で指定します。先に起票した Sub Issue の `id` は 2 の出力にあります。ほかの Issue の `id` は、下の 2 つ目のコマンドで取れます。別のリポジトリの Issue なら、`{owner}/{repo}` をそのリポジトリにしてください。
 
 ```bash
 gh api --method POST "repos/{owner}/{repo}/issues/<Sub Issue の番号>/dependencies/blocked_by" -F issue_id=<依存の id> > /dev/null
@@ -101,7 +101,7 @@ gh api --method POST "repos/{owner}/{repo}/issues/123/sub_issues" -F sub_issue_i
    - 着手コメント (`<!-- fastship:start -->` で始まる) が無い。実装を始めた後に止まった Sub Issue に付け直さないためです
    - 依存 (Blocked by) の Issue がすべて closed である (依存が無い場合を含む)
 
-   open かどうかとラベルは、2 の Sub Issue の一覧で確かめてください。依存は下の 1 つ目のコマンドで確かめ、何も出なければ満たしています。親 Issue の外の Issue への依存も含まれます。
+   open かどうかとラベルは、2 の Sub Issue の一覧で確かめてください。依存は下の 1 つ目のコマンドで確かめ、エラーが無く何も出なければ満たしています。エラーが出たら、満たしていないものとして扱ってください。親 Issue の外の Issue への依存も含まれます。
 
 ```bash
 gh api --paginate "repos/{owner}/{repo}/issues/<Sub Issue の番号>/dependencies/blocked_by" --jq '.[] | select(.state == "open") | "#\(.number)"'
