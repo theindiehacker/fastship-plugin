@@ -105,7 +105,7 @@ Issue / PR の内容を確認し、着手してください。
 flowchart LR
     list["list"] --> exists{"名前が ' / {ルーティン}' で終わり<br/>sources の先頭が対象リポジトリ"}
     exists -->|ある| get["get"] --> update["update<br/>プロンプトとモデルだけ差し替える"]
-    exists -->|ない| create["create"] --> clear["update<br/>コネクタを外し、プッシュ通知のみにする"] --> trigger["create_webhook_trigger"]
+    exists -->|ない| create["create<br/>振り返りは cron_expression を付ける"] --> clear["update<br/>コネクタを外し、プッシュ通知のみにする"] -->|振り返り以外| trigger["create_webhook_trigger"]
 ```
 
  - 既存の `update`: `get` した `job_config` を丸ごと送り、`ccr.events[0].data.message.content` と `ccr.session_context.model` だけを変える。トリガーは API から見えず重複に気づけないため、追加しない。0.3.0 以前に作った実装のルーティンには PR のトリガーが無いので、https://claude.ai/code/routines で確認し、無ければ手動で追加するよう案内する
