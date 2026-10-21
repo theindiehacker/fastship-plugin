@@ -156,16 +156,22 @@ flowchart LR
     find -->|ある| views["3. ビューを揃える"] --> link["4. リポジトリをリンク"] --> auto["5. Auto-add を設定<br/>(ユーザーが UI で)"] --> add["6. 既存の Issue / PR を追加"]
 ```
 
+ - 4.4 は GraphQL と、owner の Projects の API を使います。下のコマンドが失敗したら (claude.ai/code では 403 になります)、4.4 は行わず、README の「setup を使わずにつなぐ」を案内してください。その際、owner に `FastShip プロジェクト` が既にあるかを先に確かめるよう伝えてください。重複して作らないためです。
+
+```bash
+gh api graphql -f query='{ viewer { login } }' --jq .data.viewer.login
+```
+
  - `gh auth status` の Token scopes に `project` が無ければ、`! gh auth refresh -s project` を実行するよう案内してください。
- - コマンドの `<owner>` は対象リポジトリの owner、`<n>` はプロジェクトの番号です。`<kind>` は、owner が org なら `orgs`、ユーザーなら `users` です (`gh api users/<owner> --jq .type` が `Organization` なら org)。
+ - コマンドの `<owner>` は対象リポジトリの owner、`<n>` はプロジェクトの番号です。`<kind>` は、owner が org なら `orgs`、ユーザーなら `users` です (`gh api users/<owner> --jq .type` が `Organization` なら org)。ユーザーのビューを作る API は、ドキュメントではパスが数値の user_id ですが、login で動き、user_id では 404 になることを確かめています。
 
 1. owner のプロジェクトから、タイトルが `FastShip プロジェクト` で、テンプレートではないものを探してください。`query` で絞らないのは、絞ると closed のプロジェクトが出ないためです。
    - 1 つなら、それを使います。`closed=true` なら、再開してよいかユーザーに確認し、`gh project close <n> --owner <owner> --undo` で再開してください。
    - 複数あれば、どれを使うかユーザーに確認してください。
-   - 無ければ、2 でコピーします。
+   - 何も出なければ、2 でコピーします。コマンドがエラーになったときは、無いとはみなさずに止めてください。重複して作らないためです。
 
 ```bash
-gh api graphql -f login=<owner> -f query='query($login: String!) { repositoryOwner(login: $login) { ... on ProjectV2Owner { projectsV2(first: 100) { nodes { number title template closed url } } } } }' \
+gh api graphql --paginate -f login=<owner> -f query='query($login: String!, $endCursor: String) { repositoryOwner(login: $login) { ... on ProjectV2Owner { projectsV2(first: 100, after: $endCursor) { pageInfo { hasNextPage endCursor } nodes { number title template closed url } } } } }' \
   --jq '.data.repositoryOwner.projectsV2.nodes[] | select(.title == "FastShip プロジェクト" and (.template | not)) | "\(.number) closed=\(.closed) \(.url)"'
 ```
 
@@ -189,7 +195,7 @@ gh project copy 6 --source-owner theindiehacker --target-owner <owner> --title "
 ```bash
 gh api graphql -f login=<owner> -F n=<n> -f query='query($login: String!, $n: Int!) { repositoryOwner(login: $login) { ... on ProjectV2Owner { projectV2(number: $n) { views(first: 50) { nodes { name filter } } } } } }' \
   --jq '.data.repositoryOwner.projectV2.views.nodes[] | "\(.name) [\(.filter)]"'
-gh api "<kind>/<owner>/projectsV2/<n>/fields" --jq '.[] | "\(.id) \(.name)"'
+gh api --paginate "<kind>/<owner>/projectsV2/<n>/fields?per_page=100" --jq '.[] | "\(.id) \(.name)"'
 jq -n --arg name "<ビュー>" --arg filter '<フィルタ>' '{name:$name, layout:"table", filter:$filter, visible_fields:[<列の id>]}' \
   | gh api --method POST "<kind>/<owner>/projectsV2/<n>/views" --input - --jq .number
 ```

@@ -84,10 +84,14 @@ flowchart LR
 | ⑫ 成功指標の確認待ち | `is:issue is:open label:"claude:shipped"` | 成功指標を満たしたか |
 
  - プロジェクトの Status と Board は、工程と連動しません。GitHub の Status はラベルの変化で変えられないため、ラベルを正にしています。
+ - `claude:analyzed` と `claude:shipped` は、課題分析・リファインメント・振り返りが Issue の状態から決めて付け外しします (`scripts/waiting.sh`)。手で付け外ししても、次にそれらが動いたときに状態に合わせ直されます。
+   - `claude:analyzed`: 課題分析が、最後の承認 (`claude:refine` を付けた) より後に終わった
+   - `claude:shipped`: 承認待ちではなく、Sub Issue がすべて閉じて 1 つ以上が完了し (すべて見送りなら付かない)、成功指標 が書いてある
+   - どちらも、進行中ラベル (`claude:analysis` / `claude:refine` など) か `claude:blocked` が付いている間は付きません
  - テンプレートは https://github.com/orgs/theindiehacker/projects/6 です。`/dev:setup` が、テンプレートをコピーして対象リポジトリにつなぎます (setup の 4.4)。
 
 ### setup を使わずにつなぐ
-1. テンプレートを開き、メニューの「Make a copy」で owner にコピーします。タイトルは `FastShip プロジェクト` にします。ビューと組み込みのワークフローは引き継がれます。
+1. owner の Projects に `FastShip プロジェクト` が既にあれば、それを使います (2 に進む)。無ければ、テンプレートを開き、メニューの「Make a copy」で owner にコピーします。タイトルは `FastShip プロジェクト` にします。ビューと組み込みのワークフローは引き継がれます。
 2. 対象リポジトリの Projects タブで「Link a project」を押し、1 のプロジェクトをリンクします。
 3. プロジェクトの Workflows で「Auto-add to project」を開き、Repository に対象リポジトリ、Filters に下の値を入れて「Save and turn on workflow」を押します。Auto-add はリポジトリごとに 1 つ要り、プランごとに数の上限があります (Free 1 / Pro・Team 5 / Enterprise 20)。
 
@@ -103,9 +107,9 @@ flowchart LR
 
 ## 🧑‍💻 人間が判断すること
 
-1. **④ 承認** (`④ 承認待ち`): 課題分析で追記された課題・解決策・成功指標を確認し、優先順位の高い Issue から `claude:refine` を付けます。方向がずれている場合は、Issue にコメントして `claude:analysis` を付け直します。見送るときは、Issue を閉じるか `claude:analyzed` を外します。
+1. **④ 承認** (`④ 承認待ち`): 課題分析で追記された課題・解決策・成功指標を確認し、優先順位の高い Issue から `claude:refine` を付けます。方向がずれている場合は、Issue にコメントして `claude:analysis` を付け直します。見送るときは、Issue を閉じます。
 2. **⑪ マージ・リリース** (`⑪ マージ待ち`): `claude:approved` が付き (レビューが ✅)、CI が通った PR を確認し、マージ・リリースします。CI の結果はビューに出ないため、PR で確かめてください。✅ の後に自分で push したとき (コンフリクトの解消など) は、`claude:approved` を外して `claude:under-review` を付け、再レビューを受けてください。
-3. **⑫ 成功指標の確認** (`⑫ 成功指標の確認待ち`): Sub Issue がすべて閉じると、親 Issue に `claude:shipped` が付きます。リリース後に成功指標を満たしたかを Issue にコメントし、Issue を閉じます。結果は週1回の振り返りで使います。閉じるまでは、振り返りの確認待ちに載ります。
+3. **⑫ 成功指標の確認** (`⑫ 成功指標の確認待ち`): Sub Issue がすべて閉じると、親 Issue に `claude:shipped` が付きます (付く条件は「📋 FastShip プロジェクト」を参照)。リリース後に成功指標を満たしたかを Issue にコメントし、Issue を閉じます。結果は週1回の振り返りで使います。閉じるまでは、振り返りの確認待ちに載ります。
 
 ## ❓ 質問・差し戻し
 

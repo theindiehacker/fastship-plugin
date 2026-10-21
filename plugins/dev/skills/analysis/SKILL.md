@@ -1,6 +1,6 @@
 ---
 name: analysis
-description: FastShip の ③ 課題分析。claude:analysis が付いた Issue の課題の解像度と解決策の質を上げ、測定できる成功指標を決めて、Issue の 課題 / 解決策 / 成功指標 に書く。終わったら claude:analyzed (承認待ち) を付けて、開発者に承認 (claude:refine) を依頼する。差し戻し (コメント + claude:analysis の付け直し) では、コメントを反映して分析し直す。課題分析ルーティンから使う。使い方: /dev:analysis {Issue の番号}
+description: FastShip の ③ 課題分析。claude:analysis が付いた Issue の課題の解像度と解決策の質を上げ、測定できる成功指標を決めて、Issue の 課題 / 解決策 / 成功指標 に書く。終わったら開発者に承認 (claude:refine) を依頼し、claude:analyzed (承認待ち) を付ける。差し戻し (コメント + claude:analysis の付け直し) では、コメントを反映して分析し直す。課題分析ルーティンから使う。使い方: /dev:analysis {Issue の番号}
 argument-hint: "{Issue の番号}"
 ---
 
@@ -13,11 +13,10 @@ GitHub は `gh api` (REST) で操作します。コマンドの `123` は Issue 
 ## 1. 始める
 `/dev:blocked` の「1. 始める」を、進行中ラベル `claude:analysis` で行ってください。`STOP` と出たら、何もせずに終えてください。
 
-`CONTINUE` と出たら、`claude:analyzed` と `claude:shipped` を外してください。差し戻しで分析し直している間、FastShip プロジェクトの承認待ち・成功指標の確認待ちに載せないためです。
+`CONTINUE` と出たら、判断待ちのラベルを合わせてください。`claude:analysis` が付いているので、`claude:analyzed` と `claude:shipped` が外れます。差し戻しで分析し直している間、FastShip プロジェクトの承認待ち・成功指標の確認待ちに載せないためです。
 
 ```bash
-gh api --method DELETE "repos/{owner}/{repo}/issues/123/labels/claude:analyzed" > /dev/null 2>&1 || true
-gh api --method DELETE "repos/{owner}/{repo}/issues/123/labels/claude:shipped" > /dev/null 2>&1 || true
+bash "${CLAUDE_PLUGIN_ROOT}/scripts/waiting.sh" sync 123
 ```
 
 ## 2. 読む
@@ -79,22 +78,16 @@ jq -n --rawfile body /tmp/issue_body.md '{body:$body}' \
 ```
 
 ## 5. 承認を依頼する
-下の形式で `/tmp/analysis_done.md` を書き、次を 1 回の Bash で実行してください。コメントし、`claude:analysis` を外してから `claude:analyzed` を付けます。
+下の形式で `/tmp/analysis_done.md` を書き、次を 1 回の Bash で実行してください。コメントし、`claude:analysis` を外してから、判断待ちのラベルを合わせます。
 
- - `claude:analysis` を外しておくと、差し戻しのときに開発者が付け直せます。
- - `claude:analyzed` を付けると、FastShip プロジェクトの承認待ちに載ります。`claude:analysis` を先に外すのは、付いたまま足すと課題分析ルーティンがもう一度起動するためです。
- - 分析の間に開発者が `claude:refine` を付けていたら (承認済み)、`claude:analyzed` は付けません。今のラベルではなく、`claude:analysis` と `claude:refine` のどちらが後に付いたかをイベントで見ます。リファインメントが先に終わって `claude:refine` が外れていても見分けるためです。
- - `claude:shipped` も外します。分析の間に Sub Issue が閉じて付いた場合に、承認待ちと成功指標の確認待ちの両方に載せないためです。
+ - `claude:analysis` を外しておくと、差し戻しのときに開発者が付け直せます。付いたままラベルを足すと、課題分析ルーティンがもう一度起動するため、合わせるのは外した後です。
+ - `waiting.sh` は、この完了コメントが最後の承認 (`claude:refine` を付けた) より新しければ、`claude:analyzed` を付けます。FastShip プロジェクトの承認待ちに載ります。リファインメントが動いている間 (`claude:refine` が付いている) は付けず、リファインメントが終わるときに付けます。
 
 ```bash
 jq -n --rawfile body /tmp/analysis_done.md '{body:$body}' \
   | gh api --method POST "repos/{owner}/{repo}/issues/123/comments" --input - > /dev/null
 gh api --method DELETE "repos/{owner}/{repo}/issues/123/labels/claude:analysis" > /dev/null
-gh api --method DELETE "repos/{owner}/{repo}/issues/123/labels/claude:shipped" > /dev/null 2>&1 || true
-gh api --paginate "repos/{owner}/{repo}/issues/123/events" \
-  --jq '.[] | select(.event == "labeled" and (.label.name == "claude:analysis" or .label.name == "claude:refine")) | .label.name' \
-  | tail -1 | grep -qxF claude:refine \
-  || gh api --method POST "repos/{owner}/{repo}/issues/123/labels" -f "labels[]=claude:analyzed" > /dev/null
+bash "${CLAUDE_PLUGIN_ROOT}/scripts/waiting.sh" sync 123
 ```
 
 ```markdown
