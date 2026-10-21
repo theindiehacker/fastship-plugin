@@ -1,6 +1,6 @@
 ---
 name: analysis
-description: FastShip の ③ 課題分析。claude:analysis が付いた Issue の課題の解像度と解決策の質を上げ、測定できる成功指標を決めて、Issue の 課題 / 解決策 / 成功指標 に書く。終わったら開発者に承認 (claude:refine) を依頼し、claude:analyzed (承認待ち) を付ける。差し戻し (コメント + claude:analysis の付け直し) では、コメントを反映して分析し直す。課題分析ルーティンから使う。使い方: /dev:analysis {Issue の番号}
+description: FastShip の ③ 課題分析。claude:analysis が付いた Issue の課題の解像度と解決策の質を上げ、測定できる成功指標を決めて、Issue の 課題 / 解決策 / 成功指標 に書く。終わったら開発者に承認 (claude:refine) を依頼し、claude:analyzed (承認待ち) を付ける。差し戻し (コメント + claude:analysis の付け直し) では、コメントを反映して分析し直す。ルーティンから使う。使い方: /dev:analysis {Issue の番号}
 argument-hint: "{Issue の番号}"
 ---
 
@@ -81,7 +81,7 @@ jq -n --rawfile body /tmp/issue_body.md '{body:$body}' \
 ## 5. 承認を依頼する
 下の形式で `/tmp/analysis_done.md` を書き、次を 1 回の Bash で実行してください。コメントし、`claude:analysis` を外してから、判断待ちのラベルを合わせます。
 
- - `claude:analysis` を外しておくと、差し戻しのときに開発者が付け直せます。付いたままラベルを足すと、課題分析ルーティンがもう一度起動するため、合わせるのは外した後です。
+ - `claude:analysis` を外しておくと、差し戻しのときに開発者が付け直せます。付いたままラベルを足すと、ルーティンがもう一度起動するため、合わせるのは外した後です。
  - `waiting.sh` は、この完了コメントが最後の承認 (`claude:refine` を付けた) より新しければ、`claude:analyzed` を付けます。FastShip プロジェクトの承認待ちに載ります。リファインメントが動いている間 (`claude:refine` が付いている) は付けず、リファインメントが終わるときに付けます。
 
 ```bash
