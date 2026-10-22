@@ -59,7 +59,7 @@ gh label create claude:blocked --color b60205 --description "❓ 人間の回答
 gh label create claude:analyzed --color 0e8a16 --description "🧑‍💻 課題分析が終わり、承認を待っている" --force -R {owner/repo}
 ```
 
-`claude:analyzed` は、人が見るためのラベルです。4.2 のトリガーには使いません。レビューが ✅ になった PR は、ラベルではなく Ready (Draft でない) で示します。
+`claude:analyzed` は、人が見るためのラベルです。4.2 のトリガーには使いません。レビューが ✅ になった PR は、ラベルではなく、Ready で `claude:under-review` が付いていないことで示します。
 
 0.13.0 以前に導入したリポジトリには、`claude:retrospective` / `claude:shipped` / `claude:approved` が残っています (下の 1 つ目のコマンドで出ます)。残っていれば、付いている Issue / PR の数 (2 つ目のコマンド。100 で頭打ち) をユーザーに伝え、消してよいか確認してください。消すと、付いていた Issue / PR からも外れます。消さないと答えたら残してください。
 
@@ -89,7 +89,7 @@ RemoteTrigger ツールで、FastShip のルーティンを 1 つ用意し、URL
 |:--|:--|:--|
 | `issues.labeled` | `claude:analysis` / `claude:refine` / `claude:implement` | 課題分析・リファインメント・実装 |
 | `issues.closed` | `claude:implement` | リファインメント (Sub Issue が閉じたときに、後続の Sub Issue に着手する。1 PR で済むとしてそのまま実装した Issue が閉じたときも起動するが、何もせずに終わる) |
-| `pull_request.labeled` | `claude:implement` / `claude:under-review` | 実装 (PR で止めたときの再開)・レビュー。実装は push を終えてから `claude:under-review` を付けるため、`opened` / `synchronize` は使わない |
+| `pull_request.labeled` | `claude:implement` / `claude:under-review` | 実装 (PR で止めたときの再開)・レビュー。実装は push を終えてから `claude:under-review` を付けるため、`opened` / `synchronize` は使わない。Draft の PR では起動しないため、実装は PR を Ready にしてからラベルを付ける |
 
 プロンプト:
 
