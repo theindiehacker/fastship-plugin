@@ -16,6 +16,8 @@ description: FastShip のルーティン (課題分析・リファインメン�
 
 どちらの手順も `${CLAUDE_PLUGIN_ROOT}/scripts/blocked.sh` で行います。GitHub は `gh api` (REST) で操作します。
 
+PR の工程は、PR が Ready のときだけ再開できます。Draft の PR にラベルを付けても、ルーティンは起動しません。
+
 ## 1. 始める
 トリガーになった Issue / PR の番号と、ルーティンの進行中ラベルで実行してください。
 
@@ -38,7 +40,7 @@ bash "${CLAUDE_PLUGIN_ROOT}/scripts/blocked.sh" stop 123 claude:implement /tmp/q
 
 4. 以降は何もせずに終えてください。`claude:blocked` が付いている間は、PR のイベントで起こされても対応しないでください。
 
- - 実装で PR を作った後は、PR の番号で実行してください。Sub Issue の `claude:implement` は外しません。リファインメントは、このラベルが付いた Sub Issue が閉じたときに後続に着手するためです。Sub Issue に別のラベルが付いて実装が起動しても、着手コメントがあるので「1. 始める」で止まります。
+ - 実装で PR を作った後は、PR の番号で実行し、続けて PR を Ready にしてください (`/dev:implement` の「判断できないとき」)。Sub Issue の `claude:implement` は外しません。リファインメントは、このラベルが付いた Sub Issue が閉じたときに後続に着手するためです。Sub Issue に別のラベルが付いて実装が起動しても、着手コメントがあるので「1. 始める」で止まります。
  - ラベルを手で操作するときも、進行中ラベルを先に外してください。付いたまま `claude:blocked` を付けると、ルーティンがもう一度起動します。
 
 ```markdown

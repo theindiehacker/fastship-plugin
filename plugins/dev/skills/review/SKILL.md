@@ -1,14 +1,14 @@
 ---
 name: review
-description: FastShip の ⑨⑩ レビュー。claude:under-review が付いた PR を、Claude Code 同梱の /code-review と /security-review、Sub Issue の完了条件でレビューし、結果を ✅ / 🛑 で PR に返す。PR はレビューの間 Draft にし、✅ なら Ready for review にする。🛑 の指摘は実装のセッションが直し、再レビューを頼む。判断できないときは claude:blocked で人間に返す。ルーティンから使う。使い方: /dev:review {PR の番号}
+description: FastShip の ⑨⑩ レビュー。claude:under-review が付いた PR を、Claude Code 同梱の /code-review と /security-review、Sub Issue の完了条件でレビューし、結果を ✅ / 🛑 で PR に返す。レビューは Ready の PR で行い、🛑 なら PR を Draft に戻す。🛑 の指摘は実装のセッションが直し、Ready にして再レビューを頼む。判断できないときは claude:blocked で人間に返す。ルーティンから使う。使い方: /dev:review {PR の番号}
 argument-hint: "{PR の番号}"
 ---
 
 # ✔️ レビュー
 
-`claude:under-review` が付いた PR をレビューし、✅ / 🛑 を返してください。🛑 の指摘は、PR を作った実装のセッションが直し、`claude:under-review` を付け直して再レビューを頼みます。開発者は、Ready (Draft でない) で CI が通った PR をマージします。
+`claude:under-review` が付いた PR をレビューし、✅ / 🛑 を返してください。🛑 の指摘は、PR を作った実装のセッションが直し、PR を Ready にして `claude:under-review` を付け直し、再レビューを頼みます。開発者は、✅ が付き CI が通った PR をマージします。
 
-PR の Draft / Ready は、だれの番かを示します。Draft は Claude の番 (実装・修正・レビュー中) で、マージできません。Ready は人の番 (✅ 済み・マージ待ち) です。⑨ は、始めるときに Draft に戻し、✅ を返すときだけ Ready にします。
+PR は、実装・修正の間だけ Draft にします。⑨ は Ready の PR で動き (Draft の PR にラベルを付けても、ルーティンは起動しない)、🛑 を返すときに Draft に戻して実装に渡します。✅ なら Ready のままです。レビューの間も Ready ですが、`claude:under-review` が付いているので、プロジェクトの `⑪ マージ待ち` には出ません。
 
 GitHub は `gh api` (REST) で操作します。Draft / Ready の切り替えは REST に無く、`gh pr ready` (GraphQL) は claude.ai/code で 403 になるため、CCR のルートを使います。CCR のルートが 404 のとき (ローカルの CLI) は、`gh pr ready` に切り替えます (`/dev:push-pr` の 8-b と同じ)。コマンドの `123` は PR の番号、`<base>` は 1 で出たベースブランチ、`<sha>` は 1 で控えた sha、`<Sub Issue>` は Sub Issue の番号に置き換えてください。
 
@@ -27,15 +27,7 @@ gh api "repos/{owner}/{repo}/pulls/123" --jq '.state, .base.ref'
 gh api --method DELETE "repos/{owner}/{repo}/issues/123/labels/claude:under-review" > /dev/null
 ```
 
- - `open` なら、PR を Draft に戻してください (下のコマンド)。前の ✅ (Ready) を、レビューが終わるまで残さないためです。開発者が ✅ の後に push して `claude:under-review` を付けたときも、ここで Draft に戻ります。
-
-```bash
-[ "$(gh api "repos/{owner}/{repo}/pulls/123" --jq .draft)" = "true" ] \
-  || gh api --method POST "repos/{owner}/{repo}/pulls/123/ccr/convert_to_draft" > /dev/null 2>&1 \
-  || gh pr ready --undo 123
-```
-
- - 続けて、`claude:under-review` は付けたまま、PR の head を checkout してください。最後に出た sha を控えてください。4 で、レビューした commit を示すのに使います。
+ - `open` なら、`claude:under-review` は付けたまま、PR の head を checkout してください。最後に出た sha を控えてください。4 で、レビューした commit を示すのに使います。
    - `claude:under-review` は 4 で外します。付けたままにするのは、実装がレビュー中だと分かるようにするためと、途中で止まっても付け直せばやり直せるようにするためです。
    - フォークの PR も取れるよう、ブランチ名ではなく `refs/pull/123/head` を取ります。
    - `origin/HEAD` をベースに向けるのは、`/security-review` が `origin/HEAD` と比べるためです。
@@ -131,19 +123,23 @@ else
 fi
 ```
 
-3. 次を 1 回の Bash で実行し、`claude:under-review` を外して、✅ なら PR を Ready にしてください。`<判定>` は `✅` か `🛑` にしてください。
-   - 🛑 と `MOVED` では Draft のままにします。直してから、もう一度レビューするためです。
-   - `claude:under-review` を外してから head を確かめるのは、実装の push と行き違わないためです。外す前の push はここで `claude:under-review` を付け直して頼み直し (`MOVED`)、外した後の push は実装が Draft に戻して付け直します。
+3. 次を 1 回の Bash で実行し、`claude:under-review` を外して、🛑 なら PR を Draft に戻してください。`<判定>` は `✅` か `🛑` にしてください。
+   - 🛑 では Draft に戻します。実装が直す間は Draft にし、直したら実装が Ready にして再レビューを頼みます。
+   - ✅ では Ready のままにします (Draft なら Ready にします)。`MOVED` も Ready のまま `claude:under-review` を付け直し、新しい head のレビューを頼み直します。
+   - `claude:under-review` を外してから head を確かめるのは、実装の push と行き違わないためです。外す前の push はここで `claude:under-review` を付け直して頼み直し (`MOVED`)、外した後の push は実装が Ready にして付け直します。
 
 ```bash
 gh api --method DELETE "repos/{owner}/{repo}/issues/123/labels/claude:under-review" > /dev/null 2>&1 || true
 if [ "$(gh api "repos/{owner}/{repo}/pulls/123" --jq .head.sha)" != "<sha>" ]; then
   gh api --method POST "repos/{owner}/{repo}/issues/123/labels" -f "labels[]=claude:under-review" > /dev/null && echo MOVED
 elif [ "<判定>" = "✅" ]; then
-  { gh api --method POST "repos/{owner}/{repo}/pulls/123/ccr/ready_for_review" > /dev/null 2>&1 \
+  { [ "$(gh api "repos/{owner}/{repo}/pulls/123" --jq .draft)" = "false" ] \
+    || gh api --method POST "repos/{owner}/{repo}/pulls/123/ccr/ready_for_review" > /dev/null 2>&1 \
     || gh pr ready 123; } && echo APPROVED
 else
-  echo CHANGES
+  { [ "$(gh api "repos/{owner}/{repo}/pulls/123" --jq .draft)" = "true" ] \
+    || gh api --method POST "repos/{owner}/{repo}/pulls/123/ccr/convert_to_draft" > /dev/null 2>&1 \
+    || gh pr ready --undo 123; } && echo CHANGES
 fi
 ```
 
@@ -153,6 +149,6 @@ fi
  - PR の目的が、本文・Sub Issue から読み取れず、正しいかを判断できない
  - 指摘が Sub Issue・親 Issue の決定と食い違い、直すかどうかが仕様の判断になる (例: 完了条件どおりに作ると脆弱性になる)
  - PR の head を checkout できない (403 など)
- - PR を Draft / Ready に切り替えられない (CCR のルートも `gh pr ready` も失敗する)。4 で ✅ を投稿した後なら、Ready にできなかったことを質問に書いてください
+ - PR を Draft / Ready に切り替えられない (CCR のルートも `gh pr ready` も失敗する)。4 で投稿した後なら、切り替えられなかったことを質問に書いてください
 
 好みや小さな設計の選択は止めずに、`[imo]` で書いてください。

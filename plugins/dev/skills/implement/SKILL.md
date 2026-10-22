@@ -1,6 +1,6 @@
 ---
 name: implement
-description: FastShip の ⑦⑧ 実装。claude:implement が付いた Sub Issue (1 PR で済む Issue はその Issue) を、ドメイン駆動設計とテスト駆動開発で実装する。Sub Issue に紐付けた (Closes #N) テスト付きの PR を Draft で作り、claude:under-review でレビューに回す。レビューの指摘 (🛑 など) と CI の失敗に対応する。判断できないときは claude:blocked で人間に返す。PR で止めた後の再開 (PR に claude:implement) にも使う。ルーティンから使う。使い方: /dev:implement {Sub Issue または PR の番号}
+description: FastShip の ⑦⑧ 実装。claude:implement が付いた Sub Issue (1 PR で済む Issue はその Issue) を、ドメイン駆動設計とテスト駆動開発で実装する。Sub Issue に紐付けた (Closes #N) テスト付きの PR を Draft で作り、Ready にして claude:under-review でレビューに回す。PR は実装・修正の間だけ Draft にする。レビューの指摘 (🛑 など) と CI の失敗に対応する。判断できないときは claude:blocked で人間に返す。PR で止めた後の再開 (PR に claude:implement) にも使う。ルーティンから使う。使い方: /dev:implement {Sub Issue または PR の番号}
 argument-hint: "{Sub Issue または PR の番号}"
 ---
 
@@ -12,6 +12,21 @@ argument-hint: "{Sub Issue または PR の番号}"
 
 GitHub は `gh api` (REST) で操作します。コマンドの `123` はトリガーになった Issue / PR の番号、`<Sub Issue>` は Sub Issue の番号、`<PR>` は PR の番号に置き換えてください。
 
+PR は、実装・修正の間だけ Draft にします。レビューを頼むとき (5 の 4・6) と、人間に返すとき (判断できないとき) は Ready にします。Draft の PR にラベルを付けても、ルーティンは起動しないためです。Ready でも、`claude:under-review` か `claude:blocked` が付いている間は、プロジェクトの `⑪ マージ待ち` に出ません。
+
+Draft / Ready の切り替えは REST に無く、`gh pr ready` (GraphQL) は claude.ai/code で 403 になるため、CCR のルートを使います。CCR のルートが 404 のとき (ローカルの CLI) は、`gh pr ready` に切り替えます (`/dev:push-pr` の 8-b と同じ)。
+
+```bash
+# Draft にする
+[ "$(gh api "repos/{owner}/{repo}/pulls/<PR>" --jq .draft)" = "true" ] \
+  || gh api --method POST "repos/{owner}/{repo}/pulls/<PR>/ccr/convert_to_draft" > /dev/null 2>&1 \
+  || gh pr ready --undo <PR>
+# Ready にする
+[ "$(gh api "repos/{owner}/{repo}/pulls/<PR>" --jq .draft)" = "false" ] \
+  || gh api --method POST "repos/{owner}/{repo}/pulls/<PR>/ccr/ready_for_review" > /dev/null 2>&1 \
+  || gh pr ready <PR>
+```
+
 ## 1. 始める
 1. `/dev:blocked` の「1. 始める」を、進行中ラベル `claude:implement` で行ってください。`STOP` と出たら、何もせずに終えてください。
 2. トリガーが Issue か PR かを確かめてください。
@@ -20,9 +35,10 @@ GitHub は `gh api` (REST) で操作します。コマンドの `123` はトリ�
 gh api "repos/{owner}/{repo}/issues/123" --jq 'if .pull_request then "PR" else "Issue" end'
 ```
 
- - `PR` なら、PR で止めた後の再開です。本文の `Closes #N` の N が Sub Issue です (下の 1 つ目のコマンド)。PR のブランチを checkout し、`subscribe_pr_activity` で PR を購読してください。2 を読んだら、5 は行わず (PR を作り直さない)、6 から続けてください。
+ - `PR` なら、PR で止めた後の再開です。本文の `Closes #N` の N が Sub Issue です (下の 1 つ目のコマンド)。PR を Draft にし (冒頭の「Draft にする」)、PR のブランチを checkout して、`subscribe_pr_activity` で PR を購読してください。2 を読んだら、5 は行わず (PR を作り直さない)、6 から続けてください。
+   - 直すものが無くても、終える前に 6 の push の後と同じく、Ready にして再レビューを頼んでください。Draft のまま終えると、だれの番でもなくなるためです。
  - `Issue` なら、123 が Sub Issue です。Sub Issue に紐付いた open な PR があるか確かめてください (下の 2 つ目のコマンド)。
-   - あれば、PR に `claude:implement` を付けて (付いていれば外してから) 終えてください。PR で起動したセッションが、PR の質問と回答を読んで続けます。
+   - あれば、PR を Ready にしてから (冒頭の「Ready にする」)、PR に `claude:implement` を付けて (付いていれば外してから) 終えてください。PR で起動したセッションが、PR の質問と回答を読んで続けます。PR が Draft のままだと、ラベルを付けても起動しません。
    - 無ければ、「前回の質問」に作業ブランチがあればそれを checkout してください。無ければ、セッションの作業ブランチ (指定が無ければベースブランチの最新から作る) で作業してください。
 
 ```bash
@@ -74,7 +90,7 @@ gh api --paginate "repos/{owner}/{repo}/issues/<Sub Issue>/dependencies/blocked_
 1. `/dev:push-pr` で PR を作ってください。
    - ベースは、リポジトリのデフォルトブランチにしてください。`Closes #N` は、デフォルトブランチへのマージでしか Issue を閉じません。
    - 💡 概要 に `Closes #<Sub Issue>` を 1 行で書いてください。マージすると Sub Issue が閉じ、後続の Sub Issue の実装が始まります。
-   - Draft で作ってください (push-pr の 6 で `draft` を `true` にする)。Draft の間は Claude の番で、マージできません。Ready にするのは、⑨ が ✅ を返すときです。push-pr の 8 で Ready にしないでください。
+   - Draft で作ってください (push-pr の 6 で `draft` を `true` にする)。push-pr の 8 で Ready にしないでください。Ready にするのは、レビューを頼む 4 です。
    - push-pr のステップ 11 は行わないでください。CI へのレビューの依頼 (`/code-review` / `/security-review` のコメント) もしません。レビューは ⑨ が行い (4)、CI とレビューへの対応は 6 で行います。
 2. `subscribe_pr_activity` で PR を購読してください。レビューと CI の結果で、このセッションが起こされるようになります (既に購読していても問題ありません)。
 3. Sub Issue に紐付いたことを確かめてください。2 行とも出なければ、本文やベースを直してください。
@@ -84,9 +100,10 @@ gh api "repos/{owner}/{repo}/pulls/<PR>" --jq .body | tr -d '\r' | grep -xF "Clo
 [ "$(gh api "repos/{owner}/{repo}/pulls/<PR>" --jq .base.ref)" = "$(gh api "repos/{owner}/{repo}" --jq .default_branch)" ] && echo "ベースはデフォルトブランチ"
 ```
 
-4. `claude:under-review` を付けてください。⑨ レビューが始まります。付いたままだとイベントが起きないので、外してから付けます。
+4. PR を Ready にしてから、`claude:under-review` を付けてください。⑨ レビューが始まります。付いたままだとイベントが起きないので、外してから付けます。
 
 ```bash
+# 冒頭の「Ready にする」を実行してから
 gh api --method DELETE "repos/{owner}/{repo}/issues/<PR>/labels/claude:under-review" > /dev/null 2>&1 || true
 gh api --method POST "repos/{owner}/{repo}/issues/<PR>/labels" -f "labels[]=claude:under-review" > /dev/null
 ```
@@ -115,28 +132,26 @@ gh api --paginate "repos/{owner}/{repo}/commits/$sha/check-runs?per_page=100" --
    - 採用するなら直し、4 の検査を通してください。バグの指摘は、再現するテストを先に書いてから直してください (4 と同じ)。
    - PR は作り直さないでください。やったことが変わったときだけ、`/dev:push-pr` の 7-b の手順で本文を部分更新してください。
    - どの指摘にも、何をしたか (採用しないなら理由) を返信してください。返信の先頭には `<!-- fastship:reply -->` と改行を付けてください。
- - push したら、すぐに下のコマンドで PR を Draft に戻し、⑨ に再レビューを頼んでください。⑨ は PR 全体を見直し、✅ / 🛑 を付け直します。
-   - Draft に戻すのは、前の ✅ (Ready) のまま、レビューしていない commit をマージさせないためです。CCR のルートが 404 のとき (ローカルの CLI) は、`gh pr ready --undo` に切り替えます (`/dev:push-pr` の 8-b と同じ)。
+ - push したら (🛑 の指摘に返信だけで対応したときも)、すぐに PR を Ready にし、`claude:under-review` を付けて ⑨ に再レビューを頼んでください (下のコマンド)。⑨ は PR 全体を見直し、✅ / 🛑 を付け直します。🛑 なら、⑨ が PR を Draft に戻します。
    - `claude:under-review` が付いていれば、⑨ がレビュー中です。付け直さないでください。⑨ が終わるときに push に気づき、新しい head のレビューを頼み直します。5 の 4 のように外して付け直すと、レビューが 2 つ同時に動くためです。
 
 ```bash
-[ "$(gh api "repos/{owner}/{repo}/pulls/<PR>" --jq .draft)" = "true" ] \
-  || gh api --method POST "repos/{owner}/{repo}/pulls/<PR>/ccr/convert_to_draft" > /dev/null 2>&1 \
-  || gh pr ready --undo <PR>
+# 冒頭の「Ready にする」を実行してから
 gh api "repos/{owner}/{repo}/issues/<PR>" --jq '.labels[].name' | grep -qxF claude:under-review \
   || gh api --method POST "repos/{owner}/{repo}/issues/<PR>/labels" -f "labels[]=claude:under-review" > /dev/null
 ```
 
- - ✅ (PR が Ready になった) のレビューの `[imo]` / `[nits]` / `[ask]` は、返信だけにしてください。それだけのために push すると、再レビューで ✅ が外れるためです。ほかに対応の要る指摘が無ければ何もしないでください。マージは開発者が行います。
+ - ✅ のレビューの `[imo]` / `[nits]` / `[ask]` は、返信だけにしてください。それだけのために push すると、再レビューで ✅ が外れるためです。ほかに対応の要る指摘が無ければ何もしないでください。マージは開発者が行います。
 
 ## 判断できないとき
-次のように Claude だけで判断できないときは、推測で作らず、`/dev:blocked` の「2. 止める」で人間に返してください。PR を作った後は PR の番号で実行し、`unsubscribe_pr_activity` で PR の購読を外してください。Sub Issue の `claude:implement` は残ります (5 を参照)。
+次のように Claude だけで判断できないときは、推測で作らず、`/dev:blocked` の「2. 止める」で人間に返してください。PR を作った後は PR の番号で実行し、続けて PR を Ready にして (冒頭の「Ready にする」)、`unsubscribe_pr_activity` で PR の購読を外してください。Draft のままだと、開発者が PR に `claude:implement` を付けても再開しないためです。Ready にできなければ、そのことを PR にコメントしてください。Sub Issue の `claude:implement` は残ります (5 を参照)。
 
  - 完了条件 があいまいで、どう作るかで振る舞いが大きく変わる
  - Sub Issue がリポジトリの今の作りと合わない。または 依存 (Blocked by) の Issue のコードが無くて作れない
  - テストの仕組みが無く、何を入れるかで結果が大きく変わる
  - Sub Issue を決められない (PR に `Closes #N` が無い)
  - 前のセッションのブランチに push できない (403 など)
+ - PR を Draft / Ready に切り替えられない (CCR のルートも `gh pr ready` も失敗する)
  - CI が、変更と関係のない理由 (シークレット・外部サービスなど) で失敗する。または同じ失敗を 2 回直しても通らない
  - 再レビューを 3 回頼んでも 🛑 が続く。またはレビューの指摘が Sub Issue・親 Issue と食い違い、どちらに従うか決められない
 

@@ -36,7 +36,7 @@ graph LR;
     
     Repository -->|⑦ 起動| implement -->|⑧ PR を作成| Repository
     
-    Repository -->|⑨ 起動| review -->|⑩ ✅ / 🛑<br/>✅ なら Draft → Ready for review| Repository
+    Repository -->|⑨ 起動| review -->|⑩ ✅ / 🛑<br/>🛑 なら Ready → Draft| Repository
 
     Developer -->|⑪ マージ・リリース| Project
 
@@ -149,7 +149,7 @@ Claude Code からも `/dev:issue` で起票できます。Slack (Claude Tag) �
  - ⑫ 成功指標の確認と ⑬ 振り返りを外しました。フローは ⑪ マージで終わり、成功指標は ④ 承認の判断に使います。Sub Issue がすべて閉じると、親 Issue も閉じます
  - 1 PR で済む Issue は、Sub Issue を作らずに実装します
  - 「🚀 バックログ」で起票すると、`claude:analysis` が自動で付きます
- - `claude:approved` をなくしました。実装は PR を Draft で作り、⑨ が ✅ のときに Ready にします
+ - `claude:approved` をなくしました。PR は実装・修正の間だけ Draft にし、レビューを頼むときに Ready にします
  - ルーティンを 1 つ (`{リポジトリ名} / FastShip`) にまとめました
  - FastShip プロジェクトに `⏳ 進行中` のビューを足しました ([🛟 ルーティンの前提](#-ルーティンの前提))
 
@@ -166,7 +166,7 @@ Claude Code からも `/dev:issue` で起票できます。Slack (Claude Tag) �
    - `⏳ 進行中` は setup が足す。setup を使わずにつないだなら、[📋 FastShip プロジェクト](#-fastship-プロジェクト) の表のとおりに作る
 4. [4. Auto-add](#4-auto-add) のフィルタから `"claude:shipped"`・`"claude:approved"` を外す (残っていても害はない)
 
-上げる前に作った open の PR は Ready のため、✅ の前でも `⑪ マージ待ち` に出ます。`claude:under-review` を付け直すと、⑨ が Draft に戻してレビューし直します。
+上げる前に作った open の PR は Ready のため、✅ の前でも `⑪ マージ待ち` に出ます。`claude:under-review` を付け直すと、⑨ がレビューし直します。0.14.0 では、Draft の PR で ⑨ が始まりませんでした (0.14.1 で直しました)。Draft のまま `claude:under-review` が付いて止まっている PR は、Ready にしてから付け直してください。
 
 ## 🧰 スキル
 
@@ -176,8 +176,8 @@ Claude Code からも `/dev:issue` で起票できます。Slack (Claude Tag) �
 | `/dev:issue [owner/repo] {内容}` | 🧑 誰でも (① 起票) | 背景と参考資料を聞き、`claude:analysis` を付けて起票する |
 | `/dev:analysis {Issue}` | ルーティン (③ 課題分析) | 課題・解決策・成功指標を書き、`claude:analyzed` を付ける |
 | `/dev:refine {Issue}` | ルーティン (⑤⑥ リファインメント) | 1 PR で終わる Sub Issue に分解し、`claude:implement` を付ける。1 PR で済むなら分けず、Issue に完了条件を書き足して `claude:implement` を付ける |
-| `/dev:implement {Sub Issue / Issue / PR}` | ルーティン (⑦⑧ 実装) | ドメイン駆動設計 + テスト駆動開発で実装し、Draft の PR を作って `claude:under-review` を付ける |
-| `/dev:review {PR}` | ルーティン (⑨⑩ レビュー) | コードレビューとセキュリティレビューをし、✅ なら PR を Ready for review にする |
+| `/dev:implement {Sub Issue / Issue / PR}` | ルーティン (⑦⑧ 実装) | ドメイン駆動設計 + テスト駆動開発で実装し、Draft の PR を作る。Ready にして `claude:under-review` を付ける |
+| `/dev:review {PR}` | ルーティン (⑨⑩ レビュー) | コードレビューとセキュリティレビューをし、✅ / 🛑 を返す。🛑 なら PR を Draft に戻す |
 | `/dev:blocked` | ルーティン (課題分析・リファインメント・実装・レビュー) | 多重起動を防ぎ、判断できないときは質問して `claude:blocked` を付ける |
 | `/dev:push-pr` | 🧑‍💻 開発者 / ルーティン (⑦⑧ 実装) | PR テンプレートに沿って PR を作成・更新する |
 
@@ -194,7 +194,7 @@ Claude Code からも `/dev:issue` で起票できます。Slack (Claude Tag) �
 | `claude:under-review` | 🧠 Claude | PR のレビューを始める |
 | `claude:blocked` | 🧠 Claude | 人間の回答を待っている |
 
-レビューが ✅ になったことは、ラベルではなく PR の Draft / Ready で示します ([📋 FastShip プロジェクト](#-fastship-プロジェクト))。
+レビューが ✅ になったことは、ラベルではなく、PR が Ready で `claude:under-review` が付いていないことで示します ([📋 FastShip プロジェクト](#-fastship-プロジェクト))。
 
 ## 📋 FastShip プロジェクト
 
@@ -205,7 +205,8 @@ flowchart LR
     analysis["🤔 課題分析<br/><code>claude:analysis</code>"] --> analyzed[["④ 承認待ち<br/><code>claude:analyzed</code>"]]
     analyzed -->|🧑‍💻 承認<br/>+ <code>claude:refine</code>| refine["✂️ リファインメント<br/><code>claude:refine</code>"]
     refine --> implement["🧑‍💻 実装<br/><code>claude:implement</code>"] --> review["✔️ レビュー<br/><code>claude:under-review</code>"]
-    review -->|✅ なら Ready| merge[["⑪ マージ待ち<br/>Ready の PR"]]
+    review -->|✅| merge[["⑪ マージ待ち<br/>Ready の PR"]]
+    review -->|🛑 なら Draft に戻して直す| implement
     merge -->|🧑‍💻 マージ<br/>Sub Issue がすべて閉じると<br/>親 Issue も閉じる| done(("✅"))
     analysis & refine & implement & review -.-> blocked[["❓ 回答待ち<br/><code>claude:blocked</code>"]]
 ```
@@ -217,14 +218,17 @@ flowchart LR
 | ⑪ マージ待ち | `is:pr is:open -is:draft -label:"claude:blocked" -label:"claude:under-review"` | マージ・リリースするか |
 | ⏳ 進行中 | `is:open label:"claude:analysis","claude:refine","claude:implement","claude:under-review" -label:"claude:blocked"` | 止まっていないか ([🛟 ルーティンの前提](#-ルーティンの前提)) |
 
-PR の Draft / Ready は、だれの番かを示します。
+PR は、実装・修正の間だけ Draft にします。
 
-| PR | だれの番 | 切り替える所 |
+| PR | 状態 | 切り替える所 |
 |:--|:--|:--|
-| Draft | 🧠 Claude (実装・修正・レビュー中) | 実装は Draft で PR を作る。実装が push したとき・⑨ が始めるときに Draft に戻す |
-| Ready | 🧑‍💻 人 (✅ 済み・マージ待ち) | ⑨ が ✅ を返すときに Ready にする。🛑 なら Draft のまま |
+| Draft | 🧠 実装・修正中 | 実装は Draft で PR を作る。⑨ が 🛑 を返すときと、止めた実装を再開するときに Draft に戻す |
+| Ready + `claude:under-review` | 🧠 レビュー中 | 実装が push を終えたら、Ready にして `claude:under-review` を付ける |
+| Ready + `claude:blocked` | 🧑‍💻 回答待ち | 実装・レビューが人に返すとき。実装は Draft なら Ready にする |
+| Ready | 🧑‍💻 マージ待ち | ⑨ が ✅ を返したら、そのまま |
 
- - Draft の間はマージできないため、✅ の前のマージを防げます。CODEOWNERS があれば、Ready にしたときにレビューの依頼が届きます。
+ - Draft の PR にラベルを付けても、ルーティンは起動しません。PR の工程 (⑨ レビュー・止めた実装の再開) は、Ready の PR にラベルを付けて動かします。
+ - レビューの間も Ready なので、マージボタンは押せます。`⑪ マージ待ち` には出ないため、ビューから ✅ の前にマージすることはありません。CODEOWNERS があると、レビューを頼むたびにレビューの依頼が届きます。
  - Issue の進み具合は、PR の Draft ではなくラベル (`claude:implement` など) で見ます。プロジェクトのフィルタでは、Issue をつながった PR の Draft で絞れないためです。
 
  - プロジェクトの Status と Board は、工程と連動しません。GitHub の Status はラベルの変化で変えられないため、ラベルを正にしています。
@@ -247,7 +251,7 @@ PR の Draft / Ready は、だれの番かを示します。
 ## 🧑‍💻 人間が判断すること
 
 1. **④ 承認** (`④ 承認待ち`): 課題分析で追記された課題・解決策・成功指標を確認し、解く価値があるかを判断します。優先順位の高い Issue から `claude:refine` を付けます。方向がずれている場合は、Issue にコメントして `claude:analysis` を付け直します。見送るときは、Issue を閉じます。
-2. **⑪ マージ・リリース** (`⑪ マージ待ち`): Ready になり (レビューが ✅)、CI が通った PR を確認し、マージ・リリースします。CI の結果はビューに出ないため、PR で確かめてください。✅ の後に自分で push したとき (コンフリクトの解消など) は、`claude:under-review` を付けるだけで再レビューを受けられます (⑨ が Draft に戻します)。
+2. **⑪ マージ・リリース** (`⑪ マージ待ち`): Ready になり (レビューが ✅)、CI が通った PR を確認し、マージ・リリースします。CI の結果はビューに出ないため、PR で確かめてください。✅ の後に自分で push したとき (コンフリクトの解消など) は、`claude:under-review` を付けるだけで再レビューを受けられます。
 
 ## ❓ 質問・差し戻し
 
@@ -259,7 +263,7 @@ Claude だけで判断できないことがあると、ルーティンは処理�
 
 同じ Issue / PR で動くセッションは 1 つだけです。後から起動したセッションは何もせずに終わります。進行中のラベルが付いたまま 10 分以上進まないときは、ルーティンが動かなかったか、セッションが途中で止まっています (`⏳ 進行中` に残ります)。そのラベルを外して付け直すと、やり直します。
 
-レビューの 🛑 は実装のセッションが対応します。Claude だけで判断できない指摘は、同じ手順で `claude:blocked` を付けて人間に返します。人が作った PR も、`claude:under-review` を付けるとレビューします (レビューの間は Draft にし、✅ なら Ready にします)。
+レビューの 🛑 は実装のセッションが対応します。Claude だけで判断できない指摘は、同じ手順で `claude:blocked` を付けて人間に返します。人が作った PR も、Ready にして `claude:under-review` を付けるとレビューします (Draft の PR では動きません)。🛑 なら Draft に戻すので、直したら Ready にして付け直してください。
 
 ## 🛟 ルーティンの前提
 
@@ -271,7 +275,7 @@ Claude だけで判断できないことがあると、ルーティンは処理�
 
 どの場合も、進行中のラベル (`claude:analysis` / `claude:refine` / `claude:implement` / `claude:under-review`) が付いたまま動きません。FastShip プロジェクトの `⏳ 進行中` をときどき見て、10 分以上進まないものはラベルを外して付け直してください。
 
-Sub Issue は、PR がマージされるまで `claude:implement` が付いたままなので、PR が ⑪ マージ待ちの間も `⏳ 進行中` に載ります。止まっているかは、PR を見て確かめてください。
+Sub Issue は、PR がマージされるまで `claude:implement` が付いたままなので、PR が ⑪ マージ待ちの間も `⏳ 進行中` に載ります。止まっているかは、PR を見て確かめてください。PR が Draft のまま 10 分以上進まないときは、Sub Issue の `claude:implement` を外して付け直すと、実装が PR を Ready にして引き継ぎます。
 
 ## 🧰 技術スタック (stack プラグイン)
 
