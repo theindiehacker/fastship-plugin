@@ -13,7 +13,7 @@ GitHub は `gh api` (REST) で操作します。コマンドの `123` は Issue 
 ## 1. 始める
 `/dev:blocked` の「1. 始める」を、進行中ラベル `claude:analysis` で行ってください。`STOP` と出たら、何もせずに終えてください。
 
-`CONTINUE` と出たら、判断待ちのラベルを合わせてください。`claude:analysis` が付いているので、`claude:analyzed` が外れます。差し戻しで分析し直している間、FastShip プロジェクトの承認待ちに載せないためです。
+`CONTINUE` と出たら、判断待ちのラベルを合わせてください。`claude:analysis` が付いているので、`claude:analyzed` が外れます。差し戻しで分析し直している間、`④ 承認待ち` の一覧に載せないためです。
 
 ```bash
 bash "${CLAUDE_PLUGIN_ROOT}/scripts/waiting.sh" sync 123
@@ -82,7 +82,7 @@ jq -n --rawfile body /tmp/issue_body.md '{body:$body}' \
 下の形式で `/tmp/analysis_done.md` を書き、次を 1 回の Bash で実行してください。コメントし、`claude:analysis` を外してから、判断待ちのラベルを合わせます。
 
  - `claude:analysis` を外しておくと、差し戻しのときに開発者が付け直せます。付いたままラベルを足すと、ルーティンがもう一度起動するため、合わせるのは外した後です。
- - `waiting.sh` は、この完了コメントが最後の承認 (`claude:refine` を付けた) より新しければ、`claude:analyzed` を付けます。FastShip プロジェクトの承認待ちに載ります。リファインメントが動いている間 (`claude:refine` が付いている) は付けず、リファインメントが終わるときに付けます。
+ - `waiting.sh` は、この完了コメントが最後の承認 (`claude:refine` を付けた) より新しければ、`claude:analyzed` を付けます。`④ 承認待ち` の一覧に載ります。リファインメントが動いている間 (`claude:refine` が付いている) は付けず、リファインメントが終わるときに付けます。
 
 ```bash
 jq -n --rawfile body /tmp/analysis_done.md '{body:$body}' \
