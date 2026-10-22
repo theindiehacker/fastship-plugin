@@ -151,7 +151,7 @@ FastShip の版が上がったら、毎回行います。クラウド環境は S
 
    ![末尾に版を足す](docs/images/claude-4-setup-script-version.png)
 
-3. 次にルーティンが動いたら、https://claude.ai/code/routines の `{リポジトリ名} / FastShip` の **履歴** から、そのセッションを開く。`blocked.sh start` を実行した行を開き、パス (`.../fastship/dev/<版>/scripts/blocked.sh`) が新しい版か確かめる
+3. 次にルーティンが動いたら、https://claude.ai/code/routines の `{リポジトリ名} / FastShip` の **履歴** から、そのセッションを開く。`blocked.sh start` を実行した行を開き、パス (`.../fastship/dev/<版>`) が新しい版か確かめる
 
    ![スキルのパスで版を確かめる](docs/images/claude-5-skill-version.png)
 
