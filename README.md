@@ -66,7 +66,7 @@ flowchart LR
 dev は技術スタックに依存しません。bun / Biome・uv / Ruff / Pyright で開発するなら、`/plugin install stack@fastship` も実行します ([🧰 技術スタック](#-技術スタック-stack-プラグイン))。
 
 ### 2. `/dev:setup` を実行する
-対象リポジトリで `/dev:setup` を実行します (別のリポジトリなら `/dev:setup owner/repo`)。ラベル・ルーティン 1 つ・テンプレート・FastShip プロジェクトを用意し、PR を作ります。stack を入れていれば、技術スタックも入れるか聞きます。Actions の Claude レビューが PR で自動で動くなら、止めるか聞きます。導入済みなら最新版に更新します。
+対象リポジトリで `/dev:setup` を実行します (別のリポジトリなら `/dev:setup owner/repo`)。ラベル・ルーティン 1 つ・テンプレート・FastShip プロジェクトを用意し、PR を作ります。stack を入れていれば、技術スタックも入れるか聞きます。Actions の Claude レビューが PR で自動で動くなら、止めるか聞きます。導入済みなら最新版に更新します ([版を上げたとき](#版を上げたとき))。
 
 3 と 4 は API で設定できないため、setup が案内したら画面で設定します。
 
@@ -142,6 +142,20 @@ GitHub の UI で **New issue** → **🚀 バックログ** を選び、背景�
 3. **コネクタ** で GitHub を有効にし、起票先のリポジトリが見えるようにする
 
 Claude Code からも `/dev:issue` で起票できます。Slack (Claude Tag) からは使えません (org のプラグインしか使えず、org の GitHub 同期は private リポジトリしか受け付けないため)。
+
+### 版を上げたとき
+FastShip の版が上がったら、毎回行います。クラウド環境は Setup script の結果を約 7 日使い回すため、そのままでは最大 7 日、ルーティンが古い版で動きます。Setup script を変えると、次のセッションで作り直されます。
+
+1. [3. クラウド環境](#3-クラウド環境) の 1 と同じく、環境の ⚙️ を開く
+2. **セットアップスクリプト** の末尾に `# dev <版>` を足し (あれば版を書き換え)、**変更を保存**。版は [plugin.json](plugins/dev/.claude-plugin/plugin.json) の `version` です。stack だけ上がったときは `# stack <版>` を足します
+
+   ![末尾に版を足す](docs/images/claude-4-setup-script-version.png)
+
+3. 次にルーティンが動いたら、https://claude.ai/code/routines の `{リポジトリ名} / FastShip` の **履歴** から、そのセッションを開く。`blocked.sh start` を実行した行を開き、パス (`.../fastship/dev/<版>/scripts/blocked.sh`) が新しい版か確かめる
+
+   ![スキルのパスで版を確かめる](docs/images/claude-5-skill-version.png)
+
+4. その版の節 (`0.14.0 に上げたとき` など) があれば、その手順も行う
 
 ### 0.14.0 に上げたとき
 仕組みを減らしました。
