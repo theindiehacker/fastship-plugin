@@ -1,6 +1,6 @@
 ---
 name: setup
-description: 対象リポジトリにラベル駆動開発 (ラベル・ルーティン・FastShip プラグイン・FastShip プロジェクト) を導入し、コミット・PR 作成まで行う。stack プラグインが入っていれば、技術スタックも入れるか聞く。Actions の Claude レビューが PR で自動で動くなら、止めるか聞く。導入済みなら最新版に更新する。使い方 → /dev:setup [owner/repo]
+description: 対象リポジトリにラベル駆動開発 (ラベル・ルーティン・FastShip プラグイン) を導入し、コミット・PR 作成まで行う。判断待ちの一覧のリンクを伝える。stack プラグインが入っていれば、技術スタックも入れるか聞く。Actions の Claude レビューが PR で自動で動くなら、止めるか聞く。導入済みなら最新版に更新する。使い方 → /dev:setup [owner/repo]
 argument-hint: "[owner/repo]"
 ---
 
@@ -163,87 +163,21 @@ claude plugin install stack@fastship || echo "⚠️ stack@fastship を入れら
 
 4.2 で既存のルーティンを `update` した (導入済みの) ときは、上のスクリプトは入っているはずです。追加は案内せず、README の https://github.com/theindiehacker/fastship-plugin#版を上げたとき を読むよう伝えてください。版ごとの手順と、クラウド環境を作り直すかが書いてあります。クラウド環境は Setup script の結果を約 7 日使い回すため、作り直さなくても、ルーティンは 7 日以内に新しい版に入れ替わります。
 
-### 4.4 FastShip プロジェクト
-対象リポジトリを、owner の FastShip プロジェクト (GitHub Project) につなぎます。開発者は、プロジェクトのビューで次に判断することを確かめます。テンプレートは https://github.com/orgs/theindiehacker/projects/6 です。
+### 4.4 判断待ちの一覧
+開発者は、リポジトリの Issue 一覧を下のクエリで絞って、次に判断することを確かめます。工程はラベルと PR の Draft / Ready で決まるため、GitHub Project は使いません。
 
-```mermaid
-flowchart LR
-    find{"1. owner に<br/>FastShip プロジェクトがある"} -->|ない| copy["2. テンプレートからコピー"] --> views
-    find -->|ある| views["3. ビューを揃える"] --> link["4. リポジトリをリンク"] --> auto["5. Auto-add を設定<br/>(ユーザーが UI で)"] --> add["6. 既存の Issue / PR を追加"]
-```
+下の表の一覧ごとに、下のコマンドでリンクを作り、一覧の名前と一緒にユーザーに伝えてください。ブックマークするよう伝えます。リポジトリの Issue 一覧は、Issue と PR を一緒に出します。
 
- - 4.4 は GraphQL と、owner の Projects の API を使います。下のコマンドが失敗したら (claude.ai/code では 403 になります)、4.4 は行わず、README の「setup を使わずにつなぐ」を案内してください。その際、owner に `FastShip プロジェクト` が既にあるかを先に確かめるよう伝えてください。重複して作らないためです。
-
-```bash
-gh api graphql -f query='{ viewer { login } }' --jq .data.viewer.login
-```
-
- - `gh auth status` の Token scopes に `project` が無ければ、`! gh auth refresh -s project` を実行するよう案内してください。
- - コマンドの `<owner>` は対象リポジトリの owner、`<n>` はプロジェクトの番号です。`<kind>` は、owner が org なら `orgs`、ユーザーなら `users` です (`gh api users/<owner> --jq .type` が `Organization` なら org)。ユーザーのビューを作る API は、ドキュメントではパスが数値の user_id ですが、login で動き、user_id では 404 になることを確かめています。
-
-1. owner のプロジェクトから、タイトルが `FastShip プロジェクト` で、テンプレートではないものを探してください。`query` で絞らないのは、絞ると closed のプロジェクトが出ないためです。
-   - 1 つなら、それを使います。`closed=true` なら、再開してよいかユーザーに確認し、`gh project close <n> --owner <owner> --undo` で再開してください。
-   - 複数あれば、どれを使うかユーザーに確認してください。
-   - 何も出なければ、2 でコピーします。コマンドがエラーになったときは、無いとはみなさずに止めてください。重複して作らないためです。
+| 一覧 | クエリ |
+|:--|:--|
+| `④ 承認待ち` | `is:issue is:open label:"claude:analyzed"` |
+| `❓ 回答待ち` | `is:open label:"claude:blocked"` |
+| `⑪ マージ待ち` | `is:pr is:open draft:false -label:"claude:blocked" -label:"claude:under-review"` |
+| `⏳ 進行中` | `is:open label:"claude:analysis","claude:refine","claude:implement","claude:under-review" -label:"claude:blocked"` |
 
 ```bash
-gh api graphql --paginate -f login=<owner> -f query='query($login: String!, $endCursor: String) { repositoryOwner(login: $login) { ... on ProjectV2Owner { projectsV2(first: 100, after: $endCursor) { pageInfo { hasNextPage endCursor } nodes { number title template closed url } } } } }' \
-  --jq '.data.repositoryOwner.projectsV2.nodes[] | select(.title == "FastShip プロジェクト" and (.template | not)) | "\(.number) closed=\(.closed) \(.url)"'
+jq -rn --arg q '<クエリ>' '"https://github.com/{owner/repo}/issues?q=\($q | @uri)"'
 ```
-
-2. テンプレートをコピーしてください。ビューと組み込みのワークフロー (Auto-add を除く) が入り、private になります。失敗したら、README の「📋 FastShip プロジェクト」にある手動の手順を案内して、4.4 を終えてください。
-
-```bash
-gh project copy 6 --source-owner theindiehacker --target-owner <owner> --title "FastShip プロジェクト" --format json --jq '"\(.number) \(.url)"'
-```
-
-3. 下の表のビューがあるかを、名前とフィルタで確かめてください (下の 1 つ目のコマンド)。
-   - 無いビューだけ作ってください (3 つ目のコマンド)。`visible_fields` には列の id を入れます。id は 2 つ目のコマンドで、列の名前から引いてください。
-   - 同じ名前でフィルタが違えば、作らずに、4 つ目のコマンドで表のフィルタに直してください (ビューの id は 1 つ目のコマンドで出ます)。確認は要りません。FastShip のビューは setup が管理し、利用者は自分用のビューを別に作るためです。直したビューは、名前と、直す前と後のフィルタをユーザーに伝えてください。
-   - 4 つ目のコマンドが失敗したら、UI で直すようユーザーに伝えてください。
-
-| ビュー | フィルタ | 列 |
-|:--|:--|:--|
-| `④ 承認待ち` | `is:issue is:open label:"claude:analyzed"` | Title / Repository / Labels |
-| `❓ 回答待ち` | `is:open label:"claude:blocked"` | Title / Repository / Labels / Parent issue |
-| `⑪ マージ待ち` | `is:pr is:open -is:draft -label:"claude:blocked" -label:"claude:under-review"` | Title / Repository / Labels |
-| `⏳ 進行中` | `is:open label:"claude:analysis","claude:refine","claude:implement","claude:under-review" -label:"claude:blocked"` | Title / Repository / Labels |
-
-```bash
-gh api graphql -f login=<owner> -F n=<n> -f query='query($login: String!, $n: Int!) { repositoryOwner(login: $login) { ... on ProjectV2Owner { projectV2(number: $n) { views(first: 50) { nodes { id name filter } } } } } }' \
-  --jq '.data.repositoryOwner.projectV2.views.nodes[] | "\(.id) \(.name) [\(.filter)]"'
-gh api --paginate "<kind>/<owner>/projectsV2/<n>/fields?per_page=100" --jq '.[] | "\(.id) \(.name)"'
-jq -n --arg name "<ビュー>" --arg filter '<フィルタ>' '{name:$name, layout:"table", filter:$filter, visible_fields:[<列の id>]}' \
-  | gh api --method POST "<kind>/<owner>/projectsV2/<n>/views" --input - --jq .number
-gh api graphql -f id=<ビューの id> -f filter='<フィルタ>' -f query='mutation($id: ID!, $filter: String!) { updateProjectV2View(input: {viewId: $id, filter: $filter}) { projectV2View { name filter } } }' \
-  --jq '.data.updateProjectV2View.projectV2View | "\(.name) [\(.filter)]"'
-```
-
-4. リポジトリをリンクしてください。リポジトリの Projects タブに出るようになります。リンク済みでも問題ありません。
-
-```bash
-gh project link <n> --owner <owner> --repo {owner/repo}
-```
-
-5. Auto-add workflow は API で作れないため、ユーザーに UI で設定してもらい、終わったと答えてもらってください。下のラベルが付いた Issue / PR が、プロジェクトに自動で入るようになります。手順は文章で説明せず、次の 2 つだけを伝えてください。
-   - Workflows の URL: `https://github.com/<kind>/<owner>/projects/<n>/workflows`
-   - スクショ付きの手順: https://github.com/theindiehacker/fastship-plugin#4-auto-add
-   - Auto-add workflow はリポジトリごとに 1 つ要り、数にはプランごとの上限があります (Free 1 / Pro・Team 5 / Enterprise 20)。リンク済みのリポジトリ (下のコマンド) が上限より多ければ、ユーザーに伝えてください。
-
-```bash
-gh api graphql -f login=<owner> -F n=<n> -f query='query($login: String!, $n: Int!) { repositoryOwner(login: $login) { ... on ProjectV2Owner { projectV2(number: $n) { repositories(first: 100) { totalCount nodes { nameWithOwner } } } } } }' \
-  --jq '.data.repositoryOwner.projectV2.repositories | "\(.totalCount): \([.nodes[].nameWithOwner] | join(" "))"'
-```
-
-6. 5 が終わったら、claude ラベルが付いた open の Issue / PR を追加してください。Auto-add は、有効にする前からある Issue / PR を入れないためです。5 より先に行うと、間にラベルが付いたものが漏れます。何度実行しても重複しません。プロジェクトの一覧に出るまで、1〜2 分かかることがあります。
-
-```bash
-gh api --paginate "repos/{owner/repo}/issues?state=open&per_page=100" \
-  --jq '.[] | select([.labels[].name] | any(startswith("claude:"))) | .html_url' \
-  | while read -r url; do gh project item-add <n> --owner <owner> --url "$url" > /dev/null; done
-```
-
-7. プロジェクトの URL をユーザーに伝えてください。
 
 ## 5. Actions の Claude レビュー
 FastShip の PR は ⑨ がレビューします。PR のイベントで Actions の Claude レビュー (claude-code-action) が自動で動くと、レビューが二重になり、GitHub Actions の時間も使います。FastShip の Claude の作業はルーティン (サブスク) で動かすため、Actions の Claude は人が頼んだときだけ動くようにします。
