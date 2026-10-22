@@ -61,14 +61,6 @@ gh label create claude:analyzed --color 0e8a16 --description "🧑‍💻 課題
 
 `claude:analyzed` は、人が見るためのラベルです。4.2 のトリガーには使いません。レビューが ✅ になった PR は、ラベルではなく、Ready で `claude:under-review` が付いていないことで示します。
 
-0.13.0 以前に導入したリポジトリには、`claude:retrospective` / `claude:shipped` / `claude:approved` が残っています (下の 1 つ目のコマンドで出ます)。残っていれば、付いている Issue / PR の数 (2 つ目のコマンド。100 で頭打ち) をユーザーに伝え、消してよいか確認してください。消すと、付いていた Issue / PR からも外れます。消さないと答えたら残してください。
-
-```bash
-gh api --paginate "repos/{owner/repo}/labels?per_page=100" --jq '.[].name | select(. == "claude:retrospective" or . == "claude:shipped" or . == "claude:approved")'
-gh api "repos/{owner/repo}/issues?labels=<ラベル>&state=all&per_page=100" --jq length
-gh label delete <ラベル> --yes -R {owner/repo}
-```
-
 ### 4.2 ルーティン
 RemoteTrigger ツールで、FastShip のルーティンを 1 つ用意し、URL (`https://claude.ai/code/routines/{ID}`) をユーザーに伝えてください。課題分析・リファインメント・実装・レビューは、1 つのルーティンが Issue / PR のラベルを見て選びます。
 
@@ -76,7 +68,7 @@ RemoteTrigger ツールで、FastShip のルーティンを 1 つ用意し、URL
 |:--|:--|
 | 名前 | `{リポジトリ名} / FastShip` |
 | リポジトリ | 対象リポジトリのみ |
-| 環境 | 既存の ` / FastShip` ルーティンと同じ。無ければ 0.14.0 以前のルーティン (` / 課題分析` / ` / リファインメント` / ` / 実装` / ` / レビュー`) と同じ。どちらも無ければユーザーに確認 |
+| 環境 | 既存の ` / FastShip` ルーティンと同じ。無ければユーザーに確認 |
 | モデル | `claude-opus-5-5` |
 | ツール | claude.ai の既定 (`session_context.allowed_tools` を `["preset:default"]` にする) |
 | コネクタ | なし |
@@ -122,7 +114,6 @@ flowchart LR
  - `create`: `/schedule` スキルの書き方に従う。`run_once_at` と `cron_expression` は付けない。実装は PR を作るので、`session_context` に `"autofix_on_pr_create": true` を付ける。課題分析・リファインメント・レビューは PR を作らないため、付いていても何も起きない
  - 新規の `update`: `{"clear_mcp_connections": true, "notifications": {"channel": {"email": false, "push": true, "slack": false}}}` を送る (`create` は接続済みのコネクタをすべて付けるため)
  - `create_webhook_trigger`: 上のトリガーの表の行ごとに、下記の body を、`events` をその行のイベントに、`values` をその行のラベルに置き換えて送る。`pull_request.labeled` は `field` を `pr.labels` にする。`pull_request.labels` は `unknown field` で拒否される
- - `list` で 0.14.0 以前のルーティン (名前が ` / 課題分析` / ` / リファインメント` / ` / 実装` / ` / レビュー` / ` / 振り返り` で終わり、sources の先頭が対象リポジトリ) が見つかったら、名前と URL を伝え、https://claude.ai/code/routines で消すよう案内する。ルーティンは API で消せない。残すと ` / FastShip` と同じイベントで二重に起動する (「1. 始める」で片方は止まるが、Sub Issue が閉じたときのリファインメントは二重に動く)。`has_more` が true なら、あるかもしれないと伝える
  - RemoteTrigger や Claude GitHub App が使えない場合は、上の表の内容で https://claude.ai/code/routines から手動で作るよう案内する
 
 ルーティンの URL と一緒に、次の前提をユーザーに伝えてください (README の「🛟 ルーティンの前提」)。
