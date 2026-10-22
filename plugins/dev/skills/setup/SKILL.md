@@ -206,8 +206,9 @@ gh project copy 6 --source-owner theindiehacker --target-owner <owner> --title "
 
 3. 下の表のビューがあるかを、名前とフィルタで確かめてください (下の 1 つ目のコマンド)。
    - 無いビューだけ作ってください (3 つ目のコマンド)。`visible_fields` には列の id を入れます。id は 2 つ目のコマンドで、列の名前から引いてください。
-   - 同じ名前でフィルタが違えば作らず、UI で直すようユーザーに伝えてください。ビューは API で更新・削除できず、作ると重複が残るためです。
-   - `⑫ 成功指標の確認待ち` (0.13.0 以前のビュー) があれば、UI で消すようユーザーに伝えてください。
+   - 同じ名前でフィルタが違えば、作らずに、今のフィルタと表のフィルタを見せて、直してよいかユーザーに確認してください。直すと答えたら、4 つ目のコマンドで表のフィルタにします (ビューの id は 1 つ目のコマンドで出ます)。直さないと答えたら残してください。
+   - `⑫ 成功指標の確認待ち` (0.13.0 以前のビュー) があれば、消してよいかユーザーに確認し、5 つ目のコマンドで消してください。消さないと答えたら残してください。
+   - 4・5 つ目のコマンドが失敗したら、UI で直すようユーザーに伝えてください。
 
 | ビュー | フィルタ | 列 |
 |:--|:--|:--|
@@ -217,11 +218,15 @@ gh project copy 6 --source-owner theindiehacker --target-owner <owner> --title "
 | `⏳ 進行中` | `is:open label:"claude:analysis","claude:refine","claude:implement","claude:under-review" -label:"claude:blocked"` | Title / Repository / Labels |
 
 ```bash
-gh api graphql -f login=<owner> -F n=<n> -f query='query($login: String!, $n: Int!) { repositoryOwner(login: $login) { ... on ProjectV2Owner { projectV2(number: $n) { views(first: 50) { nodes { name filter } } } } } }' \
-  --jq '.data.repositoryOwner.projectV2.views.nodes[] | "\(.name) [\(.filter)]"'
+gh api graphql -f login=<owner> -F n=<n> -f query='query($login: String!, $n: Int!) { repositoryOwner(login: $login) { ... on ProjectV2Owner { projectV2(number: $n) { views(first: 50) { nodes { id name filter } } } } } }' \
+  --jq '.data.repositoryOwner.projectV2.views.nodes[] | "\(.id) \(.name) [\(.filter)]"'
 gh api --paginate "<kind>/<owner>/projectsV2/<n>/fields?per_page=100" --jq '.[] | "\(.id) \(.name)"'
 jq -n --arg name "<ビュー>" --arg filter '<フィルタ>' '{name:$name, layout:"table", filter:$filter, visible_fields:[<列の id>]}' \
   | gh api --method POST "<kind>/<owner>/projectsV2/<n>/views" --input - --jq .number
+gh api graphql -f id=<ビューの id> -f filter='<フィルタ>' -f query='mutation($id: ID!, $filter: String!) { updateProjectV2View(input: {viewId: $id, filter: $filter}) { projectV2View { name filter } } }' \
+  --jq '.data.updateProjectV2View.projectV2View | "\(.name) [\(.filter)]"'
+gh api graphql -f id=<ビューの id> -f query='mutation($id: ID!) { deleteProjectV2View(input: {viewId: $id}) { projectV2View { name } } }' \
+  --jq .data.deleteProjectV2View.projectV2View.name
 ```
 
 4. リポジトリをリンクしてください。リポジトリの Projects タブに出るようになります。リンク済みでも問題ありません。
