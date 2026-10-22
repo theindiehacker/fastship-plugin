@@ -112,7 +112,7 @@ GitHub の UI で **New issue** → **🚀 バックログ** を選び、背景�
 Claude Code からも `/dev:issue` で起票できます。Slack (Claude Tag) からは使えません (org のプラグインしか使えず、org の GitHub 同期は private リポジトリしか受け付けないため)。
 
 ### 版を上げたとき
-その版の節 (`0.14.0 に上げたとき` など) があれば、その手順を行います。節の無い版では、何もしなくて構いません。
+その版の節 (`0.15.0 に上げたとき` など) があれば、その手順を行います。節の無い版では、何もしなくて構いません。
 
 #### クラウド環境を作り直す
 版の節に書いてあるときだけ行います。クラウド環境は Setup script の結果を約 7 日使い回すため、ほかの版は 7 日以内に入れ替わります。Setup script を変えると、次のセッションで作り直されます。
@@ -130,26 +130,6 @@ Claude Code からも `/dev:issue` で起票できます。Slack (Claude Tag) �
 FastShip プロジェクト (GitHub Project) をやめ、判断待ちはリポジトリの Issue 一覧で見るようにしました。Auto-add の設定も要らなくなりました。
 
 導入済みのリポジトリでは、[📋 判断待ちの一覧](#-判断待ちの一覧) の 4 つのリンクをブックマークしてください (`/dev:setup` を実行し直しても出ます)。FastShip プロジェクトと Auto-add のワークフローは、残しても害はありません。要らなければ消してください。
-
-### 0.14.0 に上げたとき
-仕組みを減らしました。
-
- - ⑫ 成功指標の確認と ⑬ 振り返りを外しました。フローは ⑪ マージで終わり、成功指標は ④ 承認の判断に使います。Sub Issue がすべて閉じると、親 Issue も閉じます
- - 1 PR で済む Issue は、Sub Issue を作らずに実装します
- - 「🚀 バックログ」で起票すると、`claude:analysis` が自動で付きます
- - `claude:approved` をなくしました。PR は実装・修正の間だけ Draft にし、レビューを頼むときに Ready にします
- - ルーティンを 1 つ (`{リポジトリ名} / FastShip`) にまとめました
-
-導入済みのリポジトリでは、次を行ってください。
-
-1. `/dev:setup` を実行し直す。聞かれたら次のように答える
-   - `.github/ISSUE_TEMPLATE/backlog.md` を上書きするか: 上書きする。カスタマイズしていて上書きしないなら、frontmatter の `labels` を `["claude:analysis"]` に直す
-   - `claude:shipped`・`claude:retrospective`・`claude:approved` を消すか: 消す
-   - Actions の Claude レビュー (claude-code-action) を PR で自動で動かさないか: 止める。⑨ と二重にレビューし、Actions の時間を使うため。コメントでの依頼 (`/code-review` など) は残る。org の必須ワークフローで動いているなら、org の管理者に止めてもらう
-2. https://claude.ai/code/routines で、`{リポジトリ名} / 課題分析`・`/ リファインメント`・`/ 実装`・`/ レビュー`・`/ 振り返り` を消す (API では消せない)。残すと `/ FastShip` と同じイベントで二重に起動する
-3. [クラウド環境を作り直す](#クラウド環境を作り直す)。ルーティンの作りが変わったため、古い版のスキルのままでは動かない
-
-上げる前に作った open の PR は Ready のため、✅ の前でも `⑪ マージ待ち` に出ます。`claude:under-review` を付け直すと、⑨ がレビューし直します。0.14.0 では、Draft の PR で ⑨ が始まりませんでした (0.14.1 で直しました)。Draft のまま `claude:under-review` が付いて止まっている PR は、Ready にしてから付け直してください。
 
 ## 🧰 スキル
 
@@ -222,10 +202,6 @@ PR は、実装・修正の間だけ Draft にします。
    - 進行中ラベル (`claude:analysis` / `claude:refine` など) か `claude:blocked` が付いている間は付きません
  - Sub Issue がすべて閉じて 1 つ以上が完了すると、リファインメントが親 Issue を閉じます。すべて見送りなら、閉じずに残します。1 PR で済む Issue は、PR の `Closes` で閉じます。
 
-### 0.12.0 に上げたとき
- - `/dev:setup` を実行し直し、ラベルを作ってください。
- - 0.12.0 より前に課題分析が終わり、承認を待っている Issue には、`claude:analyzed` を手で付けてください。
-
 ## 🧑‍💻 人間が判断すること
 
 1. **④ 承認** (`④ 承認待ち`): 課題分析で追記された課題・解決策・成功指標を確認し、解く価値があるかを判断します。優先順位の高い Issue から `claude:refine` を付けます。方向がずれている場合は、Issue にコメントして `claude:analysis` を付け直します。見送るときは、Issue を閉じます。
@@ -272,10 +248,3 @@ Sub Issue は、PR がマージされるまで `claude:implement` が付いた�
 2. クラウド環境のセットアップスクリプトに、`claude plugin install stack@fastship` の行を足します ([3. クラウド環境](#3-クラウド環境))。
 
 hook は、道具と設定 (`mise.toml`・lock ファイル・`node_modules` の Biome・`.venv` の Ruff など) があるリポジトリでだけ動きます。ローカルで pyright-lsp を使うには、`pyright-langserver` を PATH に入れてください (例: `uv tool install pyright`)。
-
-### 0.13.0 に上げたとき
-dev は stack を一緒に入れなくなりました。stack を使っているリポジトリでは、次を行ってください。
-
- - クラウド環境のセットアップスクリプトに、`claude plugin install stack@fastship` の行を足す。足さないと、ルーティンで stack の hook が動きません
- - リポジトリの `.claude/settings.json` の `enabledPlugins` に、`"stack@fastship": true` を足す
- - ローカルの `/plugin` の **Installed** に stack が無ければ、`/plugin install stack@fastship` で入れる
