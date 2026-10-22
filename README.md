@@ -144,7 +144,10 @@ GitHub の UI で **New issue** → **🚀 バックログ** を選び、背景�
 Claude Code からも `/dev:issue` で起票できます。Slack (Claude Tag) からは使えません (org のプラグインしか使えず、org の GitHub 同期は private リポジトリしか受け付けないため)。
 
 ### 版を上げたとき
-FastShip の版が上がったら、毎回行います。クラウド環境は Setup script の結果を約 7 日使い回すため、そのままでは最大 7 日、ルーティンが古い版で動きます。Setup script を変えると、次のセッションで作り直されます。
+その版の節 (`0.14.0 に上げたとき` など) があれば、その手順を行います。節の無い版では、何もしなくて構いません。
+
+#### クラウド環境を作り直す
+版の節に書いてあるときだけ行います。クラウド環境は Setup script の結果を約 7 日使い回すため、ほかの版は 7 日以内に入れ替わります。Setup script を変えると、次のセッションで作り直されます。
 
 1. [3. クラウド環境](#3-クラウド環境) の 1 と同じく、環境の ⚙️ を開く
 2. **セットアップスクリプト** の末尾に `# dev <版>` を足し (あれば版を書き換え)、**変更を保存**。版は [plugin.json](plugins/dev/.claude-plugin/plugin.json) の `version` です。stack だけ上がったときは `# stack <版>` を足します
@@ -154,8 +157,6 @@ FastShip の版が上がったら、毎回行います。クラウド環境は S
 3. 次にルーティンが動いたら、https://claude.ai/code/routines の `{リポジトリ名} / FastShip` の **履歴** から、そのセッションを開く。`blocked.sh start` を実行した行を開き、パス (`.../fastship/dev/<版>`) が新しい版か確かめる
 
    ![スキルのパスで版を確かめる](docs/images/claude-5-skill-version.png)
-
-4. その版の節 (`0.14.0 に上げたとき` など) があれば、その手順も行う
 
 ### 0.14.0 に上げたとき
 仕組みを減らしました。
@@ -174,8 +175,9 @@ FastShip の版が上がったら、毎回行います。クラウド環境は S
    - `claude:shipped`・`claude:retrospective`・`claude:approved` を消すか: 消す
    - Actions の Claude レビュー (claude-code-action) を PR で自動で動かさないか: 止める。⑨ と二重にレビューし、Actions の時間を使うため。コメントでの依頼 (`/code-review` など) は残る。org の必須ワークフローで動いているなら、org の管理者に止めてもらう
 2. https://claude.ai/code/routines で、`{リポジトリ名} / 課題分析`・`/ リファインメント`・`/ 実装`・`/ レビュー`・`/ 振り返り` を消す (API では消せない)。残すと `/ FastShip` と同じイベントで二重に起動する
-3. setup を使わずに FastShip プロジェクトをつないだなら、[setup を使わずにつなぐ](#setup-を使わずにつなぐ) の 1 のとおりに、ビューを画面で直す
-4. [4. Auto-add](#4-auto-add) のフィルタから `"claude:shipped"`・`"claude:approved"` を外す (残っていても害はない)
+3. [クラウド環境を作り直す](#クラウド環境を作り直す)。ルーティンの作りが変わったため、古い版のスキルのままでは動かない
+4. setup を使わずに FastShip プロジェクトをつないだなら、[setup を使わずにつなぐ](#setup-を使わずにつなぐ) の 1 のとおりに、ビューを画面で直す
+5. [4. Auto-add](#4-auto-add) のフィルタから `"claude:shipped"`・`"claude:approved"` を外す (残っていても害はない)
 
 上げる前に作った open の PR は Ready のため、✅ の前でも `⑪ マージ待ち` に出ます。`claude:under-review` を付け直すと、⑨ がレビューし直します。0.14.0 では、Draft の PR で ⑨ が始まりませんでした (0.14.1 で直しました)。Draft のまま `claude:under-review` が付いて止まっている PR は、Ready にしてから付け直してください。
 
