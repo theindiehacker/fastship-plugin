@@ -161,14 +161,7 @@ flowchart LR
 claude plugin install stack@fastship || echo "⚠️ stack@fastship を入れられませんでした" >&2
 ```
 
-4.2 で既存のルーティンを `update` した (導入済みの) ときは、上のスクリプトは入っているはずです。追加ではなく、Setup script の末尾の `# dev <版>` を今の版に書き換える (無ければ足す) よう案内してください。版は下のコマンドで引き、`# dev 0.14.2` のように書いて伝えます。スクショ付きの手順 https://github.com/theindiehacker/fastship-plugin#版を上げたとき も伝えます。
-
- - クラウド環境は Setup script の結果を約 7 日使い回すため、書き換えないと、ルーティンが古い版のスキルで動き続けます。Setup script を変えると、次のセッションで作り直されます
- - スクリプトが入っていなければ、上のとおり追加するよう案内してください
-
-```bash
-jq -r .version "${CLAUDE_PLUGIN_ROOT}/.claude-plugin/plugin.json"
-```
+4.2 で既存のルーティンを `update` した (導入済みの) ときは、上のスクリプトは入っているはずです。追加は案内せず、README の https://github.com/theindiehacker/fastship-plugin#版を上げたとき を読むよう伝えてください。版ごとの手順と、クラウド環境を作り直すかが書いてあります。クラウド環境は Setup script の結果を約 7 日使い回すため、作り直さなくても、ルーティンは 7 日以内に新しい版に入れ替わります。
 
 ### 4.4 FastShip プロジェクト
 対象リポジトリを、owner の FastShip プロジェクト (GitHub Project) につなぎます。開発者は、プロジェクトのビューで次に判断することを確かめます。テンプレートは https://github.com/orgs/theindiehacker/projects/6 です。
