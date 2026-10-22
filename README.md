@@ -172,8 +172,6 @@ FastShip の版が上がったら、毎回行います。クラウド環境は S
 1. `/dev:setup` を実行し直す。聞かれたら次のように答える
    - `.github/ISSUE_TEMPLATE/backlog.md` を上書きするか: 上書きする。カスタマイズしていて上書きしないなら、frontmatter の `labels` を `["claude:analysis"]` に直す
    - `claude:shipped`・`claude:retrospective`・`claude:approved` を消すか: 消す
-   - `⑪ マージ待ち` のフィルタを直すか: 直す
-   - `⑫ 成功指標の確認待ち` を消すか: 消す
    - Actions の Claude レビュー (claude-code-action) を PR で自動で動かさないか: 止める。⑨ と二重にレビューし、Actions の時間を使うため。コメントでの依頼 (`/code-review` など) は残る。org の必須ワークフローで動いているなら、org の管理者に止めてもらう
 2. https://claude.ai/code/routines で、`{リポジトリ名} / 課題分析`・`/ リファインメント`・`/ 実装`・`/ レビュー`・`/ 振り返り` を消す (API では消せない)。残すと `/ FastShip` と同じイベントで二重に起動する
 3. setup を使わずに FastShip プロジェクトをつないだなら、[setup を使わずにつなぐ](#setup-を使わずにつなぐ) の 1 のとおりに、ビューを画面で直す
@@ -249,10 +247,10 @@ PR は、実装・修正の間だけ Draft にします。
    - 課題分析が、最後の承認 (`claude:refine` を付けた) より後に終わったときに付きます
    - 進行中ラベル (`claude:analysis` / `claude:refine` など) か `claude:blocked` が付いている間は付きません
  - Sub Issue がすべて閉じて 1 つ以上が完了すると、リファインメントが親 Issue を閉じます。すべて見送りなら、閉じずに残します。1 PR で済む Issue は、PR の `Closes` で閉じます。
- - テンプレートは https://github.com/orgs/theindiehacker/projects/6 です。`/dev:setup` が、テンプレートをコピーして対象リポジトリにつなぎます (setup の 4.4)。プロジェクトが既にあれば、確認のうえで、ビューを上の表のとおりに直します。
+ - テンプレートは https://github.com/orgs/theindiehacker/projects/6 です。`/dev:setup` が、テンプレートをコピーして対象リポジトリにつなぎます (setup の 4.4)。プロジェクトが既にあれば、ビューを上の表のとおりに直します。FastShip のビューは setup が管理します。自分用の絞り込みは、別のビューを作ってください。
 
 ### setup を使わずにつなぐ
-1. owner の Projects に `FastShip プロジェクト` が無ければ、[テンプレート](https://github.com/orgs/theindiehacker/projects/6) のメニューの **Make a copy** でコピーし、タイトルを `FastShip プロジェクト` にします。あれば、上の表のビューがあるか確かめ、無いものを作ります (同じ名前でフィルタが違うビューは、作らずにフィルタを直す)。`⑫ 成功指標の確認待ち` (0.13.0 以前) があれば消します。
+1. owner の Projects に `FastShip プロジェクト` が無ければ、[テンプレート](https://github.com/orgs/theindiehacker/projects/6) のメニューの **Make a copy** でコピーし、タイトルを `FastShip プロジェクト` にします。あれば、上の表のビューがあるか確かめ、無いものを作ります (同じ名前でフィルタが違うビューは、作らずにフィルタを直す)。
 2. 対象リポジトリの **Projects** タブ → **Link a project** で、1 のプロジェクトをリンクします。
 3. [4. Auto-add](#4-auto-add) を設定します。
 4. claude ラベルが付いた open の Issue / PR を、プロジェクトの **Add item** で追加します (Auto-add は、有効にする前からあるものを入れないため)。

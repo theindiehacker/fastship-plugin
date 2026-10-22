@@ -206,9 +206,8 @@ gh project copy 6 --source-owner theindiehacker --target-owner <owner> --title "
 
 3. 下の表のビューがあるかを、名前とフィルタで確かめてください (下の 1 つ目のコマンド)。
    - 無いビューだけ作ってください (3 つ目のコマンド)。`visible_fields` には列の id を入れます。id は 2 つ目のコマンドで、列の名前から引いてください。
-   - 同じ名前でフィルタが違えば、作らずに、今のフィルタと表のフィルタを見せて、直してよいかユーザーに確認してください。直すと答えたら、4 つ目のコマンドで表のフィルタにします (ビューの id は 1 つ目のコマンドで出ます)。直さないと答えたら残してください。
-   - `⑫ 成功指標の確認待ち` (0.13.0 以前のビュー) があれば、消してよいかユーザーに確認し、5 つ目のコマンドで消してください。消さないと答えたら残してください。
-   - 4・5 つ目のコマンドが失敗したら、UI で直すようユーザーに伝えてください。
+   - 同じ名前でフィルタが違えば、作らずに、4 つ目のコマンドで表のフィルタに直してください (ビューの id は 1 つ目のコマンドで出ます)。確認は要りません。FastShip のビューは setup が管理し、利用者は自分用のビューを別に作るためです。直したビューは、名前と、直す前と後のフィルタをユーザーに伝えてください。
+   - 4 つ目のコマンドが失敗したら、UI で直すようユーザーに伝えてください。
 
 | ビュー | フィルタ | 列 |
 |:--|:--|:--|
@@ -225,8 +224,6 @@ jq -n --arg name "<ビュー>" --arg filter '<フィルタ>' '{name:$name, layou
   | gh api --method POST "<kind>/<owner>/projectsV2/<n>/views" --input - --jq .number
 gh api graphql -f id=<ビューの id> -f filter='<フィルタ>' -f query='mutation($id: ID!, $filter: String!) { updateProjectV2View(input: {viewId: $id, filter: $filter}) { projectV2View { name filter } } }' \
   --jq '.data.updateProjectV2View.projectV2View | "\(.name) [\(.filter)]"'
-gh api graphql -f id=<ビューの id> -f query='mutation($id: ID!) { deleteProjectV2View(input: {viewId: $id}) { projectV2View { name } } }' \
-  --jq .data.deleteProjectV2View.projectV2View.name
 ```
 
 4. リポジトリをリンクしてください。リポジトリの Projects タブに出るようになります。リンク済みでも問題ありません。
