@@ -177,11 +177,20 @@ else
 fi
 ```
 
-4. `APPROVED` と出て、ベースが epic ブランチ (`epic/` で始まる) なら、続けて下のコマンドを実行してください。CI が既に通っていれば、PR を epic ブランチにマージし、Sub Issue を閉じます。ほかの結果 (`WAIT` など) なら何もしないでください。実装が、CI の結果で起こされたときにマージします (`/dev:implement` の 7)。
+4. `APPROVED` と出て、ベースが epic ブランチ (`epic/` で始まる) なら、続けて下のコマンドを 1 回の Bash で実行してください。CI が既に通っていれば、PR を epic ブランチにマージし、Sub Issue を閉じます。
    - ここでも実行するのは、実装が ⑨ のレビューで起こされたときに、まだ `claude:under-review` が外れていないことがあるためです。
+   - `WAIT` なら何もしません。実装が、CI の結果で起こされたときにマージします (`/dev:implement` の 7)。
+   - `CONFLICT` / `FAILED` なら、結果を PR にコメントします (`<!-- fastship:merge -->`)。実装がこのコメントで起こされ、コンフリクトを解消するか、人間に返します。
 
 ```bash
-bash "${CLAUDE_PLUGIN_ROOT}/scripts/epic.sh" merge 123
+out=$(bash "${CLAUDE_PLUGIN_ROOT}/scripts/epic.sh" merge 123) || out="FAILED: epic.sh がエラーで終わりました"
+echo "$out"
+case "$out" in
+  CONFLICT* | FAILED*)
+    jq -n --arg out "$out" '{body: ("<!-- fastship:merge -->\n🔀 ✅ ですが、epic ブランチにマージできませんでした。\n\n```text\n" + $out + "\n```")}' \
+      | gh api --method POST "repos/{owner}/{repo}/issues/123/comments" --input - > /dev/null && echo NOTIFIED
+    ;;
+esac
 ```
 
 ## 判断できないとき

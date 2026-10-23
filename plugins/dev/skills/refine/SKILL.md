@@ -40,10 +40,12 @@ gh api --paginate "repos/{owner}/{repo}/issues/123/sub_issues" --jq '.[] | "#\(.
  - リファインメントの完了コメント (`<!-- fastship:refine -->` で始まる) があれば、やり直しです。それ以降の開発者のコメントを反映してください。
  - 完了コメントが無いのに Sub Issue があれば、前のセッションが途中で止まっています。同じ作業の Sub Issue を重複して作らないでください。
  - 完了コメントがあって Sub Issue が無ければ、前回は 1 PR で済むとして、この Issue をそのまま実装に回しています (3 の「1 PR で済むとき」)。
- - 既にある Sub Issue の依存は、下のコマンドで確かめてください。
+ - 既にある Sub Issue の依存は、下の 1 つ目のコマンドで確かめてください。
+ - この Issue の依存 (Blocked by) も、下の 2 つ目のコマンドで確かめてください。open なものが出たら、3 の「判断できないとき」です。課題分析が大きい Issue を分けたときに付けます。
 
 ```bash
 gh api --paginate "repos/{owner}/{repo}/issues/<Sub Issue の番号>/dependencies/blocked_by" --jq '.[] | "#\(.number) id=\(.id) \(.state) \(.title)"'
+gh api --paginate "repos/{owner}/{repo}/issues/123/dependencies/blocked_by" --jq '.[] | select(.state == "open") | "#\(.number) \(.title)"'
 ```
 
 ## 3. 分解する
@@ -61,7 +63,7 @@ gh api --paginate "repos/{owner}/{repo}/issues/<Sub Issue の番号>/dependencie
  - Sub Issue が無い。既にあれば (やり直し)、今までどおり Sub Issue で進めてください
 
 1. この Issue に実装の着手コメント (下の 1 つ目のコマンド) があれば、実装が始まっています。本文を変えず、`/dev:blocked` の「2. 止める」で、どう直すかを人間に聞いてください。
-2. 本文 (下の 2 つ目のコマンド) の末尾に、`## やらないこと` と `## 完了条件` を書き足してください。書き方は `${CLAUDE_PLUGIN_ROOT}/templates/ISSUE_TEMPLATE/todo.md` の同じ欄に合わせます。既にあれば (やり直し)、書き足さずに直してください。ほかの欄は変えないでください。書いたら 3 つ目のコマンドで更新します。
+2. 本文 (下の 2 つ目のコマンド) の末尾に、`## やらないこと` と `## 完了条件` を書き足してください。書き方は `${CLAUDE_PLUGIN_ROOT}/templates/ISSUE_TEMPLATE/todo.md` の同じ欄に合わせます。完了条件 には、要件 (機能要件・非機能要件) をすべて入れてください。⑨ レビューは完了条件で確かめるためです。既にあれば (やり直し)、書き足さずに直してください。ほかの欄は変えないでください。書いたら 3 つ目のコマンドで更新します。
 3. `claude:implement` が付いていなければ、付けてください (下の 4 つ目のコマンド)。実装が始まります。
 
 ```bash
@@ -91,6 +93,7 @@ gh api --method DELETE "repos/{owner}/{repo}/issues/<Sub Issue の番号>/depend
 
  - 解決策 が空で、課題分析が済んでいない
  - 解決策 がリポジトリの今の作りと合わず、どう分けるかで結果が大きく変わる
+ - この Issue の依存 (Blocked by) に open な Issue がある (2 の 2 つ目のコマンド)。依存のコードがまだデフォルトブランチに無く、それが無いベースで実装が始まってしまうためです。依存が閉じてから `claude:refine` を付け直すよう頼んでください
 
 ## 4. 起票する
 はじめに、epic ブランチ `epic/123` を作ってください (下のコマンド)。Sub Issue の PR は epic ブランチに向け、⑨ の ✅ と CI の成功で実装がマージします。すべて終わると、6 で epic ブランチをデフォルトブランチに入れる PR を作り、開発者はその PR で全体をレビューします。Sub Issue の PR を 1 つずつ人がマージ・レビューしなくて済むようにするためです。

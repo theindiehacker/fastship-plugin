@@ -195,7 +195,7 @@ gh api "repositories/<repository_id>/contents/<path>?ref=<ref>" --jq .content | 
 ```
 
 ## 6. epic ブランチの CI
-Sub Issue の PR は epic ブランチ (`epic/<親 Issue>`) に向き、実装は ⑨ の ✅ と CI の成功でマージします (`/dev:implement` の 7)。epic ブランチに向けた PR で CI が動かないと、CI を通さずにマージされます。
+Sub Issue の PR は epic ブランチ (`epic/<親 Issue>`) に向き、実装は ⑨ の ✅ と CI の成功でマージします (`/dev:implement` の 7)。epic ブランチに向けた PR で CI が動かないと、実装はマージできずに人間に返します (デフォルトブランチに向けた PR で CI が動いているとき)。
 
 1. `.github/workflows/` で、`pull_request` / `pull_request_target` の `branches` が epic ブランチに当たらない (デフォルトブランチだけなど) ワークフローを探してください。`branches` が無いものと、`branches-ignore` だけのものは、epic ブランチに向けた PR でも動きます。
 2. 見つかったら見せて、`branches` に `epic/**` を足すか確認してください。足すなら、2・3 と同じコミットに入れてください。

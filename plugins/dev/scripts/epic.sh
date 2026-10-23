@@ -32,9 +32,19 @@ parent_of() { # <Issue の番号>  同じリポジトリの親 Issue の番号�
 }
 
 close_issue() { # <Issue の番号>  open なら完了として閉じる。issues.closed で、リファインメントが後続に着手する
-  if [ "$(gh api "$REPO/issues/$1" --jq .state)" = open ]; then
+  local state
+  # 取得に失敗したら止める (閉じたと誤って、後続の着手が止まらないため)。[ ] の中で $( ) を使わないのはそのため
+  state=$(gh api "$REPO/issues/$1" --jq .state)
+  if [ "$state" = open ]; then
     gh api --method PATCH "$REPO/issues/$1" -f state=closed -f state_reason=completed > /dev/null
   fi
+}
+
+has_ci() { # <sha>  check run か commit status が 1 つでもあれば 0
+  local runs statuses
+  runs=$(gh api "$REPO/commits/$1/check-runs?per_page=1" --jq .total_count)
+  statuses=$(gh api "$REPO/commits/$1/status" --jq .total_count)
+  [ $((runs + statuses)) -gt 0 ]
 }
 
 base() { # <Sub Issue の番号>
@@ -48,12 +58,13 @@ base() { # <Sub Issue の番号>
 }
 
 create() { # <親 Issue の番号>
-  local branch="epic/$1" sha
+  local branch="epic/$1" default sha
   if has_branch "$branch"; then
     echo "EXISTS: $branch"
     return
   fi
-  sha=$(gh api "$REPO/git/ref/heads/$(default_branch)" --jq .object.sha)
+  default=$(default_branch)
+  sha=$(gh api "$REPO/git/ref/heads/$default" --jq .object.sha)
   gh api --method POST "$REPO/git/refs" -f ref="refs/heads/$branch" -f sha="$sha" > /dev/null
   echo "CREATED: $branch"
 }
@@ -77,7 +88,7 @@ sync() { # <親 Issue の番号>
 }
 
 merge() { # <PR の番号>
-  local number=$1 pr base sub sha review checks statuses method err
+  local number=$1 pr base sub parent sha reviews review requested checks statuses default last method err
   pr=$(gh api "$REPO/pulls/$number")
   base=$(jq -r .base.ref <<< "$pr")
   if [[ $base != epic/* ]]; then
@@ -90,7 +101,8 @@ merge() { # <PR の番号>
     echo "FAILED: 本文に Closes #<Sub Issue> がありません"
     return
   fi
-  if [ "epic/$(parent_of "$sub")" != "$base" ]; then
+  parent=$(parent_of "$sub")
+  if [ "epic/$parent" != "$base" ]; then
     echo "FAILED: #$sub は $base の Sub Issue ではありません"
     return
   fi
@@ -117,18 +129,30 @@ merge() { # <PR の番号>
     return
   fi
 
-  # レビューのマーカーは誰でも書けるため、リポジトリのメンバーのレビューだけを数える。ルーティンは開発者のアカウントで書く
   sha=$(jq -r .head.sha <<< "$pr")
-  review=$(gh api --paginate "$REPO/pulls/$number/reviews" \
-    --jq ".[] | select((.body // \"\" | startswith(\"$REVIEW_MARK\")) and (.author_association | test(\"^(OWNER|MEMBER|COLLABORATOR)$\")))
-          | {commit_id, submitted_at, ok: (.body | split(\"\n\") | map(rtrimstr(\"\r\")) | .[1] // \"\" | startswith(\"## ✅\"))}" \
-    | jq -s 'sort_by(.submitted_at) | last')
-  if [ "$(jq -r '.commit_id // ""' <<< "$review")" != "$sha" ] || [ "$(jq -r '.ok // false' <<< "$review")" != true ]; then
+  reviews=$(gh api --paginate "$REPO/pulls/$number/reviews" --jq '.[]' | jq -s .)
+
+  # レビューのマーカーは誰でも書けるため、リポジトリのメンバーのレビューだけを数える。ルーティンは開発者のアカウントで書く
+  review=$(jq --arg mark "$REVIEW_MARK" '
+      map(select((.body // "" | startswith($mark)) and (.author_association | test("^(OWNER|MEMBER|COLLABORATOR)$"))))
+      | sort_by(.submitted_at) | last
+      | {commit_id, ok: (.body // "" | split("\n") | map(rtrimstr("\r")) | .[1] // "" | startswith("## ✅"))}' <<< "$reviews")
+  if [ "$(jq -r '.commit_id // ""' <<< "$review")" != "$sha" ] || [ "$(jq -r .ok <<< "$review")" != true ]; then
     echo "WAIT: head ($sha) への ⑨ の ✅ がありません"
     return
   fi
 
-  # 終わっていないもの・成功していないものを出す。CI が無いリポジトリでは何も出ない
+  # 人の Request changes が残っていれば待つ。人がマージしていたときと同じく、人の判断を越えてマージしないため
+  # GitHub と同じく、レビュアーごとの最新のレビュー (コメントだけのものは除く) で決める。Dismiss されたものは数えない
+  requested=$(jq -r '
+      map(select(.state != "COMMENTED" and .state != "PENDING")) | group_by(.user.login)
+      | map(sort_by(.submitted_at) | last | select(.state == "CHANGES_REQUESTED") | .user.login) | join(", ")' <<< "$reviews")
+  if [ -n "$requested" ]; then
+    echo "WAIT: 変更を求めるレビューがあります ($requested)"
+    return
+  fi
+
+  # 終わっていないもの・成功していないものを出す
   # 取得に失敗したら止める (成功と誤って、CI を確かめずにマージしないため)。1 つずつ代入するのはそのため
   checks=$(gh api --paginate "$REPO/commits/$sha/check-runs?per_page=100" \
     --jq '.check_runs[] | select(.status != "completed" or (.conclusion | IN("success", "neutral", "skipped") | not)) | "\(.name): \(.conclusion // .status)"')
@@ -140,19 +164,33 @@ merge() { # <PR の番号>
     return
   fi
 
+  # CI が 1 つも無いとき、デフォルトブランチに最後にマージされた PR で CI が動いていれば、epic ブランチに向けた PR では動いていない
+  # (ワークフローの branches・Ruleset の対象など)。CI を通さずにマージしないため、人に返す。どちらにも無ければ CI の無いリポジトリ
+  if ! has_ci "$sha"; then
+    default=$(default_branch)
+    last=$(gh api "$REPO/pulls?state=closed&base=$default&sort=updated&direction=desc&per_page=30" \
+      --jq '[.[] | select(.merged_at)][0].head.sha // empty')
+    if [ -n "$last" ] && has_ci "$last"; then
+      echo "FAILED: epic ブランチに向けた PR で CI が動いていません ($default に向けた PR では動いています)"
+      return
+    fi
+  fi
+
   if [ "$(jq -r .mergeable <<< "$pr")" = false ]; then
     echo "CONFLICT: $base とコンフリクトしています"
     return
   fi
 
-  # squash が使えれば squash にする。epic の履歴が Sub Issue ごとに 1 コミットになり、最後のレビューで読みやすいため
-  method=$(gh api "$REPO" \
-    --jq 'if .allow_squash_merge != false then "squash" elif .allow_merge_commit != false then "merge" else "rebase" end')
-  if err=$(gh api --method PUT "$REPO/pulls/$number/merge" -f sha="$sha" -f merge_method="$method" 2>&1 > /dev/null); then
-    close_issue "$sub"
-    echo "MERGED: #$number を $base にマージし、#$sub を閉じました"
-    return
-  fi
+  # squash から順に試す。epic の履歴が Sub Issue ごとに 1 コミットになり、最後のレビューで読みやすいため
+  # リポジトリで許されていない方式なら、次の方式を試す (リポジトリの設定は、権限によっては読めないため)
+  for method in squash merge rebase; do
+    if err=$(gh api --method PUT "$REPO/pulls/$number/merge" -f sha="$sha" -f merge_method="$method" 2>&1 > /dev/null); then
+      close_issue "$sub"
+      echo "MERGED: #$number を $base にマージし、#$sub を閉じました"
+      return
+    fi
+    grep -qiE '(merges|commits) are not allowed' <<< "$err" || break
+  done
   pr=$(gh api "$REPO/pulls/$number")
   if [ "$(jq -r .merged <<< "$pr")" = true ]; then
     # 同時に動いた別のセッションがマージした
