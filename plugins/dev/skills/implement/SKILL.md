@@ -1,12 +1,12 @@
 ---
 name: implement
-description: FastShip の ⑦⑧ 実装。claude:implement が付いた Sub Issue (1 PR で済む Issue はその Issue) を、ドメイン駆動設計とテスト駆動開発で実装する。Sub Issue に紐付けた (Closes #N) テスト付きの PR を Draft で作り、Ready にして claude:under-review でレビューに回す。PR は実装・修正の間だけ Draft にする。レビューの指摘 (🛑 など) と CI の失敗に対応する。判断できないときは claude:blocked で人間に返す。PR で止めた後の再開 (PR に claude:implement) にも使う。ルーティンから使う。使い方: /dev:implement {Sub Issue または PR の番号}
+description: FastShip の ⑦⑧ 実装。claude:implement が付いた Sub Issue (1 PR で済む Issue はその Issue) を、ドメイン駆動設計とテスト駆動開発で実装する。Sub Issue に紐付けた (Closes #N) テスト付きの PR を Draft で作り、Ready にして claude:under-review でレビューに回す。PR は親 Issue の epic ブランチ (無ければデフォルトブランチ) に向け、epic ブランチに向けた PR は ⑨ の ✅ と CI の成功でマージして Sub Issue を閉じる。PR は実装・修正の間だけ Draft にする。レビューの指摘 (🛑 など) と CI の失敗に対応する。判断できないときは claude:blocked で人間に返す。PR で止めた後の再開 (PR に claude:implement) にも使う。ルーティンから使う。使い方: /dev:implement {Sub Issue または PR の番号}
 argument-hint: "{Sub Issue または PR の番号}"
 ---
 
 # 🧑‍💻 実装
 
-`claude:implement` が付いた Sub Issue を実装し、PR を作ってレビューに回してください。レビューで 🛑 が付いたら、このセッションが対応します。
+`claude:implement` が付いた Sub Issue を実装し、PR を作ってレビューに回してください。レビューで 🛑 が付いたら、このセッションが対応します。epic ブランチに向けた PR は、✅ になって CI が通ったら、このセッションがマージします (7)。
 
 1 PR で済む Issue は、リファインメントが Sub Issue を作らず、Issue そのものに `claude:implement` を付けます。そのときは、この Issue を Sub Issue と読み替えてください (`Closes #<Issue>` で紐付けます)。
 
@@ -39,7 +39,7 @@ gh api "repos/{owner}/{repo}/issues/123" --jq 'if .pull_request then "PR" else "
    - 直すものが無くても、終える前に 6 の push の後と同じく、Ready にして再レビューを頼んでください。Draft のまま終えると、だれの番でもなくなるためです。
  - `Issue` なら、123 が Sub Issue です。Sub Issue に紐付いた open な PR があるか確かめてください (下の 2 つ目のコマンド)。
    - あれば、PR を Ready にしてから (冒頭の「Ready にする」)、PR に `claude:implement` を付けて (付いていれば外してから) 終えてください。PR で起動したセッションが、PR の質問と回答を読んで続けます。PR が Draft のままだと、ラベルを付けても起動しません。
-   - 無ければ、「前回の質問」に作業ブランチがあればそれを checkout してください。無ければ、セッションの作業ブランチ (指定が無ければベースブランチの最新から作る) で作業してください。
+   - 無ければ、「前回の質問」に作業ブランチがあればそれを checkout してください。無ければ、PR のベースを下の 3 つ目のコマンドで決め、セッションの作業ブランチ (指定が無ければ `claude/<Sub Issue>` など) を、ベースの最新から作ってください (4 つ目)。ベースは、親 Issue の epic ブランチ (`epic/<親 Issue>`) があればそれ、無ければデフォルトブランチです。
 
 ```bash
 gh api "repos/{owner}/{repo}/pulls/123" --jq '.head.ref, .body'
@@ -47,6 +47,8 @@ gh api "repos/{owner}/{repo}/issues/<Sub Issue>/timeline?per_page=100" \
   --jq '.[] | select(.event == "cross-referenced" and .source.issue.pull_request and .source.issue.state == "open")
         | select(.source.issue.body // "" | split("\n") | map(rtrimstr("\r")) | index("Closes #<Sub Issue>"))
         | .source.issue.number'
+bash "${CLAUDE_PLUGIN_ROOT}/scripts/epic.sh" base <Sub Issue>
+git fetch origin "<ベース>" && git checkout -B "<作業ブランチ>" "origin/<ベース>"
 ```
 
 ## 2. 読む
@@ -61,7 +63,7 @@ gh api --paginate "repos/{owner}/{repo}/issues/<Sub Issue>/dependencies/blocked_
 
  - Sub Issue の やること / やらないこと / 完了条件 が、実装する範囲です。Issue をそのまま実装するときは、解決策 と、リファインメントが書き足した やらないこと / 完了条件 が範囲です。
  - 4 つ目のコマンドで出る Issue (Blocked by) は、この Sub Issue の依存です。先に終わった作業なので、そのコードを使ってください。
- - 親 Issue の 課題 / 解決策 は、なぜ作るのかと、どんな言葉で呼ぶのかを知るために読んでください。
+ - 親 Issue の 課題 / 解決策 / 要件 は、なぜ作るのかと、どんな言葉で呼ぶのかを知るために読んでください。
  - リポジトリの規約 (`CLAUDE.md` など) と、近いコードとそのテストを読み、次を確かめてください: 層の分け方、名前の付け方、テストの書き方。
  - リポジトリの検査 (テスト・lint・整形・型チェック) のコマンドを洗い出してください。`CLAUDE.md`・CI のワークフロー (`.github/workflows/`)・`package.json` の `scripts`・`Makefile` などに書いてあります。CI が PR で実行するコマンドが基準です。
 
@@ -88,8 +90,8 @@ gh api --paginate "repos/{owner}/{repo}/issues/<Sub Issue>/dependencies/blocked_
 
 ## 5. PR を作る
 1. `/dev:push-pr` で PR を作ってください。
-   - ベースは、リポジトリのデフォルトブランチにしてください。`Closes #N` は、デフォルトブランチへのマージでしか Issue を閉じません。
-   - 💡 概要 に `Closes #<Sub Issue>` を 1 行で書いてください。マージすると Sub Issue が閉じ、後続の Sub Issue の実装が始まります。
+   - ベースは、1 で決めたベースにしてください。push-pr にそう伝えます。
+   - 💡 概要 に `Closes #<Sub Issue>` を 1 行で書いてください。ほかのスキルは、この行で Sub Issue を見分けます。デフォルトブランチに向けた PR は、マージすると `Closes` で Sub Issue が閉じます。epic ブランチに向けた PR は `Closes` では閉じないため、7 でマージするときに閉じます。閉じると、後続の Sub Issue の実装が始まります。
    - Draft で作ってください (push-pr の 6 で `draft` を `true` にする)。push-pr の 8 で Ready にしないでください。Ready にするのは、レビューを頼む 4 です。
    - push-pr のステップ 11 は行わないでください。CI へのレビューの依頼 (`/code-review` / `/security-review` のコメント) もしません。レビューは ⑨ が行い (4)、CI とレビューへの対応は 6 で行います。
 2. `subscribe_pr_activity` で PR を購読してください。レビューと CI の結果で、このセッションが起こされるようになります (既に購読していても問題ありません)。
@@ -97,7 +99,7 @@ gh api --paginate "repos/{owner}/{repo}/issues/<Sub Issue>/dependencies/blocked_
 
 ```bash
 gh api "repos/{owner}/{repo}/pulls/<PR>" --jq .body | tr -d '\r' | grep -xF "Closes #<Sub Issue>"
-[ "$(gh api "repos/{owner}/{repo}/pulls/<PR>" --jq .base.ref)" = "$(gh api "repos/{owner}/{repo}" --jq .default_branch)" ] && echo "ベースはデフォルトブランチ"
+[ "$(gh api "repos/{owner}/{repo}/pulls/<PR>" --jq .base.ref)" = "$(bash "${CLAUDE_PLUGIN_ROOT}/scripts/epic.sh" base <Sub Issue>)" ] && echo "ベースは正しい"
 ```
 
 4. PR を Ready にしてから、`claude:under-review` を付けてください。⑨ レビューが始まります。付いたままだとイベントが起きないので、外してから付けます。
@@ -113,6 +115,7 @@ Sub Issue の `claude:implement` は外さないでください。リファイ�
 ## 6. レビューと CI に対応する
 PR を作った後は、レビュー・コメント・CI の結果でこのセッションが起こされます。
 
+ - PR が閉じていたら (マージを含む)、7 のコマンドを実行してから、`unsubscribe_pr_activity` で購読を外して終えてください。開発者が epic ブランチに手でマージしたときも、Sub Issue を閉じるためです。
  - 次のときは何もしないでください。
    - `claude:blocked` が付いている、またはこのセッションが `/dev:blocked` の「2. 止める」を行った後 (再開は新しいセッションが行います)
    - 起こされたコメントが、⑨ のレビュー以外の FastShip のコメント (本文が `<!-- fastship:` で始まり、`<!-- fastship:review -->` ではない) である。このセッションの返信や、⑨ の着手・質問のコメントです
@@ -141,7 +144,23 @@ gh api "repos/{owner}/{repo}/issues/<PR>" --jq '.labels[].name' | grep -qxF clau
   || gh api --method POST "repos/{owner}/{repo}/issues/<PR>/labels" -f "labels[]=claude:under-review" > /dev/null
 ```
 
- - ✅ のレビューの `[imo]` / `[nits]` / `[ask]` は、返信だけにしてください。それだけのために push すると、再レビューで ✅ が外れるためです。ほかに対応の要る指摘が無ければ何もしないでください。マージは開発者が行います。
+ - ✅ のレビューの `[imo]` / `[nits]` / `[ask]` は、返信だけにしてください。それだけのために push すると、再レビューで ✅ が外れるためです。
+ - 直すものが無ければ、7 に進んでください。
+
+## 7. epic ブランチにマージする
+ベースが epic ブランチのときだけ行います。デフォルトブランチに向けた PR は、開発者がマージします (⑪)。
+
+⑨ の ✅ と CI の成功がそろったら、PR を epic ブランチにマージし、Sub Issue を閉じます (下のコマンド)。6 で直すものが無ければ、起こされるたびに実行してください。✅ と CI のどちらが先に届いても、後の方で起こされたときにマージできます。
+
+```bash
+bash "${CLAUDE_PLUGIN_ROOT}/scripts/epic.sh" merge <PR>
+```
+
+ - `MERGED`: マージし、Sub Issue を閉じました。リファインメントが後続に着手します。`unsubscribe_pr_activity` で購読を外して終えてください。
+ - `WAIT`: まだそろっていません。何もせずに終えてください。CI の失敗が出ていれば、6 のとおり直してください。
+ - `CONFLICT`: 先にマージされた別の Sub Issue と、コンフリクトしています。PR を Draft にし (冒頭の「Draft にする」)、`git fetch origin <ベース> && git merge origin/<ベース>` で取り込んで解消してください。4 の検査を通してから push し、6 と同じく Ready にして再レビューを頼みます。
+ - `SKIP`: ベースが epic ブランチではないか、PR が閉じています。何もしないでください。
+ - `FAILED`: 「判断できないとき」として止めてください。
 
 ## 判断できないとき
 次のように Claude だけで判断できないときは、推測で作らず、`/dev:blocked` の「2. 止める」で人間に返してください。PR を作った後は PR の番号で実行し、続けて PR を Ready にして (冒頭の「Ready にする」)、`unsubscribe_pr_activity` で PR の購読を外してください。Draft のままだと、開発者が PR に `claude:implement` を付けても再開しないためです。Ready にできなければ、そのことを PR にコメントしてください。Sub Issue の `claude:implement` は残ります (5 を参照)。
@@ -152,6 +171,7 @@ gh api "repos/{owner}/{repo}/issues/<PR>" --jq '.labels[].name' | grep -qxF clau
  - Sub Issue を決められない (PR に `Closes #N` が無い)
  - 前のセッションのブランチに push できない (403 など)
  - PR を Draft / Ready に切り替えられない (CCR のルートも `gh pr ready` も失敗する)
+ - epic ブランチにマージできない (7 で `FAILED` と出る)
  - CI が、変更と関係のない理由 (シークレット・外部サービスなど) で失敗する。または同じ失敗を 2 回直しても通らない
  - 再レビューを 3 回頼んでも 🛑 が続く。またはレビューの指摘が Sub Issue・親 Issue と食い違い、どちらに従うか決められない
 

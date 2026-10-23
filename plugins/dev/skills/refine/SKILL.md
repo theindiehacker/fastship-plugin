@@ -1,12 +1,12 @@
 ---
 name: refine
-description: FastShip の ⑤⑥ リファインメント。claude:refine が付いた (承認済みの) Issue を、1 PR で終わる Sub Issue に分解して起票し、親 Issue に紐付ける。1 PR で済む Issue は分けず、完了条件・やらないことを書き足して Issue に claude:implement を付ける。依存の無い Sub Issue に claude:implement を付けて実装を始める。Sub Issue が閉じたときは、依存が解けた Sub Issue に claude:implement を付け、すべて閉じていれば親 Issue を閉じる。ルーティンから使う。使い方: /dev:refine {Issue の番号}
+description: FastShip の ⑤⑥ リファインメント。claude:refine が付いた (承認済みの) Issue を、1 PR で終わる Sub Issue に分解して起票し、親 Issue に紐付ける。1 PR で済む Issue は分けず、完了条件・やらないことを書き足して Issue に claude:implement を付ける。Sub Issue の PR は epic ブランチ (epic/<親 Issue の番号>) に向ける。依存の無い Sub Issue に claude:implement を付けて実装を始める。Sub Issue が閉じたときは、依存が解けた Sub Issue に claude:implement を付け、すべて閉じていれば epic ブランチをデフォルトブランチに入れる PR を作る。ルーティンから使う。使い方: /dev:refine {Issue の番号}
 argument-hint: "{Issue の番号}"
 ---
 
 # ✂️ リファインメント
 
-`claude:refine` が付いた Issue を Sub Issue に分解し、実装を始めてください。1 PR で済む Issue は分けずに、Issue をそのまま実装に回します (3 の「1 PR で済むとき」)。Sub Issue が閉じて起動したときは、1 で見分けて 6 だけを行います (すべて閉じていれば、親 Issue も閉じます)。
+`claude:refine` が付いた Issue を Sub Issue に分解し、実装を始めてください。1 PR で済む Issue は分けずに、Issue をそのまま実装に回します (3 の「1 PR で済むとき」)。Sub Issue が閉じて起動したときは、1 で見分けて 6 だけを行います (すべて閉じていれば、epic ブランチをデフォルトブランチに入れる PR を作ります)。
 
 GitHub は `gh api` (REST) で操作します。コマンドの `123` は、トリガーになった Issue の番号に置き換えてください。
 
@@ -36,7 +36,7 @@ gh api --paginate "repos/{owner}/{repo}/issues/123/comments" --jq '.[] | "### \(
 gh api --paginate "repos/{owner}/{repo}/issues/123/sub_issues" --jq '.[] | "#\(.number) \(.state) [\([.labels[].name] | join(", "))] \(.title)"'
 ```
 
- - 課題 / 解決策 / 成功指標 が分解の元です。リポジトリのコードとドキュメントも読み、どこを変えるかを確かめてください。
+ - 課題 / 解決策 / 要件 が分解の元です。リポジトリのコードとドキュメントも読み、どこを変えるかを確かめてください。
  - リファインメントの完了コメント (`<!-- fastship:refine -->` で始まる) があれば、やり直しです。それ以降の開発者のコメントを反映してください。
  - 完了コメントが無いのに Sub Issue があれば、前のセッションが途中で止まっています。同じ作業の Sub Issue を重複して作らないでください。
  - 完了コメントがあって Sub Issue が無ければ、前回は 1 PR で済むとして、この Issue をそのまま実装に回しています (3 の「1 PR で済むとき」)。
@@ -51,13 +51,13 @@ gh api --paginate "repos/{owner}/{repo}/issues/<Sub Issue の番号>/dependencie
  - 単独でマージしても壊れず、テストが通る単位にしてください。層 (DB / API / UI) ではなく、確かめられる振る舞いで分けてください。
  - 解決策 全体が 1 PR で終わるなら、分けずに、Sub Issue を作らずこの Issue をそのまま実装してください (下の「1 PR で済むとき」)。分けるのは 1 PR に収まらないときだけです。
  - 解決策 に無いことは Sub Issue にしないでください。
- - 成功指標を測る仕組み (ログ・計測など) が要るなら、それも Sub Issue にしてください。
+ - 要件 (機能要件・非機能要件) は、どれも 1 つ以上の Sub Issue の 完了条件 に入れてください。非機能要件は、当てはまる Sub Issue すべての 完了条件 に入れます。⑨ レビューは完了条件で確かめるため、どこにも入らない要件は確かめられません。
  - 依存 は、前の Sub Issue のコードが無いと作れないときだけ付けてください。依存の無い Sub Issue は、同時に実装が始まります。
 
 ### 1 PR で済むとき
 次をすべて満たすときは、Sub Issue を作らず、この Issue をそのまま実装に回します。Sub Issue を 1 つ作っても親の解決策を写すだけになり、Issue・待ちが増えるためです。4 と 5 の 1 は行わず、下の手順の後に 5 の 2 に進んでください。
 
- - 解決策 全体 (成功指標を測る仕組みを含む) が 1 PR で終わる
+ - 解決策 全体 (要件をすべて満たすところまで) が 1 PR で終わる
  - Sub Issue が無い。既にあれば (やり直し)、今までどおり Sub Issue で進めてください
 
 1. この Issue に実装の着手コメント (下の 1 つ目のコマンド) があれば、実装が始まっています。本文を変えず、`/dev:blocked` の「2. 止める」で、どう直すかを人間に聞いてください。
@@ -93,7 +93,15 @@ gh api --method DELETE "repos/{owner}/{repo}/issues/<Sub Issue の番号>/depend
  - 解決策 がリポジトリの今の作りと合わず、どう分けるかで結果が大きく変わる
 
 ## 4. 起票する
-着手順 (依存される側が先) に、1 つずつ起票し、依存を登録してから親 Issue に紐付けてください。先に起票した Sub Issue を、後の Sub Issue の依存にできます。
+はじめに、epic ブランチ `epic/123` を作ってください (下のコマンド)。Sub Issue の PR は epic ブランチに向け、⑨ の ✅ と CI の成功で実装がマージします。すべて終わると、6 で epic ブランチをデフォルトブランチに入れる PR を作り、開発者はその PR で全体をレビューします。Sub Issue の PR を 1 つずつ人がマージ・レビューしなくて済むようにするためです。
+
+ - 2 の一覧に Sub Issue があれば、実行しないでください。epic ブランチは Sub Issue より先に作るので、あれば作ってあります。無ければ前の版で分けた Issue なので、今までどおり Sub Issue の PR をデフォルトブランチに向けます。
+
+```bash
+bash "${CLAUDE_PLUGIN_ROOT}/scripts/epic.sh" create 123
+```
+
+次に、着手順 (依存される側が先) に、1 つずつ起票し、依存を登録してから親 Issue に紐付けてください。先に起票した Sub Issue を、後の Sub Issue の依存にできます。
 
 1. `${CLAUDE_PLUGIN_ROOT}/templates/ISSUE_TEMPLATE/todo.md` の欄に沿って、`/tmp/sub_issue.md` に本文を書いてください。
    - 先頭の YAML frontmatter は含めないでください。HTML コメントは残し、その下に書いてください。
@@ -157,6 +165,8 @@ Sub Issue に分けました。上から着手順です。
 
 依存の無い Sub Issue から実装を始めました。残りは、依存する Sub Issue が閉じると始まります。始まらないときは、その Sub Issue に `claude:implement` を付けてください。
 
+<epic ブランチがあるときだけ「Sub Issue の PR は `epic/123` に向け、レビューが ✅ で CI が通るとマージします。すべて終わると `epic/123` を `<デフォルトブランチ>` に入れる PR を作るので、全体はその PR でレビューしてください。」と書く>
+
 **やり直すには**: 直してほしい点をコメントし、`claude:refine` を付け直してください。着手前の Sub Issue を直します。
 ```
 
@@ -174,7 +184,7 @@ Sub Issue に分けました。上から着手順です。
 ```
 
 ## 6. 後続に着手する (Sub Issue が閉じたとき)
-閉じた Issue には `claude:refine` が無いため、`/dev:blocked` の「1. 始める」は行いません。コメントもしません。
+閉じた Issue には `claude:refine` が無いため、`/dev:blocked` の「1. 始める」は行いません。コメントもしません (5 で PR を作れないときを除く)。
 
 1. 閉じた Issue にリファインメントの完了コメントがあるか確かめてください (下の 1 つ目のコマンド)。何か出たら、1 PR で済むとしてそのまま実装した Issue が閉じています。後続の Sub Issue は無いので、何もせずに終えてください。その Issue に親 Issue があっても、親の Sub Issue には着手しません。親はリファインメントで分けたものではなく、承認されていない Issue の実装が始まってしまうためです。
 2. 親 Issue の番号を取得してください (下の 2 つ目のコマンド)。何も出なければ、Sub Issue ではないか、親 Issue が別のリポジトリにあります。何もせずに終えてください。以降のコマンドは、このリポジトリの番号として扱うためです。
@@ -186,20 +196,55 @@ gh api "repos/{owner}/{repo}/issues/123" \
   --jq '.repository_url as $repo | .parent_issue_url // empty | select(startswith($repo + "/issues/")) | split("/") | last'
 ```
 
-3. 親 Issue の Sub Issue を読み、5 の条件をすべて満たすものに `claude:implement` を付けてください。確かめ方は 5 と同じです。
+3. epic ブランチに、デフォルトブランチの最新を取り込んでください (下のコマンド)。後続の Sub Issue を最新のコードから作り、最後の PR でのコンフリクトを減らすためです。
+   - `SKIP` と出たら、epic ブランチがありません (前の版で分けた Issue)。5 で、今までどおり親 Issue を閉じます。
+   - `CONFLICT` と出ても、止めずに続けてください。5 で作る PR で、開発者が解消します。
+
+```bash
+bash "${CLAUDE_PLUGIN_ROOT}/scripts/epic.sh" sync <親 Issue の番号>
+```
+
+4. 親 Issue の Sub Issue を読み、5 の条件をすべて満たすものに `claude:implement` を付けてください。確かめ方は 5 と同じです。
 
 ```bash
 gh api --paginate "repos/{owner}/{repo}/issues/<親 Issue の番号>/sub_issues" --jq '.[] | "#\(.number) \(.state) [\([.labels[].name] | join(", "))] \(.title)"'
 ```
 
-4. 親 Issue を閉じるかを決めてください。次をすべて満たせば、下のコマンドで親 Issue を完了として閉じます。フローは ⑪ マージで終わるためです (1 PR で済む Issue が PR の `Closes` で閉じるのとそろえます)。
-   - 3 の一覧の Sub Issue がすべて closed で、1 つ以上が完了 (`state_reason` が `completed`) である。すべて見送り (`not_planned`) なら、開発者が判断できるよう閉じずに残します
-   - 親 Issue に `claude:analysis` / `claude:analyzed` / `claude:refine` / `claude:blocked` が付いていない。差し戻し・やり直し・質問の途中で閉じないためです
-
-   親 Issue には `claude:implement` が付かないので、閉じてもリファインメントは起動しません。
+5. 親 Issue を仕上げるかを決めてください。次をすべて満たせば仕上げます。
+   - 4 の一覧の Sub Issue がすべて closed で、1 つ以上が完了 (`state_reason` が `completed`) である。すべて見送り (`not_planned`) なら、開発者が判断できるよう残します
+   - 親 Issue に `claude:analysis` / `claude:analyzed` / `claude:refine` / `claude:blocked` が付いていない。差し戻し・やり直し・質問の途中で仕上げないためです
 
 ```bash
 gh api --paginate "repos/{owner}/{repo}/issues/<親 Issue の番号>/sub_issues" --jq '.[] | "#\(.number) \(.state) \(.state_reason)"'
 gh api "repos/{owner}/{repo}/issues/<親 Issue の番号>" --jq '[.labels[].name] | join(", ")'
+```
+
+### epic ブランチがあるとき
+epic ブランチをデフォルトブランチに入れる PR を、Ready で作ってください。開発者がこの PR で全体をレビューしてマージすると、`Closes` で親 Issue が閉じます。`⑪ マージ待ち` に載ります。
+
+ - 既に open な PR があれば (下の 1 つ目のコマンドで出る)、作らないでください。
+ - ⑨ レビューは頼みません。Sub Issue の PR ごとにレビュー済みのためです。開発者が頼むときは、PR に `claude:under-review` を付けます。
+
+1. マージした Sub Issue の PR を読んでください (下の 2 つ目のコマンド)。本文の `Closes #N` が Sub Issue、✔️ 動作確認 が確かめた方法です。
+2. `${CLAUDE_PLUGIN_ROOT}/templates/PULL_REQUEST_TEMPLATE.md` の欄に沿って、`/tmp/epic_pr.md` に本文を書いてください。HTML コメントは消してください。
+   - 💡 概要: 親 Issue の 課題 と 解決策 を 2〜3 行で書き、`Closes #<親 Issue の番号>` を付けます。3 で `CONFLICT` と出たら、先頭に「⚠️ デフォルトブランチとコンフリクトしています。マージする前に解消してください」と書きます。
+   - 🙆‍♂️ やったこと: Sub Issue ごとに 1 行で、何が変わったかと、`#<Sub Issue>` (`#<PR>`) を書きます。
+   - 🙅‍♂️ やらないこと: 親 Issue の 課題 の範囲外と、見送った Sub Issue を書きます。
+   - ✔️ 動作確認: 親 Issue の 要件 ごとに、確かめた PR (`#<PR>`) を書きます。どの PR でも確かめていない要件は、そう書きます。開発者が確かめる所です。
+3. PR を作ってください (下の 3 つ目のコマンド)。作ったら、`unsubscribe_pr_activity` で PR の購読を外してください (ルーティンが PR を作ったセッションに購読させるため)。この PR の CI とレビューは、開発者が見ます。既にあると出たら (Sub Issue が同時に閉じ、別のセッションが作った)、何もせずに終えてください。ほかの理由で作れなければ (差分が無いなど)、出たエラーを親 Issue にコメントして終えてください。
+
+```bash
+gh api --paginate "repos/{owner}/{repo}/pulls?state=open&per_page=100" --jq '.[] | select(.head.ref == "epic/<親 Issue の番号>") | .html_url'
+gh api --paginate "repos/{owner}/{repo}/pulls?state=closed&base=epic/<親 Issue の番号>&per_page=100" \
+  --jq '.[] | select(.merged_at) | "### #\(.number) \(.title)\n\(.body)\n"'
+jq -n --arg title "<親 Issue のタイトル>" --arg base "$(gh api "repos/{owner}/{repo}" --jq .default_branch)" --rawfile body /tmp/epic_pr.md \
+    '{title:$title, head:"epic/<親 Issue の番号>", base:$base, body:$body}' \
+  | gh api --method POST "repos/{owner}/{repo}/pulls" --input - --jq .html_url
+```
+
+### epic ブランチが無いとき
+下のコマンドで、親 Issue を完了として閉じてください。フローは ⑪ マージで終わるためです (1 PR で済む Issue が PR の `Closes` で閉じるのとそろえます)。親 Issue には `claude:implement` が付かないので、閉じてもリファインメントは起動しません。
+
+```bash
 gh api --method PATCH "repos/{owner}/{repo}/issues/<親 Issue の番号>" -f state=closed -f state_reason=completed > /dev/null
 ```

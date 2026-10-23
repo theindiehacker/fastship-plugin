@@ -6,7 +6,7 @@ argument-hint: "{PR の番号}"
 
 # ✔️ レビュー
 
-`claude:under-review` が付いた PR をレビューし、✅ / 🛑 を返してください。🛑 の指摘は、PR を作った実装のセッションが直し、PR を Ready にして `claude:under-review` を付け直し、再レビューを頼みます。開発者は、✅ が付き CI が通った PR をマージします。
+`claude:under-review` が付いた PR をレビューし、✅ / 🛑 を返してください。🛑 の指摘は、PR を作った実装のセッションが直し、PR を Ready にして `claude:under-review` を付け直し、再レビューを頼みます。✅ が付き CI が通った PR は、デフォルトブランチに向けたものなら開発者が、epic ブランチ (`epic/<親 Issue>`) に向けたものなら実装がマージします (`/dev:implement` の 7)。
 
 PR は、実装・修正の間だけ Draft にします。⑨ は Ready の PR で動き (Draft の PR にラベルを付けても、ルーティンは起動しない)、🛑 を返すときに Draft に戻して実装に渡します。✅ なら Ready のままです。レビューの間も Ready ですが、`claude:under-review` が付いているので、プロジェクトの `⑪ マージ待ち` には出ません。
 
@@ -175,6 +175,13 @@ else
     || gh api --method POST "repos/{owner}/{repo}/pulls/123/ccr/convert_to_draft" > /dev/null 2>&1 \
     || gh pr ready --undo 123; } && echo CHANGES
 fi
+```
+
+4. `APPROVED` と出て、ベースが epic ブランチ (`epic/` で始まる) なら、続けて下のコマンドを実行してください。CI が既に通っていれば、PR を epic ブランチにマージし、Sub Issue を閉じます。ほかの結果 (`WAIT` など) なら何もしないでください。実装が、CI の結果で起こされたときにマージします (`/dev:implement` の 7)。
+   - ここでも実行するのは、実装が ⑨ のレビューで起こされたときに、まだ `claude:under-review` が外れていないことがあるためです。
+
+```bash
+bash "${CLAUDE_PLUGIN_ROOT}/scripts/epic.sh" merge 123
 ```
 
 ## 判断できないとき
