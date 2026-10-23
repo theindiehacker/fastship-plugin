@@ -37,6 +37,7 @@ gh api --paginate "repos/{owner}/{repo}/issues/123/sub_issues" --jq '.[] | "#\(.
 ```
 
  - 課題 / 解決策 / 要件 が分解の元です。リポジトリのコードとドキュメントも読み、どこを変えるかを確かめてください。
+ - 要件 が無く 成功指標 がある Issue (前の版で課題分析した Issue) では、成功指標を測る仕組み (ログ・計測など) を要件として扱ってください。承認された指標を測れなくならないためです。
  - リファインメントの完了コメント (`<!-- fastship:refine -->` で始まる) があれば、やり直しです。それ以降の開発者のコメントを反映してください。
  - 完了コメントが無いのに Sub Issue があれば、前のセッションが途中で止まっています。同じ作業の Sub Issue を重複して作らないでください。
  - 完了コメントがあって Sub Issue が無ければ、前回は 1 PR で済むとして、この Issue をそのまま実装に回しています (3 の「1 PR で済むとき」)。
@@ -226,7 +227,7 @@ gh api "repos/{owner}/{repo}/issues/<親 Issue の番号>" --jq '[.labels[].name
 epic ブランチをデフォルトブランチに入れる PR を、Ready で作ってください。開発者がこの PR で全体をレビューしてマージすると、`Closes` で親 Issue が閉じます。`⑪ マージ待ち` に載ります。
 
  - 既に open な PR があれば (下の 1 つ目のコマンドで出る)、作らないでください。
- - ⑨ レビューは頼みません。Sub Issue の PR ごとにレビュー済みのためです。開発者が頼むときは、PR に `claude:under-review` を付けます。
+ - ⑨ レビューは頼みません。Sub Issue の PR ごとにレビュー済みのためです。⑨ と実装は Sub Issue の PR のためのもので、この PR には使えません (`Closes` の親 Issue を Sub Issue として読んでしまう)。直したいことがあれば、開発者が直すか、新しい Issue にします。
 
 1. マージした Sub Issue の PR を読んでください (下の 2 つ目のコマンド)。本文の `Closes #N` が Sub Issue、✔️ 動作確認 が確かめた方法です。
 2. `${CLAUDE_PLUGIN_ROOT}/templates/PULL_REQUEST_TEMPLATE.md` の欄に沿って、`/tmp/epic_pr.md` に本文を書いてください。HTML コメントは消してください。
@@ -237,7 +238,7 @@ epic ブランチをデフォルトブランチに入れる PR を、Ready で�
 3. PR を作ってください (下の 3 つ目のコマンド)。作ったら、`unsubscribe_pr_activity` で PR の購読を外してください (ルーティンが PR を作ったセッションに購読させるため)。この PR の CI とレビューは、開発者が見ます。既にあると出たら (Sub Issue が同時に閉じ、別のセッションが作った)、何もせずに終えてください。ほかの理由で作れなければ (差分が無いなど)、出たエラーを親 Issue にコメントして終えてください。
 
 ```bash
-gh api --paginate "repos/{owner}/{repo}/pulls?state=open&per_page=100" --jq '.[] | select(.head.ref == "epic/<親 Issue の番号>") | .html_url'
+gh api "repos/{owner}/{repo}/pulls?state=open&head=$(gh api 'repos/{owner}/{repo}' --jq .owner.login):epic/<親 Issue の番号>" --jq '.[].html_url'
 gh api --paginate "repos/{owner}/{repo}/pulls?state=closed&base=epic/<親 Issue の番号>&per_page=100" \
   --jq '.[] | select(.merged_at) | "### #\(.number) \(.title)\n\(.body)\n"'
 jq -n --arg title "<親 Issue のタイトル>" --arg base "$(gh api "repos/{owner}/{repo}" --jq .default_branch)" --rawfile body /tmp/epic_pr.md \

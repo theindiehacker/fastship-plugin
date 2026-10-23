@@ -47,6 +47,11 @@ has_ci() { # <sha>  check run か commit status が 1 つでもあれば 0
   [ $((runs + statuses)) -gt 0 ]
 }
 
+merged() { # <PR の番号> <ベース> <Sub Issue の番号>  マージ済みの PR の Sub Issue を閉じる。閉じ損ねたときに、もう一度実行して閉じられるようにする
+  close_issue "$3"
+  echo "MERGED: #$1 は $2 にマージ済みです (#$3 を閉じました)"
+}
+
 base() { # <Sub Issue の番号>
   local parent
   parent=$(parent_of "$1")
@@ -108,8 +113,7 @@ merge() { # <PR の番号>
   fi
 
   if [ "$(jq -r .merged <<< "$pr")" = true ]; then
-    close_issue "$sub"
-    echo "MERGED: #$number は $base にマージ済みです (#$sub を閉じました)"
+    merged "$number" "$base" "$sub"
     return
   fi
   if [ "$(jq -r .state <<< "$pr")" != open ]; then
@@ -154,7 +158,8 @@ merge() { # <PR の番号>
 
   # 終わっていないもの・成功していないものを出す
   # 取得に失敗したら止める (成功と誤って、CI を確かめずにマージしないため)。1 つずつ代入するのはそのため
-  checks=$(gh api --paginate "$REPO/commits/$sha/check-runs?per_page=100" \
+  # filter=latest (既定) なので、同じ名前の check run は最新のものだけが返る。取り消された古い実行では止まらない
+  checks=$(gh api --paginate "$REPO/commits/$sha/check-runs?filter=latest&per_page=100" \
     --jq '.check_runs[] | select(.status != "completed" or (.conclusion | IN("success", "neutral", "skipped") | not)) | "\(.name): \(.conclusion // .status)"')
   statuses=$(gh api "$REPO/commits/$sha/status" --jq '.statuses[] | select(.state != "success") | "\(.context): \(.state)"')
   if [ -n "$checks$statuses" ]; then
@@ -194,8 +199,7 @@ merge() { # <PR の番号>
   pr=$(gh api "$REPO/pulls/$number")
   if [ "$(jq -r .merged <<< "$pr")" = true ]; then
     # 同時に動いた別のセッションがマージした
-    close_issue "$sub"
-    echo "MERGED: #$number は $base にマージ済みです (#$sub を閉じました)"
+    merged "$number" "$base" "$sub"
   elif grep -q 'HTTP 409' <<< "$err"; then
     echo "WAIT: head が変わりました"
   elif [ "$(jq -r .mergeable <<< "$pr")" = false ]; then

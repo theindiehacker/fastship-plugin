@@ -77,7 +77,7 @@ gh api --paginate "repos/{owner}/{repo}/issues/123/comments" --jq '.[] | "### \(
    - この Issue のコードが無いと作れないなら、新しい Issue の Blocked by にこの Issue を登録してください (下の 3 つ目のコマンド)。
 
 ```bash
-gh api "repos/{owner}/{repo}/issues/123/timeline?per_page=100" \
+gh api --paginate "repos/{owner}/{repo}/issues/123/timeline?per_page=100" \
   --jq '.[] | select(.event == "cross-referenced" and (.source.issue.pull_request | not) and (.source.issue.body // "" | contains("#123 から分けました"))) | "#\(.source.issue.number) \(.source.issue.state) \(.source.issue.title)"'
 jq -n --arg title "<タイトル>" --rawfile body /tmp/split_issue.md '{title:$title, body:$body, labels:["claude:analysis"]}' \
   | gh api --method POST "repos/{owner}/{repo}/issues" --input - --jq .number

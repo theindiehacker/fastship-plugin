@@ -16,7 +16,7 @@ model: sonnet
 
 このプロジェクトでは通常 `main` をベースとするが、誤ったベースに PR を出すリスクを下げるため明示的に確定させる:
 
-0. **呼び出し元がベースを指定した場合** (`/dev:implement` が epic ブランチを指定したときなど) は、それを `BASE_BRANCH` にする。以下の 1・2 は既存 PR の確認 (`PR_NUMBER`) にだけ使う。
+呼び出し元がベースを指定した場合 (`/dev:implement` が epic ブランチを指定したときなど) は、下のスニペットの `CALLER_BASE` にそれを入れる。指定が無ければ空のままにする。
 
 1. **既存 PR がある場合** はその PR のベースをそのまま使う（運用変更や別ベース運用への切り替えに対する保険）。
 
@@ -33,8 +33,9 @@ model: sonnet
    # PR 未作成なら PR_NUMBER は空文字になる（非ゼロ終了しない）
    PR_NUMBER=$(gh api "repos/{owner}/{repo}/pulls?head=${OWNER}:${BRANCH}&state=open" --jq '.[0].number // empty')
 
-   BASE_BRANCH=""
-   if [ -n "$PR_NUMBER" ]; then
+   CALLER_BASE=""  # 呼び出し元が指定したベース。指定が無ければ空のまま
+   BASE_BRANCH="$CALLER_BASE"
+   if [ -z "$BASE_BRANCH" ] && [ -n "$PR_NUMBER" ]; then
      BASE_BRANCH=$(gh api "repos/{owner}/{repo}/pulls/${PR_NUMBER}" --jq .base.ref)
    fi
    echo "PR_NUMBER=${PR_NUMBER:-<未作成>} BASE_BRANCH=${BASE_BRANCH:-<未確定>} OWNER=$OWNER BRANCH=$BRANCH"

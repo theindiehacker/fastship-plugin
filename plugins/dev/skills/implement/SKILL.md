@@ -39,7 +39,9 @@ gh api "repos/{owner}/{repo}/issues/123" --jq 'if .pull_request then "PR" else "
    - 直すものが無くても、終える前に 6 の push の後と同じく、Ready にして再レビューを頼んでください。Draft のまま終えると、だれの番でもなくなるためです。
  - `Issue` なら、123 が Sub Issue です。Sub Issue に紐付いた open な PR があるか確かめてください (下の 2 つ目のコマンド)。
    - あれば、PR を Ready にしてから (冒頭の「Ready にする」)、PR に `claude:implement` を付けて (付いていれば外してから) 終えてください。PR で起動したセッションが、PR の質問と回答を読んで続けます。PR が Draft のままだと、ラベルを付けても起動しません。
-   - 無ければ、「前回の質問」に作業ブランチがあればそれを checkout してください。無ければ、PR のベースを下の 3 つ目のコマンドで決め、セッションの作業ブランチ (指定が無ければ `claude/<Sub Issue>` など) を、ベースの最新から作ってください (4 つ目)。ベースは、親 Issue の epic ブランチ (`epic/<親 Issue>`) があればそれ、無ければデフォルトブランチです。
+   - 無ければ、PR のベースを下の 3 つ目のコマンドで決めてください。ベースは、親 Issue の epic ブランチ (`epic/<親 Issue>`) があればそれ、無ければデフォルトブランチです。5 で使います。
+     - 「前回の質問」に作業ブランチがあれば、それを checkout してください。
+     - 無ければ、セッションの作業ブランチ (指定が無ければ `claude/<Sub Issue>` など) を、ベースの最新から作ってください (4 つ目)。
 
 ```bash
 gh api "repos/{owner}/{repo}/pulls/123" --jq '.head.ref, .body'
@@ -90,7 +92,7 @@ gh api --paginate "repos/{owner}/{repo}/issues/<Sub Issue>/dependencies/blocked_
 
 ## 5. PR を作る
 1. `/dev:push-pr` で PR を作ってください。
-   - ベースは、1 で決めたベースにしてください。push-pr にそう伝えます。
+   - ベースは、1 で決めたベースにしてください。push-pr の 1-a の `CALLER_BASE` に入れます。
    - 💡 概要 に `Closes #<Sub Issue>` を 1 行で書いてください。ほかのスキルは、この行で Sub Issue を見分けます。デフォルトブランチに向けた PR は、マージすると `Closes` で Sub Issue が閉じます。epic ブランチに向けた PR は `Closes` では閉じないため、7 でマージするときに閉じます。閉じると、後続の Sub Issue の実装が始まります。
    - Draft で作ってください (push-pr の 6 で `draft` を `true` にする)。push-pr の 8 で Ready にしないでください。Ready にするのは、レビューを頼む 4 です。
    - push-pr のステップ 11 は行わないでください。CI へのレビューの依頼 (`/code-review` / `/security-review` のコメント) もしません。レビューは ⑨ が行い (4)、CI とレビューへの対応は 6 で行います。
