@@ -146,6 +146,8 @@ FastShip プロジェクト (GitHub Project) をやめ、判断待ちはリポ�
 
 `/dev:implement` は、リポジトリの検査 (`CLAUDE.md`・CI に書かれたテスト・lint・型チェック) を自分で実行してから PR を作ります。技術スタックの hook (stack プラグイン) は要りません。
 
+`/dev:review` は `/code-review` を `xhigh`・`--max-findings all` で使います。`/code-review` は最後に指定した値を覚えるため、手元で `/dev:review` を使うと、以後の `/code-review` も同じ設定になります。戻すには、次の `/code-review` に使いたい effort と `--max-findings default` を付けてください。
+
 ## 🏷️ ラベル
 
 | ラベル | 付ける人 | 意味 |
