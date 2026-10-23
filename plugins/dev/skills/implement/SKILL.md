@@ -1,6 +1,6 @@
 ---
 name: implement
-description: FastShip の ⑦⑧ 実装。claude:implement が付いた Sub Issue (1 PR で済む Issue はその Issue) を、ドメイン駆動設計とテスト駆動開発で実装する。Sub Issue に紐付けた (Closes #N) テスト付きの PR を Draft で作り、Ready にして claude:under-review でレビューに回す。PR は親 Issue の epic ブランチ (無ければデフォルトブランチ) に向け、epic ブランチに向けた PR は ⑨ の ✅ と CI の成功でマージして Sub Issue を閉じる。PR は実装・修正の間だけ Draft にする。レビューの指摘 (🛑 など) と CI の失敗に対応する。判断できないときは claude:blocked で人間に返す。PR で止めた後の再開 (PR に claude:implement) にも使う。ルーティンから使う。使い方: /dev:implement {Sub Issue または PR の番号}
+description: FastShip の ⑦⑧ 実装。claude:implement が付いた Sub Issue (1 PR で済む Issue はその Issue) を、ドメイン駆動設計とテスト駆動開発で実装する。見本 (③ の Draft PR) があれば、見本どおりに作る。Sub Issue に紐付けた (Closes #N) テスト付きの PR を Draft で作り、Ready にして claude:under-review でレビューに回す。PR は親 Issue の epic ブランチ (無ければデフォルトブランチ) に向け、epic ブランチに向けた PR は ⑨ の ✅ と CI の成功でマージして Sub Issue を閉じる。PR は実装・修正の間だけ Draft にする。レビューの指摘 (🛑 など) と CI の失敗に対応する。判断できないときは claude:blocked で人間に返す。PR で止めた後の再開 (PR に claude:implement) にも使う。ルーティンから使う。使い方: /dev:implement {Sub Issue または PR の番号}
 argument-hint: "{Sub Issue または PR の番号}"
 ---
 
@@ -66,6 +66,14 @@ gh api --paginate "repos/{owner}/{repo}/issues/<Sub Issue>/dependencies/blocked_
  - Sub Issue の やること / やらないこと / 完了条件 が、実装する範囲です。Issue をそのまま実装するときは、解決策 / 要件 と、リファインメントが書き足した やらないこと / 完了条件 が範囲です。
  - 4 つ目のコマンドで出る Issue (Blocked by) は、この Sub Issue の依存です。先に終わった作業なので、そのコードを使ってください。
  - 親 Issue の 課題 / 解決策 / 要件 は、なぜ作るのかと、どんな言葉で呼ぶのかを知るために読んでください。
+ - 見本があれば、見本どおりに作ってください。親 Issue (無ければ Sub Issue) で下の 1 つ目のコマンドを実行すると、`<見本の PR> <sha>` が出て、見本を fetch します。見本の PR の本文 (2 つ目) と、sha の版で見本が変えたファイル (3 つ目・4 つ目) を読んでください。何も出なければ、見本はありません。
+
+```bash
+bash "${CLAUDE_PLUGIN_ROOT}/scripts/mock.sh" fetch <親 Issue>
+gh api "repos/{owner}/{repo}/pulls/<見本の PR>" --jq .body
+git diff --name-status "$(git merge-base HEAD <sha>)" <sha>
+git show "<sha>:<パス>"
+```
  - リポジトリの規約 (`CLAUDE.md` など) と、近いコードとそのテストを読み、次を確かめてください: 層の分け方、名前の付け方、テストの書き方。
  - リポジトリの検査 (テスト・lint・整形・型チェック) のコマンドを洗い出してください。`CLAUDE.md`・CI のワークフロー (`.github/workflows/`)・`package.json` の `scripts`・`Makefile` などに書いてあります。CI が PR で実行するコマンドが基準です。
 
@@ -75,7 +83,9 @@ gh api --paginate "repos/{owner}/{repo}/issues/<Sub Issue>/dependencies/blocked_
  - Issue の言葉を、そのままクラス・関数・テストの名前に使ってください。同じものに別の名前を付けないでください。リポジトリに用語集があれば、それに従ってください。
  - 業務のルール (計算・状態の変化・制約) は、ドメインのコード (エンティティ・値オブジェクト・ドメインサービスなど) に置いてください。画面・API・DB の処理には書かないでください。
  - 層の分け方はリポジトリの今の作りに合わせ、無い層やフレームワークを足さないでください。
- - やること に無いもの、やらないこと にあるものは作らないでください。
+ - やること に無いもの、やらないこと にあるものは作らないでください。見本のうち、完了条件に入っていないものも作りません (別の Sub Issue の分です)。
+ - 見本は ④ で承認された仕様です。見本と違う画面・定義・構成にしないでください。見本どおりに作れなければ、「判断できないとき」です。
+ - 見本のコード (モック画面・定義・スタブ) は、`git checkout <sha> -- <パス>` で持ってきて、出発点にしてかまいません。固定のデータとスタブは、本物の処理に置き換えて残さないでください。スクリーンショット (`.fastship/`) は持ってこないでください。
 
 ## 4. 実装する (テスト駆動開発)
 完了条件を 1 つずつ、次の順で実装してください。テストをまとめて書いてから実装しないでください。
@@ -87,7 +97,8 @@ gh api --paginate "repos/{owner}/{repo}/issues/<Sub Issue>/dependencies/blocked_
 
  - PR を作るまで push しないでください。required workflow などの CI は push のたびに全部動き、1 回に数十分かかることがあります。
  - テストは公開された振る舞い (関数・API・画面) を通して書き、内部の作りに依存させないでください。
- - 期待値は完了条件から決めてください。実装と同じ計算で期待値を作らないでください。
+ - 期待値は完了条件から決めてください。実装と同じ計算で期待値を作らないでください。見本の入出力の例 (API / MCP) は、そのまま期待値にします。
+ - 見本の画面は、実装した画面を見本と同じ場面 (同じデータ・状態) で起動してスクリーンショットを撮り、見本のスクリーンショット (`git show "<sha>:<パス>" > /tmp/mock.png` で取り出す) と Read で見比べてください。構成・文言・状態が違えば直します。見比べた結果を、PR の ✔️ 動作確認 に書いてください。起動できなければ、コードで見比べ、そのことを書きます。
  - 自動テストで確かめられない完了条件 (見た目・外部サービスなど) は、確かめた方法と結果を PR の ✔️ 動作確認 に書いてください。
  - PR を作る前に差分を読み返し、消しても完了条件を満たすコードを消してください。
  - PR を作る前に、2 で洗い出した検査をすべて実行して通してください。hook (stack プラグインなど) が入っていても、それに頼らず実行してください。hook が無いリポジトリもあり、あっても変えたファイルしか確かめません。
@@ -177,6 +188,7 @@ bash "${CLAUDE_PLUGIN_ROOT}/scripts/epic.sh" merge <PR>
 次のように Claude だけで判断できないときは、推測で作らず、`/dev:blocked` の「2. 止める」で人間に返してください。PR を作った後は PR の番号で実行し、続けて PR を Ready にして (冒頭の「Ready にする」)、`unsubscribe_pr_activity` で PR の購読を外してください。Draft のままだと、開発者が PR に `claude:implement` を付けても再開しないためです。Ready にできなければ、そのことを PR にコメントしてください。Sub Issue の `claude:implement` は残ります (5 を参照)。
 
  - 完了条件 があいまいで、どう作るかで振る舞いが大きく変わる
+ - 見本どおりに作れない (リポジトリの今の作りと合わない・見本と完了条件が食い違うなど)
  - Sub Issue がリポジトリの今の作りと合わない。または 依存 (Blocked by) の Issue のコードが無くて作れない
  - テストの仕組みが無く、何を入れるかで結果が大きく変わる
  - Sub Issue を決められない (PR に `Closes #N` が無い)

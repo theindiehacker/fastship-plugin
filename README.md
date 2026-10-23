@@ -19,15 +19,15 @@ graph LR;
     end
 
     subgraph ClaudeCode ["💻 Claude Code on the Web"]
-        analysis(["🤔 <b style='font-size: larger;'>〇〇 / 課題分析</b><br/>課題の解像度と解の質を高め、要件を決める<br/>大きければ Issue を分ける"])
+        analysis(["🤔 <b style='font-size: larger;'>〇〇 / 課題分析</b><br/>課題の解像度と解の質を高め、要件を決める<br/>見本 (Draft PR) を作る<br/>大きければ Issue を分ける"])
         refinement(["✂️ <b  style='font-size: larger;'>〇〇 / リファインメント</b><br/>Sub Issue に分解し、epic ブランチを作る<br/>1 PR で済むなら分けない"])
         implement(["🧑‍💻 <b  style='font-size: larger;'>〇〇 / 実装</b><br/>ドメイン駆動設計 + テスト駆動開発"])
         review(["✔️ <b  style='font-size: larger;'>〇〇 / レビュー</b><br/>コードレビュー / セキュリティレビュー"])
     end
 
     Claude -->|① Issue を起票<br/>+ 🏷️ <code>claude:analysis</code>| Repository -->|② 起動| analysis
-    analysis -->|③ 課題・解決策・要件を<br/>Issue に追記<br/>+ 🏷️ <code>claude:analyzed</code>| Repository
-    Developer(("🧑‍💻")) -->|④ 確認・承認<br/>+ 🏷️ <code>claude:refine</code>| Repository
+    analysis -->|③ 課題・解決策・要件・見本を<br/>Issue に追記<br/>+ 🏷️ <code>claude:analyzed</code>| Repository
+    Developer(("🧑‍💻")) -->|④ 見本を見て承認<br/>+ 🏷️ <code>claude:refine</code>| Repository
     Repository -->|⑤ 起動| refinement -->|"⑥ Sub Issue を起票する<br/>(1 PR で済むなら Issue のまま)<br/>+ 🏷️ <code>claude:implement</code>"| Repository
     
     Repository -->|⑦ 起動| implement -->|"⑧ PR を作成<br/>✅ と CI の成功で epic にマージ"| Repository
@@ -128,6 +128,13 @@ Claude Code からも `/dev:issue` で起票できます。Slack (Claude Tag) �
 
    ![スキルのパスで版を確かめる](docs/images/claude-5-skill-version.png)
 
+### 0.17.0 に上げたとき
+課題分析が見本 (モック画面・Mermaid・定義とスタブ) を Draft PR で作り、④ では見本を見て承認するようにしました ([👀 見本](#-見本))。
+
+1. `/dev:setup` を実行し直します。Issue テンプレート (`backlog.md` に 見本 の欄を足しました)、Sub Issue と PR のテンプレートを更新します
+
+進行中の Issue は、そのままで構いません。見本の無い Issue は、今までどおり進みます。
+
 ### 0.16.0 に上げたとき
 Sub Issue の PR を epic ブランチにまとめ、開発者のレビュー・マージを最後の 1 回にしました ([🌿 ブランチ](#-ブランチ))。課題分析は、成功指標ではなく機能要件・非機能要件を書き、大きい Issue を分けるようにしました。
 
@@ -147,7 +154,7 @@ FastShip プロジェクト (GitHub Project) をやめ、判断待ちはリポ�
 |:--|:--|:--|
 | `/dev:setup [owner/repo]` | 🧑‍💻 開発者 (導入・更新) | ラベル・ルーティン・テンプレートを導入し、PR を作る。判断待ちの一覧のリンクを伝える |
 | `/dev:issue [owner/repo] {内容}` | 🧑 誰でも (① 起票) | 背景と参考資料を聞き、`claude:analysis` を付けて起票する。目的が複数あれば分けて起票する |
-| `/dev:analysis {Issue}` | ルーティン (③ 課題分析) | 課題・解決策・要件 (機能要件・非機能要件) を書き、`claude:analyzed` を付ける。大きければ Issue を分ける |
+| `/dev:analysis {Issue}` | ルーティン (③ 課題分析) | 課題・解決策・要件 (機能要件・非機能要件) を書き、見本の Draft PR を作って、`claude:analyzed` を付ける。大きければ Issue を分ける |
 | `/dev:refine {Issue}` | ルーティン (⑤⑥ リファインメント) | epic ブランチを作り、1 PR で終わる Sub Issue に分解して `claude:implement` を付ける。Sub Issue がすべて閉じると、epic ブランチの PR を作る。1 PR で済むなら分けず、Issue に完了条件を書き足して `claude:implement` を付ける |
 | `/dev:implement {Sub Issue / Issue / PR}` | ルーティン (⑦⑧ 実装) | ドメイン駆動設計 + テスト駆動開発で実装し、Draft の PR を作る。Ready にして `claude:under-review` を付ける。epic ブランチに向けた PR は、✅ と CI の成功でマージする |
 | `/dev:review {PR}` | ルーティン (⑨⑩ レビュー) | コードレビューとセキュリティレビューをし、✅ / 🛑 を返す。🛑 なら PR を Draft に戻す |
@@ -190,7 +197,7 @@ flowchart LR
 
 | 一覧 | クエリ | 判断すること |
 |:--|:--|:--|
-| ④ 承認待ち | `is:issue is:open label:"claude:analyzed"` | 課題・解決策・要件を読み、承認か差し戻しか |
+| ④ 承認待ち | `is:issue is:open label:"claude:analyzed"` | 見本の PR と要件を見て、承認か差し戻しか |
 | ❓ 回答待ち | `is:open label:"claude:blocked"` | Claude の質問への回答 |
 | ⑪ マージ待ち | `is:pr is:open draft:false base:<デフォルトブランチ> -label:"claude:blocked" -label:"claude:under-review"` | マージ・リリースするか |
 | ⏳ 進行中 | `is:open label:"claude:analysis","claude:refine","claude:implement","claude:under-review" -label:"claude:blocked"` | 止まっていないか ([🛟 ルーティンの前提](#-ルーティンの前提)) |
@@ -218,8 +225,22 @@ PR は、実装・修正の間だけ Draft にします。
 
 ## 🧑‍💻 人間が判断すること
 
-1. **④ 承認** (`④ 承認待ち`): 課題分析で追記された課題・解決策・要件を確認し、解く価値があるか、作るものが合っているかを判断します。大きい Issue は課題分析が分けるので、分けた Issue もそれぞれ承認します。優先順位の高い Issue から `claude:refine` を付けます。方向がずれている場合は、Issue にコメントして `claude:analysis` を付け直します。見送るときは、Issue を閉じます。
+1. **④ 承認** (`④ 承認待ち`): 課題分析で追記された課題・解決策・要件を確認し、解く価値があるかを判断します。作るものが合っているかは、見本の PR を見て判断します ([👀 見本](#-見本))。大きい Issue は課題分析が分けるので、分けた Issue もそれぞれ承認します。優先順位の高い Issue から `claude:refine` を付けます。方向がずれている場合は、Issue か見本の PR にコメントして、Issue に `claude:analysis` を付け直します。見送るときは、Issue を閉じます。
 2. **⑪ マージ・リリース** (`⑪ マージ待ち`): Ready になり (レビューが ✅)、CI が通った PR を確認し、マージ・リリースします。CI の結果は PR で確かめてください。Sub Issue に分けた Issue は、epic ブランチの PR で全体を確かめます。✔️ 動作確認 に、要件ごとに確かめた Sub Issue の PR が書いてあります。✅ の後に自分で push したとき (コンフリクトの解消など) は、`claude:under-review` を付けるだけで再レビューを受けられます (epic ブランチの PR は除く。⑨ は Sub Issue の PR のためのものです)。✅ の後に、実装が小さな指摘 (`[nits]` など) だけを直して push することがあります。再レビューはせず、直した commit を指摘への返信に書きます (epic ブランチに向けた Sub Issue の PR では直さず、返信だけにします)。
+
+## 👀 見本
+文章の要件は分量が多く、読み手によって解釈が分かれます。そこで課題分析は、画面・API / MCP・インフラ構成が変わる Issue で見本を作り、Draft PR にします。開発者は ④ で見本を見て承認します。
+
+| 変わるもの | 見本 |
+|:--|:--|
+| 画面 | 固定のデータで表示するモック画面と、場面ごとのスクリーンショット |
+| API / MCP | 定義 (OpenAPI / ツールの定義)、入出力の例を返すスタブ、シーケンス図 (Mermaid) |
+| インフラ | 構成図 (Mermaid) と、追加・変更・削除するリソースの一覧 |
+
+ - 見本の PR はマージしません。承認した版は、Issue の 見本 に commit の sha で残ります。リファインメントが完了条件に入れてから、PR を閉じます。
+ - 実装は見本どおりに作ります (見本のコードを出発点にしてよい)。レビューは見本と見比べ、違えば 🛑 にします。
+ - 直してほしいときは、見本の PR に行コメントするか Issue にコメントし、Issue に `claude:analysis` を付け直します。
+ - 見本の PR は Draft なので、`⑪ マージ待ち` には載りません。CI は動きますが、マージしないので、失敗しても直しません。
 
 ## 🌿 ブランチ
 Sub Issue に分けた Issue は、epic ブランチ (`epic/<親 Issue の番号>`) にまとめてから、デフォルトブランチに入れます。

@@ -1,6 +1,6 @@
 ---
 name: refine
-description: FastShip の ⑤⑥ リファインメント。claude:refine が付いた (承認済みの) Issue を、1 PR で終わる Sub Issue に分解して起票し、親 Issue に紐付ける。1 PR で済む Issue は分けず、完了条件・やらないことを書き足して Issue に claude:implement を付ける。Sub Issue の PR は epic ブランチ (epic/<親 Issue の番号>) に向ける。依存の無い Sub Issue に claude:implement を付けて実装を始める。Sub Issue が閉じたときは、依存が解けた Sub Issue に claude:implement を付け、すべて閉じていれば epic ブランチをデフォルトブランチに入れる PR を作る。ルーティンから使う。使い方: /dev:refine {Issue の番号}
+description: FastShip の ⑤⑥ リファインメント。claude:refine が付いた (承認済みの) Issue を、1 PR で終わる Sub Issue に分解して起票し、親 Issue に紐付ける。1 PR で済む Issue は分けず、完了条件・やらないことを書き足して Issue に claude:implement を付ける。Sub Issue の PR は epic ブランチ (epic/<親 Issue の番号>) に向ける。依存の無い Sub Issue に claude:implement を付けて実装を始める。見本 (Draft PR) があれば完了条件に入れ、マージせずに閉じる。Sub Issue が閉じたときは、依存が解けた Sub Issue に claude:implement を付け、すべて閉じていれば epic ブランチをデフォルトブランチに入れる PR を作る。ルーティンから使う。使い方: /dev:refine {Issue の番号}
 argument-hint: "{Issue の番号}"
 ---
 
@@ -36,7 +36,14 @@ gh api --paginate "repos/{owner}/{repo}/issues/123/comments" --jq '.[] | "### \(
 gh api --paginate "repos/{owner}/{repo}/issues/123/sub_issues" --jq '.[] | "#\(.number) \(.state) [\([.labels[].name] | join(", "))] \(.title)"'
 ```
 
- - 課題 / 解決策 / 要件 が分解の元です。リポジトリのコードとドキュメントも読み、どこを変えるかを確かめてください。
+ - 課題 / 解決策 / 要件 / 見本 が分解の元です。リポジトリのコードとドキュメントも読み、どこを変えるかを確かめてください。
+ - 見本があれば (下の 1 つ目のコマンドで `<見本の PR> <sha>` が出る)、見本の PR の本文と、変えたファイルも読んでください (2 つ目・3 つ目)。何も出なければ、見本はありません (`- なし` か、前の版で課題分析した Issue)。
+
+```bash
+bash "${CLAUDE_PLUGIN_ROOT}/scripts/mock.sh" show 123
+gh api "repos/{owner}/{repo}/pulls/<見本の PR>" --jq '.state, .body'
+gh api --paginate "repos/{owner}/{repo}/pulls/<見本の PR>/files" --jq '.[] | "\(.status) \(.filename)"'
+```
  - 要件 が無く 成功指標 がある Issue (前の版で課題分析した Issue) では、成功指標を測る仕組み (ログ・計測など) を要件として扱ってください。承認された指標を測れなくならないためです。
  - リファインメントの完了コメント (`<!-- fastship:refine -->` で始まる) があれば、やり直しです。それ以降の開発者のコメントを反映してください。
  - 完了コメントが無いのに Sub Issue があれば、前のセッションが途中で止まっています。同じ作業の Sub Issue を重複して作らないでください。
@@ -55,6 +62,7 @@ gh api --paginate "repos/{owner}/{repo}/issues/123/dependencies/blocked_by" --jq
  - 解決策 全体が 1 PR で終わるなら、分けずに、Sub Issue を作らずこの Issue をそのまま実装してください (下の「1 PR で済むとき」)。分けるのは 1 PR に収まらないときだけです。
  - 解決策 に無いことは Sub Issue にしないでください。
  - 要件 (機能要件・非機能要件) は、どれも 1 つ以上の Sub Issue の 完了条件 に入れてください。非機能要件は、当てはまる Sub Issue すべての 完了条件 に入れます。⑨ レビューは完了条件で確かめるため、どこにも入らない要件は確かめられません。
+ - 見本があれば、見本で見せたもの (画面の場面・API・ツール・構成) も、どれも 1 つ以上の Sub Issue の 完了条件 に入れてください。書き方は `- 見本 (#<見本の PR> の <sha の先頭 7 桁>) の <場面・API など> と同じ <構成と文言 / 入出力 / リソース> になっている` です。⑨ レビューは、この行を見本と見比べて確かめます。
  - 依存 は、前の Sub Issue のコードが無いと作れないときだけ付けてください。依存の無い Sub Issue は、同時に実装が始まります。
 
 ### 1 PR で済むとき
@@ -64,7 +72,7 @@ gh api --paginate "repos/{owner}/{repo}/issues/123/dependencies/blocked_by" --jq
  - Sub Issue が無い。既にあれば (やり直し)、今までどおり Sub Issue で進めてください
 
 1. この Issue に実装の着手コメント (下の 1 つ目のコマンド) があれば、実装が始まっています。本文を変えず、`/dev:blocked` の「2. 止める」で、どう直すかを人間に聞いてください。
-2. 本文 (下の 2 つ目のコマンド) の末尾に、`## やらないこと` と `## 完了条件` を書き足してください。書き方は `${CLAUDE_PLUGIN_ROOT}/templates/ISSUE_TEMPLATE/todo.md` の同じ欄に合わせます。完了条件 には、要件 (機能要件・非機能要件) をすべて入れてください。⑨ レビューは完了条件で確かめるためです。既にあれば (やり直し)、書き足さずに直してください。ほかの欄は変えないでください。書いたら 3 つ目のコマンドで更新します。
+2. 本文 (下の 2 つ目のコマンド) の末尾に、`## やらないこと` と `## 完了条件` を書き足してください。書き方は `${CLAUDE_PLUGIN_ROOT}/templates/ISSUE_TEMPLATE/todo.md` の同じ欄に合わせます。完了条件 には、要件 (機能要件・非機能要件) をすべて入れてください。見本があれば、3 と同じ書き方で見本も入れます。⑨ レビューは完了条件で確かめるためです。既にあれば (やり直し)、書き足さずに直してください。ほかの欄は変えないでください。書いたら 3 つ目のコマンドで更新します。
 3. `claude:implement` が付いていなければ、付けてください (下の 4 つ目のコマンド)。実装が始まります。
 
 ```bash
@@ -145,7 +153,15 @@ gh api --paginate "repos/{owner}/{repo}/issues/<Sub Issue の番号>/comments" -
 gh api --method POST "repos/{owner}/{repo}/issues/<Sub Issue の番号>/labels" -f "labels[]=claude:implement" > /dev/null
 ```
 
-2. 下の形式 (1 PR で済むときは 2 つ目) で `/tmp/refine_done.md` を書き、次を 1 回の Bash で実行してください。親 Issue にコメントしてから `claude:refine` を外し、判断待ちのラベルを合わせます。
+2. 「2. 読む」で見本の PR が出て、open なら、コメントして閉じてください (下のコマンド)。マージはしません。④ で承認された版は Issue の 見本 の sha で決まっていて、実装とレビューはその版を読みます。ブランチは消さないでください。
+
+```bash
+gh api --method POST "repos/{owner}/{repo}/issues/<見本の PR>/comments" \
+  -f body="#123 で承認されたため、マージせずに閉じます。実装とレビューは、#123 の 見本 にある sha の版を読みます。" > /dev/null
+gh api --method PATCH "repos/{owner}/{repo}/pulls/<見本の PR>" -f state=closed > /dev/null
+```
+
+3. 下の形式 (1 PR で済むときは 2 つ目) で `/tmp/refine_done.md` を書き、次を 1 回の Bash で実行してください。親 Issue にコメントしてから `claude:refine` を外し、判断待ちのラベルを合わせます。
    - `claude:refine` を外しておくと、やり直すときに開発者が付け直せます。
    - リファインメントの間に差し戻されて課題分析が終わっていれば、`claude:analyzed` が付きます (承認待ち)。
 
@@ -165,6 +181,8 @@ Sub Issue に分けました。上から着手順です。
 1. #<番号> (依存: なし) 🧑‍💻 着手しました
 2. #<番号> (依存: #<番号>)
 
+<見本の PR を閉じたときだけ「見本の PR (#<番号>) は、完了条件に入れて閉じました。」と書く>
+
 <やり直しのときだけ、前回から変えたことを 1〜3 行で書く>
 
 依存の無い Sub Issue から実装を始めました。残りは、依存する Sub Issue が閉じると始まります。始まらないときは、その Sub Issue に `claude:implement` を付けてください。
@@ -179,6 +197,8 @@ Sub Issue に分けました。上から着手順です。
 ## ✂️ リファインメントが終わりました
 
 1 PR で済むため、Sub Issue に分けず、この Issue をそのまま実装します。本文に やらないこと・完了条件 を書き足しました。🧑‍💻 着手しました
+
+<見本の PR を閉じたときだけ「見本の PR (#<番号>) は、完了条件に入れて閉じました。」と書く>
 
 <やり直しのときだけ、前回から変えたことを 1〜3 行で書く>
 
@@ -234,7 +254,7 @@ epic ブランチをデフォルトブランチに入れる PR を、Ready で�
    - 💡 概要: 親 Issue の 課題 と 解決策 を 2〜3 行で書き、`Closes #<親 Issue の番号>` を付けます。3 で `CONFLICT` と出たら、先頭に「⚠️ デフォルトブランチとコンフリクトしています。マージする前に解消してください」と書きます。
    - 🙆‍♂️ やったこと: Sub Issue ごとに 1 行で、何が変わったかと、`#<Sub Issue>` (`#<PR>`) を書きます。
    - 🙅‍♂️ やらないこと: 親 Issue の 課題 の範囲外と、見送った Sub Issue を書きます。
-   - ✔️ 動作確認: 親 Issue の 要件 ごとに、確かめた PR (`#<PR>`) を書きます。どの PR でも確かめていない要件は、そう書きます。開発者が確かめる所です。
+   - ✔️ 動作確認: 親 Issue の 要件 と 見本 ごとに、確かめた PR (`#<PR>`) を書きます。どの PR でも確かめていないものは、そう書きます。開発者が確かめる所です。
 3. PR を作ってください (下の 3 つ目のコマンド)。作ったら、`unsubscribe_pr_activity` で PR の購読を外してください (ルーティンが PR を作ったセッションに購読させるため)。この PR の CI とレビューは、開発者が見ます。既にあると出たら (Sub Issue が同時に閉じ、別のセッションが作った)、何もせずに終えてください。ほかの理由で作れなければ (差分が無いなど)、出たエラーを親 Issue にコメントして終えてください。
 
 ```bash
