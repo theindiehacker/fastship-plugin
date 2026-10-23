@@ -111,7 +111,7 @@ flowchart LR
 
  - `list`: 返るのは 20 件までで、続きは取れない (`next_cursor` を渡しても同じページが返る)。`has_more` が true のときに見つからないルーティンは、無いとみなさない (重複して作らないため)。https://claude.ai/code/routines に `{リポジトリ名} / FastShip` があるかユーザーに確認し、あれば URL の `trig_…` で `get` する。無ければ `create` する
  - 既存の `update`: `get` した `job_config` を丸ごと送り、`ccr.events[0].data.message.content` と `ccr.session_context.model` だけを変える。トリガーは API から見えず重複に気づけないため、追加しない
- - `create`: `/schedule` スキルの書き方に従う。`run_once_at` と `cron_expression` は付けない。実装は PR を作るので、`session_context` に `"autofix_on_pr_create": true` を付ける。課題分析・リファインメント・レビューは PR を作らないため、付いていても何も起きない
+ - `create`: `/schedule` スキルの書き方に従う。`run_once_at` と `cron_expression` は付けない。実装は PR を作るので、`session_context` に `"autofix_on_pr_create": true` を付ける。課題分析・レビューは PR を作らないため、付いていても何も起きない。リファインメントは epic ブランチの PR を作るが、作った後に購読を外す
  - 新規の `update`: `{"clear_mcp_connections": true, "notifications": {"channel": {"email": false, "push": true, "slack": false}}}` を送る (`create` は接続済みのコネクタをすべて付けるため)
  - `create_webhook_trigger`: 上のトリガーの表の行ごとに、下記の body を、`events` をその行のイベントに、`values` をその行のラベルに置き換えて送る。`pull_request.labeled` は `field` を `pr.labels` にする。`pull_request.labels` は `unknown field` で拒否される
  - RemoteTrigger や Claude GitHub App が使えない場合は、上の表の内容で https://claude.ai/code/routines から手動で作るよう案内する
@@ -157,13 +157,13 @@ claude plugin install stack@fastship || echo "⚠️ stack@fastship を入れら
 ### 4.4 判断待ちの一覧
 開発者は、リポジトリの Issue 一覧を下のクエリで絞って、次に判断することを確かめます。工程はラベルと PR の Draft / Ready で決まるため、GitHub Project は使いません。
 
-下の表の一覧ごとに、下のコマンドでリンクを作り、一覧の名前と一緒にユーザーに伝えてください。ブックマークするよう伝えます。リポジトリの Issue 一覧は、Issue と PR を一緒に出します。
+下の表の一覧ごとに、下のコマンドでリンクを作り、一覧の名前と一緒にユーザーに伝えてください。ブックマークするよう伝えます。リポジトリの Issue 一覧は、Issue と PR を一緒に出します。`<デフォルトブランチ>` は、対象リポジトリのデフォルトブランチに置き換えてください。epic ブランチに向けた Sub Issue の PR は実装がマージするため、`⑪ マージ待ち` に出さないためです。
 
 | 一覧 | クエリ |
 |:--|:--|
 | `④ 承認待ち` | `is:issue is:open label:"claude:analyzed"` |
 | `❓ 回答待ち` | `is:open label:"claude:blocked"` |
-| `⑪ マージ待ち` | `is:pr is:open draft:false -label:"claude:blocked" -label:"claude:under-review"` |
+| `⑪ マージ待ち` | `is:pr is:open draft:false base:<デフォルトブランチ> -label:"claude:blocked" -label:"claude:under-review"` |
 | `⏳ 進行中` | `is:open label:"claude:analysis","claude:refine","claude:implement","claude:under-review" -label:"claude:blocked"` |
 
 ```bash
@@ -193,3 +193,10 @@ grep -rlE 'anthropics/claude-code(-base)?-action' .github/workflows/
 gh api "repos/{owner/repo}/rules/branches/<デフォルトブランチ>" --jq '.[] | select(.type == "workflows") | .parameters.workflows[] | "\(.repository_id) \(.path) \(.ref)"'
 gh api "repositories/<repository_id>/contents/<path>?ref=<ref>" --jq .content | base64 -d
 ```
+
+## 6. epic ブランチの CI
+Sub Issue の PR は epic ブランチ (`epic/<親 Issue>`) に向き、実装は ⑨ の ✅ と CI の成功でマージします (`/dev:implement` の 7)。epic ブランチに向けた PR で CI が動かないと、実装はマージできずに人間に返します (デフォルトブランチに向けた PR で CI が動いているとき)。
+
+1. `.github/workflows/` で、`pull_request` / `pull_request_target` の `branches` が epic ブランチに当たらない (デフォルトブランチだけなど) ワークフローを探してください。`branches` が無いものと、`branches-ignore` だけのものは、epic ブランチに向けた PR でも動きます。
+2. 見つかったら見せて、`branches` に `epic/**` を足すか確認してください。足すなら、2・3 と同じコミットに入れてください。
+3. 5 の 4 で org の必須ワークフローが出たら、Ruleset の対象ブランチに `epic/**` が無いと、epic ブランチに向けた PR では動かないことを伝えてください。足すかは org の管理者が決めます。

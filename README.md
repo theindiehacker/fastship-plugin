@@ -19,27 +19,29 @@ graph LR;
     end
 
     subgraph ClaudeCode ["💻 Claude Code on the Web"]
-        analysis(["🤔 <b style='font-size: larger;'>〇〇 / 課題分析</b><br/>課題の解像度と解の質を高め、成功指標を決める"])
-        refinement(["✂️ <b  style='font-size: larger;'>〇〇 / リファインメント</b><br/>Sub Issue に分解する<br/>1 PR で済むなら分けない"])
+        analysis(["🤔 <b style='font-size: larger;'>〇〇 / 課題分析</b><br/>課題の解像度と解の質を高め、要件を決める<br/>大きければ Issue を分ける"])
+        refinement(["✂️ <b  style='font-size: larger;'>〇〇 / リファインメント</b><br/>Sub Issue に分解し、epic ブランチを作る<br/>1 PR で済むなら分けない"])
         implement(["🧑‍💻 <b  style='font-size: larger;'>〇〇 / 実装</b><br/>ドメイン駆動設計 + テスト駆動開発"])
         review(["✔️ <b  style='font-size: larger;'>〇〇 / レビュー</b><br/>コードレビュー / セキュリティレビュー"])
     end
 
     Claude -->|① Issue を起票<br/>+ 🏷️ <code>claude:analysis</code>| Repository -->|② 起動| analysis
-    analysis -->|③ 課題・解決策・成功指標を<br/>Issue に追記<br/>+ 🏷️ <code>claude:analyzed</code>| Repository
+    analysis -->|③ 課題・解決策・要件を<br/>Issue に追記<br/>+ 🏷️ <code>claude:analyzed</code>| Repository
     Developer(("🧑‍💻")) -->|④ 確認・承認<br/>+ 🏷️ <code>claude:refine</code>| Repository
     Repository -->|⑤ 起動| refinement -->|"⑥ Sub Issue を起票する<br/>(1 PR で済むなら Issue のまま)<br/>+ 🏷️ <code>claude:implement</code>"| Repository
     
-    Repository -->|⑦ 起動| implement -->|⑧ PR を作成| Repository
+    Repository -->|⑦ 起動| implement -->|"⑧ PR を作成<br/>✅ と CI の成功で epic にマージ"| Repository
     
     Repository -->|⑨ 起動| review -->|⑩ ✅ / 🛑<br/>🛑 なら Ready → Draft| Repository
 
-    Developer -->|⑪ マージ・リリース| Repository
+    Developer -->|"⑪ epic の PR をレビュー<br/>マージ・リリース"| Repository
 
     ClaudeCode -.->|❓ 質問・差し戻し<br/>+ 🏷️ <code>claude:blocked</code>| Repository
 ```
 
 Claude の作業 (課題分析・リファインメント・実装・レビュー) は、すべてルーティン (claude.ai のサブスク) で動かします。GitHub Actions の時間は使いません。Actions の Claude レビュー (claude-code-action) が PR で自動で動くリポジトリでは、⑨ と二重になるため、`/dev:setup` が止めるか確認します。CI (required workflow など) は push のたびに動くため、実装は CI とレビューの指摘への修正をまとめて 1 回で push します。
+
+Sub Issue に分けた Issue は、Sub Issue の PR を epic ブランチにまとめ、開発者は最後の 1 回だけレビュー・マージします ([🌿 ブランチ](#-ブランチ))。
 
 ## 🚀 導入
 
@@ -126,6 +128,14 @@ Claude Code からも `/dev:issue` で起票できます。Slack (Claude Tag) �
 
    ![スキルのパスで版を確かめる](docs/images/claude-5-skill-version.png)
 
+### 0.16.0 に上げたとき
+Sub Issue の PR を epic ブランチにまとめ、開発者のレビュー・マージを最後の 1 回にしました ([🌿 ブランチ](#-ブランチ))。課題分析は、成功指標ではなく機能要件・非機能要件を書き、大きい Issue を分けるようにしました。
+
+1. `/dev:setup` を実行し直します。Issue テンプレート (`backlog.md`) を更新し、epic ブランチに向けた PR で CI が動くかを確かめます
+2. `⑪ マージ待ち` のブックマークを、setup が伝えるリンクに貼り替えます (`base:` を足しました)
+
+進行中の Issue は、そのままで構いません。前の版で Sub Issue に分けた Issue は、今までどおり Sub Issue の PR をデフォルトブランチに向けます。
+
 ### 0.15.0 に上げたとき
 FastShip プロジェクト (GitHub Project) をやめ、判断待ちはリポジトリの Issue 一覧で見るようにしました。Auto-add の設定も要らなくなりました。
 
@@ -136,10 +146,10 @@ FastShip プロジェクト (GitHub Project) をやめ、判断待ちはリポ�
 | スキル | 使う人・場面 | すること |
 |:--|:--|:--|
 | `/dev:setup [owner/repo]` | 🧑‍💻 開発者 (導入・更新) | ラベル・ルーティン・テンプレートを導入し、PR を作る。判断待ちの一覧のリンクを伝える |
-| `/dev:issue [owner/repo] {内容}` | 🧑 誰でも (① 起票) | 背景と参考資料を聞き、`claude:analysis` を付けて起票する |
-| `/dev:analysis {Issue}` | ルーティン (③ 課題分析) | 課題・解決策・成功指標を書き、`claude:analyzed` を付ける |
-| `/dev:refine {Issue}` | ルーティン (⑤⑥ リファインメント) | 1 PR で終わる Sub Issue に分解し、`claude:implement` を付ける。1 PR で済むなら分けず、Issue に完了条件を書き足して `claude:implement` を付ける |
-| `/dev:implement {Sub Issue / Issue / PR}` | ルーティン (⑦⑧ 実装) | ドメイン駆動設計 + テスト駆動開発で実装し、Draft の PR を作る。Ready にして `claude:under-review` を付ける |
+| `/dev:issue [owner/repo] {内容}` | 🧑 誰でも (① 起票) | 背景と参考資料を聞き、`claude:analysis` を付けて起票する。目的が複数あれば分けて起票する |
+| `/dev:analysis {Issue}` | ルーティン (③ 課題分析) | 課題・解決策・要件 (機能要件・非機能要件) を書き、`claude:analyzed` を付ける。大きければ Issue を分ける |
+| `/dev:refine {Issue}` | ルーティン (⑤⑥ リファインメント) | epic ブランチを作り、1 PR で終わる Sub Issue に分解して `claude:implement` を付ける。Sub Issue がすべて閉じると、epic ブランチの PR を作る。1 PR で済むなら分けず、Issue に完了条件を書き足して `claude:implement` を付ける |
+| `/dev:implement {Sub Issue / Issue / PR}` | ルーティン (⑦⑧ 実装) | ドメイン駆動設計 + テスト駆動開発で実装し、Draft の PR を作る。Ready にして `claude:under-review` を付ける。epic ブランチに向けた PR は、✅ と CI の成功でマージする |
 | `/dev:review {PR}` | ルーティン (⑨⑩ レビュー) | コードレビューとセキュリティレビューをし、✅ / 🛑 を返す。🛑 なら PR を Draft に戻す |
 | `/dev:blocked` | ルーティン (課題分析・リファインメント・実装・レビュー) | 多重起動を防ぎ、判断できないときは質問して `claude:blocked` を付ける |
 | `/dev:push-pr` | 🧑‍💻 開発者 / ルーティン (⑦⑧ 実装) | PR テンプレートに沿って PR を作成・更新する |
@@ -170,21 +180,23 @@ flowchart LR
     analysis["🤔 課題分析<br/><code>claude:analysis</code>"] --> analyzed[["④ 承認待ち<br/><code>claude:analyzed</code>"]]
     analyzed -->|🧑‍💻 承認<br/>+ <code>claude:refine</code>| refine["✂️ リファインメント<br/><code>claude:refine</code>"]
     refine --> implement["🧑‍💻 実装<br/><code>claude:implement</code>"] --> review["✔️ レビュー<br/><code>claude:under-review</code>"]
-    review -->|✅| merge[["⑪ マージ待ち<br/>Ready の PR"]]
+    review -->|"✅ (1 PR で済む Issue)"| merge[["⑪ マージ待ち<br/>Ready の PR"]]
+    review -->|"✅ (Sub Issue)"| epic["🌿 実装が epic にマージ<br/>Sub Issue を閉じる"]
+    epic -->|"すべて閉じたら<br/>epic の PR を作る"| merge
     review -->|🛑 なら Draft に戻して直す| implement
-    merge -->|🧑‍💻 マージ<br/>Sub Issue がすべて閉じると<br/>親 Issue も閉じる| done(("✅"))
+    merge -->|"🧑‍💻 マージ<br/>Closes で Issue が閉じる"| done(("✅"))
     analysis & refine & implement & review -.-> blocked[["❓ 回答待ち<br/><code>claude:blocked</code>"]]
 ```
 
 | 一覧 | クエリ | 判断すること |
 |:--|:--|:--|
-| ④ 承認待ち | `is:issue is:open label:"claude:analyzed"` | 課題・解決策・成功指標を読み、承認か差し戻しか |
+| ④ 承認待ち | `is:issue is:open label:"claude:analyzed"` | 課題・解決策・要件を読み、承認か差し戻しか |
 | ❓ 回答待ち | `is:open label:"claude:blocked"` | Claude の質問への回答 |
-| ⑪ マージ待ち | `is:pr is:open draft:false -label:"claude:blocked" -label:"claude:under-review"` | マージ・リリースするか |
+| ⑪ マージ待ち | `is:pr is:open draft:false base:<デフォルトブランチ> -label:"claude:blocked" -label:"claude:under-review"` | マージ・リリースするか |
 | ⏳ 進行中 | `is:open label:"claude:analysis","claude:refine","claude:implement","claude:under-review" -label:"claude:blocked"` | 止まっていないか ([🛟 ルーティンの前提](#-ルーティンの前提)) |
 
  - リンクは `https://github.com/{owner/repo}/issues?q=<クエリ>` です。リポジトリの Issue 一覧は、Issue と PR を一緒に出します。`/dev:setup` が対象リポジトリのリンクを伝えるので、ブックマークしてください。
- - リポジトリが複数あるときは、リポジトリごとのリンクを使います。`⑪ マージ待ち` はラベルで絞れないため、FastShip を通っていない Ready の PR も載ります。
+ - リポジトリが複数あるときは、リポジトリごとのリンクを使います。`⑪ マージ待ち` はラベルで絞れないため、FastShip を通っていない Ready の PR も載ります。epic ブランチに向けた Sub Issue の PR は、実装がマージするため載りません (`base:`)。
 
 PR は、実装・修正の間だけ Draft にします。
 
@@ -193,7 +205,7 @@ PR は、実装・修正の間だけ Draft にします。
 | Draft | 🧠 実装・修正中 | 実装は Draft で PR を作る。⑨ が 🛑 を返すときと、止めた実装を再開するときに Draft に戻す |
 | Ready + `claude:under-review` | 🧠 レビュー中 | 実装が push を終えたら、Ready にして `claude:under-review` を付ける |
 | Ready + `claude:blocked` | 🧑‍💻 回答待ち | 実装・レビューが人に返すとき。実装は Draft なら Ready にする |
-| Ready | 🧑‍💻 マージ待ち | ⑨ が ✅ を返したら、そのまま |
+| Ready | 🧑‍💻 マージ待ち | ⑨ が ✅ を返したら、そのまま。epic ブランチに向けた PR は、CI が通ると実装がマージする |
 
  - Draft の PR にラベルを付けても、ルーティンは起動しません。PR の工程 (⑨ レビュー・止めた実装の再開) は、Ready の PR にラベルを付けて動かします。
  - レビューの間も Ready なので、マージボタンは押せます。`⑪ マージ待ち` には出ないため、一覧から ✅ の前にマージすることはありません。CODEOWNERS があると、レビューを頼むたびにレビューの依頼が届きます。
@@ -202,12 +214,33 @@ PR は、実装・修正の間だけ Draft にします。
  - `claude:analyzed` は、課題分析・リファインメントが Issue の状態から決めて付け外しします (`scripts/waiting.sh`)。手で付け外ししても、次にそれらが動いたときに状態に合わせ直されます。
    - 課題分析が、最後の承認 (`claude:refine` を付けた) より後に終わったときに付きます
    - 進行中ラベル (`claude:analysis` / `claude:refine` など) か `claude:blocked` が付いている間は付きません
- - Sub Issue がすべて閉じて 1 つ以上が完了すると、リファインメントが親 Issue を閉じます。すべて見送りなら、閉じずに残します。1 PR で済む Issue は、PR の `Closes` で閉じます。
+ - Sub Issue がすべて閉じて 1 つ以上が完了すると、リファインメントが epic ブランチの PR を作ります。親 Issue は、その PR のマージ (`Closes`) で閉じます。すべて見送りなら、作らずに残します。1 PR で済む Issue は、PR の `Closes` で閉じます。
 
 ## 🧑‍💻 人間が判断すること
 
-1. **④ 承認** (`④ 承認待ち`): 課題分析で追記された課題・解決策・成功指標を確認し、解く価値があるかを判断します。優先順位の高い Issue から `claude:refine` を付けます。方向がずれている場合は、Issue にコメントして `claude:analysis` を付け直します。見送るときは、Issue を閉じます。
-2. **⑪ マージ・リリース** (`⑪ マージ待ち`): Ready になり (レビューが ✅)、CI が通った PR を確認し、マージ・リリースします。CI の結果は PR で確かめてください。✅ の後に自分で push したとき (コンフリクトの解消など) は、`claude:under-review` を付けるだけで再レビューを受けられます。✅ の後に、実装が小さな指摘 (`[nits]` など) だけを直して push することがあります。再レビューはせず、直した commit を指摘への返信に書きます。
+1. **④ 承認** (`④ 承認待ち`): 課題分析で追記された課題・解決策・要件を確認し、解く価値があるか、作るものが合っているかを判断します。大きい Issue は課題分析が分けるので、分けた Issue もそれぞれ承認します。優先順位の高い Issue から `claude:refine` を付けます。方向がずれている場合は、Issue にコメントして `claude:analysis` を付け直します。見送るときは、Issue を閉じます。
+2. **⑪ マージ・リリース** (`⑪ マージ待ち`): Ready になり (レビューが ✅)、CI が通った PR を確認し、マージ・リリースします。CI の結果は PR で確かめてください。Sub Issue に分けた Issue は、epic ブランチの PR で全体を確かめます。✔️ 動作確認 に、要件ごとに確かめた Sub Issue の PR が書いてあります。✅ の後に自分で push したとき (コンフリクトの解消など) は、`claude:under-review` を付けるだけで再レビューを受けられます (epic ブランチの PR は除く。⑨ は Sub Issue の PR のためのものです)。✅ の後に、実装が小さな指摘 (`[nits]` など) だけを直して push することがあります。再レビューはせず、直した commit を指摘への返信に書きます (epic ブランチに向けた Sub Issue の PR では直さず、返信だけにします)。
+
+## 🌿 ブランチ
+Sub Issue に分けた Issue は、epic ブランチ (`epic/<親 Issue の番号>`) にまとめてから、デフォルトブランチに入れます。
+
+```mermaid
+flowchart LR
+    main1(["main"]) -->|"⑥ epic ブランチを作る"| epic(["epic/123"])
+    sub["Sub Issue の PR"] -->|"⑨ ✅ と CI の成功で<br/>実装がマージ"| epic
+    epic -->|"Sub Issue がすべて閉じたら<br/>PR を作る<br/>🧑‍💻 レビュー・マージ"| main2(["main"])
+```
+
+| Issue | PR のベース | マージする人 |
+|:--|:--|:--|
+| Sub Issue に分けた Issue | `epic/<親 Issue の番号>` | Sub Issue の PR は 🧠 実装。epic ブランチの PR は 🧑‍💻 開発者 |
+| 1 PR で済む Issue | デフォルトブランチ | 🧑‍💻 開発者 |
+
+ - 実装は、Sub Issue の PR をマージすると、Sub Issue を閉じます。`Closes` はデフォルトブランチへのマージでしか閉じないためです。手で epic ブランチにマージしたときは、Sub Issue も閉じてください。後続の Sub Issue の実装が始まります。
+ - ✅ で CI も通ったのにマージされないときは、PR に `claude:implement` を付けてください。実装が再開し、再レビューの後にマージします。
+ - リファインメントは、Sub Issue が閉じるたびに、デフォルトブランチを epic ブランチに取り込みます。コンフリクトして取り込めないときは、epic ブランチの PR で開発者が解消します。
+ - epic ブランチに向けた PR でも CI が動くようにしてください (`/dev:setup` が確かめます)。動かないと、実装はマージせずに人間に返します。
+ - Sub Issue の PR に開発者が Request changes を付けると、解消する (Approve か Dismiss) までマージしません。
 
 ## ❓ 質問・差し戻し
 
@@ -231,7 +264,7 @@ Claude だけで判断できないことがあると、ルーティンは処理�
 
 どの場合も、進行中のラベル (`claude:analysis` / `claude:refine` / `claude:implement` / `claude:under-review`) が付いたまま動きません。`⏳ 進行中` の一覧をときどき見て、10 分以上進まないものはラベルを外して付け直してください。
 
-Sub Issue は、PR がマージされるまで `claude:implement` が付いたままなので、PR が ⑪ マージ待ちの間も `⏳ 進行中` に載ります。止まっているかは、PR を見て確かめてください。PR が Draft のまま 10 分以上進まないときは、Sub Issue の `claude:implement` を外して付け直すと、実装が PR を Ready にして引き継ぎます。
+Sub Issue は、PR がマージされるまで `claude:implement` が付いたままなので、PR がマージを待つ間も `⏳ 進行中` に載ります。止まっているかは、PR を見て確かめてください。PR が Draft のまま 10 分以上進まないときは、Sub Issue の `claude:implement` を外して付け直すと、実装が PR を Ready にして引き継ぎます。
 
 ## 🧰 技術スタック (stack プラグイン)
 
