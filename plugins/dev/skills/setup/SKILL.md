@@ -198,7 +198,19 @@ gh api "repos/theindiehacker/github-workflows/contents/.github/workflows/self-cl
     if: (github.event_name == 'pull_request' && !github.event.pull_request.draft && !contains(github.event.pull_request.labels.*.name, 'claude:blocked')) || (github.event_name == 'issue_comment' && startsWith(github.event.comment.body, '/security-review'))
 ```
 
- - `.github/zizmor.yml` が `claude.yml` を行番号で除外していれば (`claude.yml:5` など)、行がずれるので番号も直してください。このファイルの変更には、セキュリティチームの承認が要ります。
+ - org の必須の zizmor は、変えたワークフローの `issue_comment` を落とします (`dangerous-triggers`)。`.github/zizmor.yml` の除外に、`claude.yml` の `issue_comment:` の行を `claude.yml:<行>` で書いてください (下)。既にあれば、行がずれていないか確かめて直します。このファイルの変更にはセキュリティチームの承認が要るので、PR が承認待ちになることをユーザーに伝えてください。
+
+```yaml
+# zizmor の設定。変えるときは、org のルールセット「✔️ セキュリティ設定変更の承認必須化」でセキュリティチームの承認が要る
+rules:
+  dangerous-triggers:
+    ignore:
+      # claude.yml の issue_comment は、コメントでの依頼 (/code-review・/security-review・@claude) に使う。
+      # 呼び先 (theindiehacker/github-workflows の claude.yml・claude-code-review.yml・claude-security-review.yml) が、
+      # 投稿者を author_association (OWNER / MEMBER / COLLABORATOR など) で絞っている
+      - claude.yml:<issue_comment: の行>
+```
+
  - push で `workflow` スコープが無いと出たら、ユーザーに `! gh auth refresh -h github.com -s workflow` を頼んでください。
 3. ほかに claude-code-action を使うワークフローが PR で自動で動くと、レビューが二重になります。探して、自動の起動を止めるか確認してください。
    - 探し方: `grep -rlE 'anthropics/claude-code(-base)?-action' .github/workflows/`。他のワークフローを `uses:` で呼ぶもの (reusable workflow) は、呼び先も確かめます。2 の `claude.yml` は除きます。
