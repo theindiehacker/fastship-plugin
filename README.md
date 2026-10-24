@@ -134,7 +134,7 @@ Claude Code からも `/dev:issue` で起票できます。Slack (Claude Tag) �
 ### 0.18.0 に上げたとき
 PR のレビューを、ルーティン (`/dev:review`) から Actions の Claude のレビュー (github-workflows) に移しました。claude[bot] が Approve / Request changes を付けるので、マージしてよいかが PR で分かります。レビューが動いているか・止まったかは、PR の Checks に出ます。`/dev:review` と `claude:under-review` はやめました。
 
-1. `/dev:setup` を実行し直し、作った PR をマージします。`.github/workflows/claude.yml` が PR を Ready にしたときにレビューするようにし、ルーティンのプロンプトからレビューを外します
+1. github-workflows の v2.2.0 (セキュリティレビューを PR のイベントで動かせる版) がリリースされてから、`/dev:setup` を実行し直し、作った PR をマージします。`.github/workflows/claude.yml` が PR を Ready にしたときにレビューするようにし、ルーティンのプロンプトからレビューを外します。`claude.yml` の行がずれるため、`.github/zizmor.yml` の除外も直します。このファイルの変更にはセキュリティチームの承認が要ります
 2. [クラウド環境を作り直します](#クラウド環境を作り直す)。古い版の実装は `claude:under-review` が外れるのを待ち、claude[bot] の Approve ではマージしないためです
 3. `⑪ マージ待ち` と `⏳ 進行中` のブックマークを、setup が伝えるリンクに貼り替えます
 
