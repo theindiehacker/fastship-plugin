@@ -138,7 +138,20 @@ PR のレビューを、ルーティン (`/dev:review`) から Actions の Claud
 2. [クラウド環境を作り直します](#クラウド環境を作り直す)。古い版の実装は `claude:under-review` が外れるのを待ち、claude[bot] の Approve ではマージしないためです
 3. `⑪ マージ待ち` と `⏳ 進行中` のブックマークを、setup が伝えるリンクに貼り替えます
 
-進行中の PR は、`claude:under-review` を外し、Draft にしてから Ready にすると、レビューを受けます。ルーティンのトリガーに残った `claude:under-review` と、ラベル `claude:under-review` は、残しても害はありません。要らなければ消してください。
+進行中の PR は、次のようにするとレビューを受けます。
+
+1. PR が epic ブランチに向いていて、その epic ブランチを上の 1 の PR のマージより前に切ったなら、デフォルトブランチを epic ブランチに取り込みます (`epic.sh sync <親 Issue の番号>`、下)。新しい `claude.yml` が無い epic ブランチに向けた PR では、Ready にしてもレビューが動きません。PR のワークフローは、ベースと PR のブランチを合わせたもので動くためです
+2. 1 で取り込んだら、PR の **Update branch** で、epic ブランチを PR のブランチに取り込みます。epic ブランチを動かしただけでは、PR は古いベースのままです
+3. `claude:under-review` を外し、Draft にしてから Ready にします
+4. 古い版の実装のセッションが PR を購読したまま残っていると、指摘には対応しますが、Approve が付いても epic ブランチにマージしません。Approve と CI がそろったら、`epic.sh merge <PR の番号>` でマージし、Sub Issue を閉じます (下)。コンフリクトと出たら、PR に `claude:implement` を付けると、実装が解消します
+
+```bash
+# 対象リポジトリの作業ツリーで実行する。ローカルの dev を 0.18.0 に上げてから (claude plugin update dev@fastship)
+bash ~/.claude/plugins/cache/fastship/dev/0.18.0/scripts/epic.sh sync <親 Issue の番号>
+bash ~/.claude/plugins/cache/fastship/dev/0.18.0/scripts/epic.sh merge <PR の番号>
+```
+
+ルーティンのトリガーに残った `claude:under-review` と、ラベル `claude:under-review` は、残しても害はありません。要らなければ消してください。
 
 ### 0.17.0 に上げたとき
 課題分析が見本 (モック画面・Mermaid・定義とスタブ) を Draft PR で作り、④ では見本を見て承認するようにしました ([👀 見本](#-見本))。
