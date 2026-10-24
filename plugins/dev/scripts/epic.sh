@@ -3,12 +3,11 @@
 #   epic.sh base   <Sub Issue の番号>  PR のベースを出力する。親 Issue の epic ブランチがあればそれ、無ければデフォルトブランチ
 #   epic.sh create <親 Issue の番号>   デフォルトブランチの先頭から epic ブランチを作る。あれば何もしない
 #   epic.sh sync   <親 Issue の番号>   デフォルトブランチを epic ブランチに取り込む
-#   epic.sh merge  <PR の番号>         ⑨ の ✅ と CI がそろった PR を epic ブランチにマージし、Sub Issue を閉じる
+#   epic.sh merge  <PR の番号>         Claude のコードレビューの Approve と CI がそろった PR を epic ブランチにマージし、Sub Issue を閉じる
 # epic ブランチが無い Issue (この版より前に分けた Issue など) は、今までどおりデフォルトブランチに向ける。
 # claude.ai/code では GraphQL が 403 になるため、gh api (REST) だけを使う。
 set -euo pipefail
 
-REVIEW_MARK='<!-- fastship:review -->'
 REPO='repos/{owner}/{repo}'
 
 default_branch() {
@@ -40,11 +39,14 @@ close_issue() { # <Issue の番号>  open なら完了として閉じる。issue
   fi
 }
 
-has_ci() { # <sha>  check run か commit status が 1 つでもあれば 0
+has_ci() { # <sha>  動いた check run か commit status が 1 つでもあれば 0
+  # 飛ばしたもの (job の if) と Claude のレビュー (github-workflows の claude-code-review.yml・claude-security-review.yml の job) は数えない。
+  # どちらも、ベースに関わらず PR で動くため
   local runs statuses
-  runs=$(gh api "$REPO/commits/$1/check-runs?per_page=1" --jq .total_count)
+  runs=$(gh api --paginate "$REPO/commits/$1/check-runs?per_page=100" \
+    --jq '.check_runs[] | select(.conclusion != "skipped" and (.name | test("(コードレビュー|セキュリティレビュー)$") | not)) | .id')
   statuses=$(gh api "$REPO/commits/$1/status" --jq .total_count)
-  [ $((runs + statuses)) -gt 0 ]
+  [ -n "$runs" ] || [ "$statuses" -gt 0 ]
 }
 
 merged() { # <PR の番号> <ベース> <Sub Issue の番号>  マージ済みの PR の Sub Issue を閉じる。閉じ損ねたときに、もう一度実行して閉じられるようにする
@@ -93,7 +95,7 @@ sync() { # <親 Issue の番号>
 }
 
 merge() { # <PR の番号>
-  local number=$1 pr base sub parent sha reviews review requested checks statuses default last method err
+  local number=$1 pr base sub parent sha reviews approved requested checks statuses default last method err
   pr=$(gh api "$REPO/pulls/$number")
   base=$(jq -r .base.ref <<< "$pr")
   if [[ $base != epic/* ]]; then
@@ -124,10 +126,6 @@ merge() { # <PR の番号>
     echo "WAIT: Draft です"
     return
   fi
-  if jq -e '.labels | map(.name) | index("claude:under-review")' <<< "$pr" > /dev/null; then
-    echo "WAIT: レビュー中です (claude:under-review)"
-    return
-  fi
   if jq -e '.labels | map(.name) | index("claude:blocked")' <<< "$pr" > /dev/null; then
     echo "WAIT: 回答待ちです (claude:blocked)"
     return
@@ -136,13 +134,12 @@ merge() { # <PR の番号>
   sha=$(jq -r .head.sha <<< "$pr")
   reviews=$(gh api --paginate "$REPO/pulls/$number/reviews" --jq '.[]' | jq -s .)
 
-  # レビューのマーカーは誰でも書けるため、リポジトリのメンバーのレビューだけを数える。ルーティンは開発者のアカウントで書く
-  review=$(jq --arg mark "$REVIEW_MARK" '
-      map(select((.body // "" | startswith($mark)) and (.author_association | test("^(OWNER|MEMBER|COLLABORATOR)$"))))
-      | sort_by(.submitted_at) | last
-      | {commit_id, ok: (.body // "" | split("\n") | map(rtrimstr("\r")) | .[1] // "" | startswith("## ✅"))}' <<< "$reviews")
-  if [ "$(jq -r '.commit_id // ""' <<< "$review")" != "$sha" ] || [ "$(jq -r .ok <<< "$review")" != true ]; then
-    echo "WAIT: head ($sha) への ⑨ の ✅ がありません"
+  # Claude のコードレビュー (claude[bot]) の、最新の判定 (コメントだけのものは除く) が head への Approve なら進める
+  approved=$(jq -r '
+      map(select(.user.login == "claude[bot]" and .state != "COMMENTED" and .state != "PENDING"))
+      | sort_by(.submitted_at) | last // {} | select(.state == "APPROVED") | .commit_id' <<< "$reviews")
+  if [ "$approved" != "$sha" ]; then
+    echo "WAIT: head ($sha) への Claude のコードレビューの Approve がありません"
     return
   fi
 

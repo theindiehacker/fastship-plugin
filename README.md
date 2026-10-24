@@ -1,6 +1,6 @@
 # ➕ FastShip プラグイン
 
-FastShip プラグインは [Claude Code on the Web](https://claude.ai/code) と [スケジュール済みタスク](https://claude.ai/code/routines) を使って、要件整理から開発、レビューまで自動化する Claude プラグインです。開発したアプリは [**fastship.jp**](https://fastship.jp) で公開できます。
+FastShip プラグインは [Claude Code on the Web](https://claude.ai/code) と [スケジュール済みタスク](https://claude.ai/code/routines)、GitHub Actions を使って、要件整理から開発、レビューまで自動化する Claude プラグインです。開発したアプリは [**fastship.jp**](https://fastship.jp) で公開できます。
 
  - [➕ **FastShip プラグイン**](https://github.com/theindiehacker/fastship-plugin) ( Claude プラグイン )
  - [📺 **FastShip App リポジトリ**](https://github.com/theindiehacker/fastship-app) ( GitHub テンプレートリポジトリ )
@@ -22,7 +22,10 @@ graph LR;
         analysis(["🤔 <b style='font-size: larger;'>〇〇 / 課題分析</b><br/>課題の解像度と解の質を高め、要件を決める<br/>見本 (Draft PR) を作る<br/>大きければ Issue を分ける"])
         refinement(["✂️ <b  style='font-size: larger;'>〇〇 / リファインメント</b><br/>Sub Issue に分解し、epic ブランチを作る<br/>1 PR で済むなら分けない"])
         implement(["🧑‍💻 <b  style='font-size: larger;'>〇〇 / 実装</b><br/>ドメイン駆動設計 + テスト駆動開発"])
-        review(["✔️ <b  style='font-size: larger;'>〇〇 / レビュー</b><br/>コードレビュー / セキュリティレビュー"])
+    end
+
+    subgraph Actions ["⚙️ GitHub Actions"]
+        review(["✔️ <b  style='font-size: larger;'>Claude のレビュー</b><br/>コードレビュー / セキュリティレビュー"])
     end
 
     Claude -->|① Issue を起票<br/>+ 🏷️ <code>claude:analysis</code>| Repository -->|② 起動| analysis
@@ -30,16 +33,16 @@ graph LR;
     Developer(("🧑‍💻")) -->|④ 見本を見て承認<br/>+ 🏷️ <code>claude:refine</code>| Repository
     Repository -->|⑤ 起動| refinement -->|"⑥ Sub Issue を起票する<br/>(1 PR で済むなら Issue のまま)<br/>+ 🏷️ <code>claude:implement</code>"| Repository
     
-    Repository -->|⑦ 起動| implement -->|"⑧ PR を作成<br/>✅ と CI の成功で epic にマージ"| Repository
+    Repository -->|⑦ 起動| implement -->|"⑧ PR を作成して Ready にする<br/>Approve と CI の成功で epic にマージ"| Repository
     
-    Repository -->|⑨ 起動| review -->|⑩ ✅ / 🛑<br/>🛑 なら Ready → Draft| Repository
+    Repository -->|⑨ Ready で起動| review -->|"⑩ Approve ✅ / Request changes 🛑"| Repository
 
     Developer -->|"⑪ epic の PR をレビュー<br/>マージ・リリース"| Repository
 
     ClaudeCode -.->|❓ 質問・差し戻し<br/>+ 🏷️ <code>claude:blocked</code>| Repository
 ```
 
-Claude の作業 (課題分析・リファインメント・実装・レビュー) は、すべてルーティン (claude.ai のサブスク) で動かします。GitHub Actions の時間は使いません。Actions の Claude レビュー (claude-code-action) が PR で自動で動くリポジトリでは、⑨ と二重になるため、`/dev:setup` が止めるか確認します。CI (required workflow など) は push のたびに動くため、実装は CI とレビューの指摘への修正をまとめて 1 回で push します。
+課題分析・リファインメント・実装は、ルーティン (claude.ai のサブスク) で動かします。PR のレビュー (⑨⑩) は、[github-workflows](https://github.com/theindiehacker/github-workflows) の Claude のレビュー (コードレビュー・セキュリティレビュー) が GitHub Actions で行います。claude[bot] として投稿するため、開発者のアカウントで作った PR にも Approve / Request changes を付けられ、マージしてよいかが PR で分かります。レビューが動いているか・止まったかは、PR の Checks に出ます。Actions の時間と、シークレットの Claude の認証情報を使います。CI (required workflow など) は push のたびに動くため、実装は CI とレビューの指摘への修正をまとめて 1 回で push します。
 
 Sub Issue に分けた Issue は、Sub Issue の PR を epic ブランチにまとめ、開発者は最後の 1 回だけレビュー・マージします ([🌿 ブランチ](#-ブランチ))。
 
@@ -50,7 +53,7 @@ flowchart LR
     plugin["1. プラグインを入れる"] --> setup["2. /dev:setup"] --> env["3. クラウド環境"] --> merge["4. PR をマージ"] --> issue["5. 起票する"]
 ```
 
-**前提**: claude.ai のアカウント (Pro / Max / Team / Enterprise)、対象リポジトリに [Claude GitHub App](https://github.com/apps/claude)、ローカルに Claude Code (claude.ai でログイン)・`gh`・`jq`
+**前提**: claude.ai のアカウント (Pro / Max / Team / Enterprise)、対象リポジトリに [Claude GitHub App](https://github.com/apps/claude) と、Actions のシークレット `CLAUDE_CODE_OAUTH_TOKEN` (`claude setup-token` で発行) か `ANTHROPIC_API_KEY` (org のシークレットで構いません。public リポジトリには渡さないため、レビューが動きません)、ローカルに Claude Code (claude.ai でログイン)・`gh`・`jq`
 
 ### 1. プラグインを入れる
 ローカルの Claude Code で実行します。
@@ -64,7 +67,7 @@ flowchart LR
 dev は技術スタックに依存しません。bun / Biome・uv / Ruff / Pyright で開発するなら、`/plugin install stack@fastship` も実行します ([🧰 技術スタック](#-技術スタック-stack-プラグイン))。
 
 ### 2. `/dev:setup` を実行する
-対象リポジトリで `/dev:setup` を実行します (別のリポジトリなら `/dev:setup owner/repo`)。ラベル・ルーティン 1 つ・テンプレートを用意し、PR を作ります。[判断待ちの一覧](#-判断待ちの一覧) のリンクも伝えます。stack を入れていれば、技術スタックも入れるか聞きます。Actions の Claude レビューが PR で自動で動くなら、止めるか聞きます。導入済みなら最新版に更新します ([版を上げたとき](#版を上げたとき))。
+対象リポジトリで `/dev:setup` を実行します (別のリポジトリなら `/dev:setup owner/repo`)。ラベル・ルーティン 1 つ・テンプレート・Claude のレビューの呼び出し (`.github/workflows/claude.yml`) を用意し、PR を作ります。[判断待ちの一覧](#-判断待ちの一覧) のリンクも伝えます。stack を入れていれば、技術スタックも入れるか聞きます。ほかの Claude のレビューが PR で自動で動くなら、二重になるので止めるか聞きます。導入済みなら最新版に更新します ([版を上げたとき](#版を上げたとき))。
 
 3 は API で設定できないため、setup が案内したら画面で設定します。
 
@@ -95,7 +98,7 @@ dev は技術スタックに依存しません。bun / Biome・uv / Ruff / Pyrig
    ```
 
 ### 4. PR をマージする
-setup が作った PR をマージします。
+setup が作った PR をマージします。マージするまで、PR のレビューは動きません。
 
 ### 5. 起票する
 GitHub の UI で **New issue** → **🚀 バックログ** を選び、背景と参考資料を書いて起票します。`claude:analysis` が自動で付き、③ 課題分析が始まります。
@@ -128,6 +131,15 @@ Claude Code からも `/dev:issue` で起票できます。Slack (Claude Tag) �
 
    ![スキルのパスで版を確かめる](docs/images/claude-5-skill-version.png)
 
+### 0.18.0 に上げたとき
+PR のレビューを、ルーティン (`/dev:review`) から Actions の Claude のレビュー (github-workflows) に移しました。claude[bot] が Approve / Request changes を付けるので、マージしてよいかが PR で分かります。レビューが動いているか・止まったかは、PR の Checks に出ます。`/dev:review` と `claude:under-review` はやめました。
+
+1. `/dev:setup` を実行し直し、作った PR をマージします。`.github/workflows/claude.yml` が PR を Ready にしたときにレビューするようにし、ルーティンのプロンプトからレビューを外します
+2. [クラウド環境を作り直します](#クラウド環境を作り直す)。古い版の実装は `claude:under-review` が外れるのを待ち、claude[bot] の Approve ではマージしないためです
+3. `⑪ マージ待ち` と `⏳ 進行中` のブックマークを、setup が伝えるリンクに貼り替えます
+
+進行中の PR は、`claude:under-review` を外し、Draft にしてから Ready にすると、レビューを受けます。ルーティンのトリガーに残った `claude:under-review` と、ラベル `claude:under-review` は、残しても害はありません。要らなければ消してください。
+
 ### 0.17.0 に上げたとき
 課題分析が見本 (モック画面・Mermaid・定義とスタブ) を Draft PR で作り、④ では見本を見て承認するようにしました ([👀 見本](#-見本))。
 
@@ -152,18 +164,15 @@ FastShip プロジェクト (GitHub Project) をやめ、判断待ちはリポ�
 
 | スキル | 使う人・場面 | すること |
 |:--|:--|:--|
-| `/dev:setup [owner/repo]` | 🧑‍💻 開発者 (導入・更新) | ラベル・ルーティン・テンプレートを導入し、PR を作る。判断待ちの一覧のリンクを伝える |
+| `/dev:setup [owner/repo]` | 🧑‍💻 開発者 (導入・更新) | ラベル・ルーティン・テンプレート・Claude のレビューの呼び出しを導入し、PR を作る。判断待ちの一覧のリンクを伝える |
 | `/dev:issue [owner/repo] {内容}` | 🧑 誰でも (① 起票) | 背景と参考資料を聞き、`claude:analysis` を付けて起票する。目的が複数あれば分けて起票する |
 | `/dev:analysis {Issue}` | ルーティン (③ 課題分析) | 課題・解決策・要件 (機能要件・非機能要件) を書き、見本の Draft PR を作って、`claude:analyzed` を付ける。大きければ Issue を分ける |
 | `/dev:refine {Issue}` | ルーティン (⑤⑥ リファインメント) | epic ブランチを作り、1 PR で終わる Sub Issue に分解して `claude:implement` を付ける。Sub Issue がすべて閉じると、epic ブランチの PR を作る。1 PR で済むなら分けず、Issue に完了条件を書き足して `claude:implement` を付ける |
-| `/dev:implement {Sub Issue / Issue / PR}` | ルーティン (⑦⑧ 実装) | ドメイン駆動設計 + テスト駆動開発で実装し、Draft の PR を作る。Ready にして `claude:under-review` を付ける。epic ブランチに向けた PR は、✅ と CI の成功でマージする |
-| `/dev:review {PR}` | ルーティン (⑨⑩ レビュー) | コードレビューとセキュリティレビューをし、✅ / 🛑 を返す。🛑 なら PR を Draft に戻す |
-| `/dev:blocked` | ルーティン (課題分析・リファインメント・実装・レビュー) | 多重起動を防ぎ、判断できないときは質問して `claude:blocked` を付ける |
+| `/dev:implement {Sub Issue / Issue / PR}` | ルーティン (⑦⑧ 実装) | ドメイン駆動設計 + テスト駆動開発で実装し、Draft の PR を作る。Ready にして Claude のレビューに回し、指摘に対応する。epic ブランチに向けた PR は、Approve と CI の成功でマージする |
+| `/dev:blocked` | ルーティン (課題分析・リファインメント・実装) | 多重起動を防ぎ、判断できないときは質問して `claude:blocked` を付ける |
 | `/dev:push-pr` | 🧑‍💻 開発者 / ルーティン (⑦⑧ 実装) | PR テンプレートに沿って PR を作成・更新する |
 
 `/dev:implement` は、リポジトリの検査 (`CLAUDE.md`・CI に書かれたテスト・lint・型チェック) を自分で実行してから PR を作ります。技術スタックの hook (stack プラグイン) は要りません。
-
-`/dev:review` は `/code-review` を `xhigh`・`--max-findings all` で使います。`/code-review` は最後に指定した値を覚えるため、手元で `/dev:review` を使うと、以後の `/code-review` も同じ設定になります。戻すには、次の `/code-review` に使いたい effort と `--max-findings default` を付けてください。
 
 ## 🏷️ ラベル
 
@@ -173,10 +182,9 @@ FastShip プロジェクト (GitHub Project) をやめ、判断待ちはリポ�
 | `claude:analyzed` | 🧠 Claude | 課題分析が終わり、承認を待っている (ルーティンは起動しない) |
 | `claude:refine` | 🧑‍💻 開発者 | 課題分析の結果を承認し、リファインメントを始める |
 | `claude:implement` | 🧠 Claude | Sub Issue (1 PR で済むときは Issue) の実装を始める |
-| `claude:under-review` | 🧠 Claude | PR のレビューを始める |
 | `claude:blocked` | 🧠 Claude | 人間の回答を待っている |
 
-レビューが ✅ になったことは、ラベルではなく、PR が Ready で `claude:under-review` が付いていないことで示します ([📋 判断待ちの一覧](#-判断待ちの一覧))。
+PR のレビューはラベルを使いません。PR を Ready にすると動き、結果はコードレビューの Approve / Request changes で示します ([📋 判断待ちの一覧](#-判断待ちの一覧))。
 
 ## 📋 判断待ちの一覧
 
@@ -186,36 +194,37 @@ FastShip プロジェクト (GitHub Project) をやめ、判断待ちはリポ�
 flowchart LR
     analysis["🤔 課題分析<br/><code>claude:analysis</code>"] --> analyzed[["④ 承認待ち<br/><code>claude:analyzed</code>"]]
     analyzed -->|🧑‍💻 承認<br/>+ <code>claude:refine</code>| refine["✂️ リファインメント<br/><code>claude:refine</code>"]
-    refine --> implement["🧑‍💻 実装<br/><code>claude:implement</code>"] --> review["✔️ レビュー<br/><code>claude:under-review</code>"]
-    review -->|"✅ (1 PR で済む Issue)"| merge[["⑪ マージ待ち<br/>Ready の PR"]]
-    review -->|"✅ (Sub Issue)"| epic["🌿 実装が epic にマージ<br/>Sub Issue を閉じる"]
+    refine --> implement["🧑‍💻 実装<br/><code>claude:implement</code>"] -->|Ready にする| review["✔️ Claude のレビュー<br/>(Actions)"]
+    review -->|"Approve (1 PR で済む Issue)"| merge[["⑪ マージ待ち<br/>Approve の PR・epic の PR"]]
+    review -->|"Approve (Sub Issue)"| epic["🌿 実装が epic にマージ<br/>Sub Issue を閉じる"]
     epic -->|"すべて閉じたら<br/>epic の PR を作る"| merge
-    review -->|🛑 なら Draft に戻して直す| implement
+    review -->|Request changes なら Draft にして直す| implement
     merge -->|"🧑‍💻 マージ<br/>Closes で Issue が閉じる"| done(("✅"))
-    analysis & refine & implement & review -.-> blocked[["❓ 回答待ち<br/><code>claude:blocked</code>"]]
+    analysis & refine & implement -.-> blocked[["❓ 回答待ち<br/><code>claude:blocked</code>"]]
 ```
 
 | 一覧 | クエリ | 判断すること |
 |:--|:--|:--|
 | ④ 承認待ち | `is:issue is:open label:"claude:analyzed"` | 見本の PR と要件を見て、承認か差し戻しか |
 | ❓ 回答待ち | `is:open label:"claude:blocked"` | Claude の質問への回答 |
-| ⑪ マージ待ち | `is:pr is:open draft:false base:<デフォルトブランチ> -label:"claude:blocked" -label:"claude:under-review"` | マージ・リリースするか |
-| ⏳ 進行中 | `is:open label:"claude:analysis","claude:refine","claude:implement","claude:under-review" -label:"claude:blocked"` | 止まっていないか ([🛟 ルーティンの前提](#-ルーティンの前提)) |
+| ⑪ マージ待ち | `is:pr is:open draft:false base:<デフォルトブランチ> -label:"claude:blocked" (review:approved OR head:epic/)` | マージ・リリースするか |
+| ⏳ 進行中 | `is:open label:"claude:analysis","claude:refine","claude:implement" -label:"claude:blocked"` | 止まっていないか ([🛟 ルーティンの前提](#-ルーティンの前提)) |
 
  - リンクは `https://github.com/{owner/repo}/issues?q=<クエリ>` です。リポジトリの Issue 一覧は、Issue と PR を一緒に出します。`/dev:setup` が対象リポジトリのリンクを伝えるので、ブックマークしてください。
- - リポジトリが複数あるときは、リポジトリごとのリンクを使います。`⑪ マージ待ち` はラベルで絞れないため、FastShip を通っていない Ready の PR も載ります。epic ブランチに向けた Sub Issue の PR は、実装がマージするため載りません (`base:`)。
+ - リポジトリが複数あるときは、リポジトリごとのリンクを使います。`⑪ マージ待ち` には、コードレビューが Approve した PR と、epic ブランチの PR (Claude のレビューの結果に関わらず、開発者がレビューする) が載ります。FastShip を通っていない PR も、Approve されれば載ります。epic ブランチに向けた Sub Issue の PR は、実装がマージするため載りません (`base:`)。
 
 PR は、実装・修正の間だけ Draft にします。
 
 | PR | 状態 | 切り替える所 |
 |:--|:--|:--|
-| Draft | 🧠 実装・修正中 | 実装は Draft で PR を作る。⑨ が 🛑 を返すときと、止めた実装を再開するときに Draft に戻す |
-| Ready + `claude:under-review` | 🧠 レビュー中 | 実装が push を終えたら、Ready にして `claude:under-review` を付ける |
-| Ready + `claude:blocked` | 🧑‍💻 回答待ち | 実装・レビューが人に返すとき。実装は Draft なら Ready にする |
-| Ready | 🧑‍💻 マージ待ち | ⑨ が ✅ を返したら、そのまま。epic ブランチに向けた PR は、CI が通ると実装がマージする |
+| Draft | 🧠 実装・修正中 | 実装は Draft で PR を作る。Request changes や CI の失敗を直すときと、止めた実装を再開するときに Draft にする |
+| Ready | 🧠 レビュー中 | 実装が push を終えたら、Ready にする。Claude のレビューが動き、PR の Checks に出る |
+| Ready + `claude:blocked` | 🧑‍💻 回答待ち | 実装が人に返すとき。Draft なら Ready にする (レビューは動かない) |
+| Ready + Approve | 🧑‍💻 マージ待ち | コードレビューが Approve したら。epic ブランチに向けた PR は、CI が通ると実装がマージする |
 
- - Draft の PR にラベルを付けても、ルーティンは起動しません。PR の工程 (⑨ レビュー・止めた実装の再開) は、Ready の PR にラベルを付けて動かします。
- - レビューの間も Ready なので、マージボタンは押せます。`⑪ マージ待ち` には出ないため、一覧から ✅ の前にマージすることはありません。CODEOWNERS があると、レビューを頼むたびにレビューの依頼が届きます。
+ - Draft の PR にラベルを付けても、ルーティンは起動しません。止めた実装は、Ready の PR に `claude:implement` を付けて再開します。
+ - Claude のレビューは、PR を作ったとき (Draft なら Ready にしたとき) に動きます。ベースとコンフリクトしている PR では動きません (GitHub の仕様)。
+ - レビューの間も Ready なので、マージボタンは押せます。`⑪ マージ待ち` には Approve の後に出るため、一覧から Approve の前にマージすることはありません。CODEOWNERS があると、Ready にするたびにレビューの依頼が届きます。
  - Issue の進み具合は、PR の Draft ではなくラベル (`claude:implement` など) で見ます。Issue の検索では、Issue をつながった PR の Draft で絞れないためです。
 
  - `claude:analyzed` は、課題分析・リファインメントが Issue の状態から決めて付け外しします (`scripts/waiting.sh`)。手で付け外ししても、次にそれらが動いたときに状態に合わせ直されます。
@@ -226,7 +235,7 @@ PR は、実装・修正の間だけ Draft にします。
 ## 🧑‍💻 人間が判断すること
 
 1. **④ 承認** (`④ 承認待ち`): 課題分析で追記された課題・解決策・要件を確認し、解く価値があるかを判断します。作るものが合っているかは、見本の PR を見て判断します ([👀 見本](#-見本))。大きい Issue は課題分析が分けるので、分けた Issue もそれぞれ承認します。優先順位の高い Issue から `claude:refine` を付けます。方向がずれている場合は、Issue か見本の PR にコメントして、Issue に `claude:analysis` を付け直します。見送るときは、Issue を閉じます。
-2. **⑪ マージ・リリース** (`⑪ マージ待ち`): Ready になり (レビューが ✅)、CI が通った PR を確認し、マージ・リリースします。CI の結果は PR で確かめてください。Sub Issue に分けた Issue は、epic ブランチの PR で全体を確かめます。✔️ 動作確認 に、要件ごとに確かめた Sub Issue の PR が書いてあります。✅ の後に自分で push したとき (コンフリクトの解消など) は、`claude:under-review` を付けるだけで再レビューを受けられます (epic ブランチの PR は除く。⑨ は Sub Issue の PR のためのものです)。✅ の後に、実装が小さな指摘 (`[nits]` など) だけを直して push することがあります。再レビューはせず、直した commit を指摘への返信に書きます (epic ブランチに向けた Sub Issue の PR では直さず、返信だけにします)。
+2. **⑪ マージ・リリース** (`⑪ マージ待ち`): コードレビューが Approve し、CI が通った PR を確認し、マージ・リリースします。CI の結果は PR で確かめてください。完了条件を満たすかは、PR の ✔️ 動作確認 で確かめます (実装が、完了条件ごとにテストか動作確認の結果を書きます)。Sub Issue に分けた Issue は、epic ブランチの PR で全体を確かめます。✔️ 動作確認 に、要件ごとに確かめた Sub Issue の PR が書いてあります。epic ブランチの PR にも Claude のレビューが付きますが、Request changes でも実装は動かないので、直すかは開発者が決めます。Approve の後に自分で push したとき (コンフリクトの解消など) は、PR に `/code-review` とコメントすると再レビューを受けられます。Approve の後に、実装が小さな指摘だけを直して push することがあります。再レビューはせず、直した commit を指摘への返信に書きます (epic ブランチに向けた Sub Issue の PR では直さず、返信だけにします)。
 
 ## 👀 見本
 文章の要件は分量が多く、読み手によって解釈が分かれます。そこで課題分析は、画面・API / MCP・インフラ構成が変わる Issue で見本を作り、Draft PR にします。開発者は ④ で見本を見て承認します。
@@ -238,7 +247,7 @@ PR は、実装・修正の間だけ Draft にします。
 | インフラ | 構成図 (Mermaid) と、追加・変更・削除するリソースの一覧 |
 
  - 見本の PR はマージしません。承認した版は、Issue の 見本 に commit の sha で残ります。リファインメントが完了条件に入れてから、PR を閉じます。
- - 実装は見本どおりに作ります (見本のコードを出発点にしてよい)。レビューは見本と見比べ、違えば 🛑 にします。
+ - 実装は見本どおりに作り (見本のコードを出発点にしてよい)、見本と見比べた結果を PR の ✔️ 動作確認 に書きます。
  - 直してほしいときは、見本の PR に行コメントするか Issue にコメントし、Issue に `claude:analysis` を付け直します。
  - 見本の PR は Draft なので、`⑪ マージ待ち` には載りません。CI は動きますが、マージしないので、失敗しても直しません。
 
@@ -248,7 +257,7 @@ Sub Issue に分けた Issue は、epic ブランチ (`epic/<親 Issue の番号
 ```mermaid
 flowchart LR
     main1(["main"]) -->|"⑥ epic ブランチを作る"| epic(["epic/123"])
-    sub["Sub Issue の PR"] -->|"⑨ ✅ と CI の成功で<br/>実装がマージ"| epic
+    sub["Sub Issue の PR"] -->|"Approve と CI の成功で<br/>実装がマージ"| epic
     epic -->|"Sub Issue がすべて閉じたら<br/>PR を作る<br/>🧑‍💻 レビュー・マージ"| main2(["main"])
 ```
 
@@ -258,7 +267,7 @@ flowchart LR
 | 1 PR で済む Issue | デフォルトブランチ | 🧑‍💻 開発者 |
 
  - 実装は、Sub Issue の PR をマージすると、Sub Issue を閉じます。`Closes` はデフォルトブランチへのマージでしか閉じないためです。手で epic ブランチにマージしたときは、Sub Issue も閉じてください。後続の Sub Issue の実装が始まります。
- - ✅ で CI も通ったのにマージされないときは、PR に `claude:implement` を付けてください。実装が再開し、再レビューの後にマージします。
+ - Approve で CI も通ったのにマージされないときは、PR に `claude:implement` を付けてください。実装が再開し、再レビューの後にマージします。
  - リファインメントは、Sub Issue が閉じるたびに、デフォルトブランチを epic ブランチに取り込みます。コンフリクトして取り込めないときは、epic ブランチの PR で開発者が解消します。
  - epic ブランチに向けた PR でも CI が動くようにしてください (`/dev:setup` が確かめます)。動かないと、実装はマージせずに人間に返します。
  - Sub Issue の PR に開発者が Request changes を付けると、解消する (Approve か Dismiss) までマージしません。
@@ -267,13 +276,13 @@ flowchart LR
 
 Claude だけで判断できないことがあると、ルーティンは処理を止めて人間に返します。手順は `/dev:blocked` スキルにまとめています。
 
-1. Claude が Issue / PR に質問をコメントし、進行中のラベル (`claude:analysis` / `claude:refine` / `claude:implement` / `claude:under-review`) を外して `claude:blocked` を付けます。
+1. Claude が Issue / PR に質問をコメントし、進行中のラベル (`claude:analysis` / `claude:refine` / `claude:implement`) を外して `claude:blocked` を付けます。
 2. 開発者は `❓ 回答待ち` の一覧で Issue / PR を確認し、コメントで回答します。
 3. 開発者が `claude:blocked` を外して元のラベルを、止まった Issue / PR に付け直すと、処理が再開します。再開したセッションは、前回の質問と回答を読んでから続けます。
 
 同じ Issue / PR で動くセッションは 1 つだけです。後から起動したセッションは何もせずに終わります。進行中のラベルが付いたまま 10 分以上進まないときは、ルーティンが動かなかったか、セッションが途中で止まっています (`⏳ 進行中` に残ります)。そのラベルを外して付け直すと、やり直します。
 
-レビューの 🛑 は実装のセッションが対応します。Claude だけで判断できない指摘は、同じ手順で `claude:blocked` を付けて人間に返します。人が作った PR も、Ready にして `claude:under-review` を付けるとレビューします (Draft の PR では動きません)。🛑 なら Draft に戻すので、直したら Ready にして付け直してください。
+Claude のレビューの指摘 (Request changes など) は、実装のセッションが対応します。Claude だけで判断できない指摘は、同じ手順で `claude:blocked` を付けて人間に返します。人が作った PR も、作ったとき (Draft なら Ready にしたとき) にレビューされます。直した後の再レビューは、PR に `/code-review` とコメントして頼みます。
 
 ## 🛟 ルーティンの前提
 
@@ -281,9 +290,11 @@ Claude だけで判断できないことがあると、ルーティンは処理�
 
  - ルーティンは、作った人の claude.ai アカウントに属し、チームでは共有されません。作った人の利用枠を使い、その人が抜けると止まります。そのときは、別の人が `/dev:setup` を実行し直して作り直してください。
  - FastShip が使う `issues.labeled`・`issues.closed` のトリガーは、[ルーティンのドキュメント](https://code.claude.com/docs/en/routines) にありません (載っている GitHub イベントは Pull request と Release だけです)。
- - GitHub イベントは、ルーティンごと・アカウントごとの毎時の上限を超えると捨てられます。上限の数値は公開されていません。ルーティンは 1 つなので、すべての工程で 1 つの上限を分け合います。
+ - GitHub イベントは、ルーティンごと・アカウントごとの毎時の上限を超えると捨てられます。上限の数値は公開されていません。ルーティンは 1 つなので、課題分析・リファインメント・実装で 1 つの上限を分け合います。
 
-どの場合も、進行中のラベル (`claude:analysis` / `claude:refine` / `claude:implement` / `claude:under-review`) が付いたまま動きません。`⏳ 進行中` の一覧をときどき見て、10 分以上進まないものはラベルを外して付け直してください。
+どの場合も、進行中のラベル (`claude:analysis` / `claude:refine` / `claude:implement`) が付いたまま動きません。`⏳ 進行中` の一覧をときどき見て、10 分以上進まないものはラベルを外して付け直してください。
+
+Claude のレビューはルーティンではなく Actions で動くので、止まったかは PR の Checks で分かります。失敗したら、Actions の **Re-run jobs** で再実行してください。
 
 Sub Issue は、PR がマージされるまで `claude:implement` が付いたままなので、PR がマージを待つ間も `⏳ 進行中` に載ります。止まっているかは、PR を見て確かめてください。PR が Draft のまま 10 分以上進まないときは、Sub Issue の `claude:implement` を外して付け直すと、実装が PR を Ready にして引き継ぎます。
 

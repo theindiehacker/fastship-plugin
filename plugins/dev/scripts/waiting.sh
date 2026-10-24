@@ -8,7 +8,7 @@
 set -euo pipefail
 
 ANALYZED='claude:analyzed'
-BUSY_LABELS=(claude:analysis claude:refine claude:implement claude:under-review claude:blocked)
+BUSY_LABELS=(claude:analysis claude:refine claude:implement claude:blocked)
 ANALYSIS_MARK='<!-- fastship:analysis -->'
 REPO='repos/{owner}/{repo}'
 
