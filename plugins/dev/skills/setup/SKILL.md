@@ -1,6 +1,6 @@
 ---
 name: setup
-description: 対象リポジトリにラベル駆動開発 (ラベル・ルーティン・FastShip プラグイン) を導入し、コミット・PR 作成まで行う。判断待ちの一覧のリンクを伝える。stack プラグインが入っていれば、技術スタックも入れるか聞く。Actions の Claude レビューが PR で自動で動くなら、止めるか聞く。導入済みなら最新版に更新する。使い方 → /dev:setup [owner/repo]
+description: 対象リポジトリにラベル駆動開発 (ラベル・ルーティン・FastShip プラグイン・Actions の Claude レビュー) を導入し、コミット・PR 作成まで行う。判断待ちの一覧のリンクを伝える。stack プラグインが入っていれば、技術スタックも入れるか聞く。導入済みなら最新版に更新する。使い方 → /dev:setup [owner/repo]
 argument-hint: "[owner/repo]"
 ---
 
@@ -54,15 +54,14 @@ FastShip プラグインのテンプレートを、対象リポジトリにコ�
 gh label create claude:analysis --color d97757 --description "🤔 課題分析を始める" --force -R {owner/repo}
 gh label create claude:refine --color d97757 --description "✂️ 課題分析の結果を承認し、リファインメントを始める" --force -R {owner/repo}
 gh label create claude:implement --color d97757 --description "🧑‍💻 Sub Issue (1 PR で済むときは Issue) の実装を始める" --force -R {owner/repo}
-gh label create claude:under-review --color d97757 --description "✔️ PR のレビューを始める" --force -R {owner/repo}
 gh label create claude:blocked --color b60205 --description "❓ 人間の回答を待っている" --force -R {owner/repo}
 gh label create claude:analyzed --color 0e8a16 --description "🧑‍💻 課題分析が終わり、承認を待っている" --force -R {owner/repo}
 ```
 
-`claude:analyzed` は、人が見るためのラベルです。4.2 のトリガーには使いません。レビューが ✅ になった PR は、ラベルではなく、Ready で `claude:under-review` が付いていないことで示します。
+`claude:analyzed` は、人が見るためのラベルです。4.2 のトリガーには使いません。PR のレビューはラベルを使いません。PR を Ready にすると動き (5)、結果はコードレビューの Approve / Request changes で示します。
 
 ### 4.2 ルーティン
-RemoteTrigger ツールで、FastShip のルーティンを 1 つ用意し、URL (`https://claude.ai/code/routines/{ID}`) をユーザーに伝えてください。課題分析・リファインメント・実装・レビューは、1 つのルーティンが Issue / PR のラベルを見て選びます。
+RemoteTrigger ツールで、FastShip のルーティンを 1 つ用意し、URL (`https://claude.ai/code/routines/{ID}`) をユーザーに伝えてください。課題分析・リファインメント・実装は、1 つのルーティンが Issue / PR のラベルを見て選びます。PR のレビューは Actions で動きます (5)。
 
 | 項目 | 値 |
 |:--|:--|
@@ -81,7 +80,7 @@ RemoteTrigger ツールで、FastShip のルーティンを 1 つ用意し、URL
 |:--|:--|:--|
 | `issues.labeled` | `claude:analysis` / `claude:refine` / `claude:implement` | 課題分析・リファインメント・実装 |
 | `issues.closed` | `claude:implement` | リファインメント (Sub Issue が閉じたときに、後続の Sub Issue に着手する。1 PR で済むとしてそのまま実装した Issue が閉じたときも起動するが、何もせずに終わる) |
-| `pull_request.labeled` | `claude:implement` / `claude:under-review` | 実装 (PR で止めたときの再開)・レビュー。実装は push を終えてから `claude:under-review` を付けるため、`opened` / `synchronize` は使わない。Draft の PR では起動しないため、実装は PR を Ready にしてからラベルを付ける |
+| `pull_request.labeled` | `claude:implement` | 実装 (PR で止めたときの再開)。Draft の PR では起動しないため、実装は PR を Ready にしてからラベルを付ける |
 
 プロンプト:
 
@@ -89,14 +88,13 @@ RemoteTrigger ツールで、FastShip のルーティンを 1 つ用意し、URL
 GitHub のイベントで起動しました。トリガーになった Issue / PR に、FastShip の工程を 1 つ行ってください。
 1. Issue (PR ではない) が closed なら、/dev:refine で行ってください。Sub Issue が閉じたときの後続の着手です。
 2. それ以外は、Issue / PR に付いているラベルを見て、次の順に試してください。スキルの「1. 始める」で STOP と出たら、次を試してください。どれも STOP か、ラベルが無ければ、何もせずに終えてください。
-   - claude:under-review → /dev:review
    - claude:implement → /dev:implement
    - claude:refine → /dev:refine
    - claude:analysis → /dev:analysis
 ```
 
  - 工程は、イベントの種類ではなく Issue / PR の状態とラベルで選びます。セッションに渡るイベントの内容は、ルーティンのドキュメントに書かれていないためです。`issues.closed` で起動するのは closed の Issue だけなので、状態で見分けられます。
- - 「1. 始める」(`blocked.sh start`) は、ラベルが付いた後にまだ着手していなければ `CONTINUE`、それ以外は何も変えずに `STOP` を返します。このため、付いたばかりのラベルの工程だけが動きます (例: `claude:implement` と `claude:under-review` が付いた PR に `claude:under-review` を付け直すと、実装は着手済みで `STOP` になり、レビューが動く)。
+ - 「1. 始める」(`blocked.sh start`) は、ラベルが付いた後にまだ着手していなければ `CONTINUE`、それ以外は何も変えずに `STOP` を返します。このため、付いたばかりのラベルの工程だけが動きます (例: `claude:implement` が付いた PR に別のラベルを付けても、実装は着手済みで `STOP` になる)。
 
 ```mermaid
 flowchart LR
@@ -110,8 +108,8 @@ flowchart LR
 ```
 
  - `list`: 返るのは 20 件までで、続きは取れない (`next_cursor` を渡しても同じページが返る)。`has_more` が true のときに見つからないルーティンは、無いとみなさない (重複して作らないため)。https://claude.ai/code/routines に `{リポジトリ名} / FastShip` があるかユーザーに確認し、あれば URL の `trig_…` で `get` する。無ければ `create` する
- - 既存の `update`: `get` した `job_config` を丸ごと送り、`ccr.events[0].data.message.content` と `ccr.session_context.model` だけを変える。トリガーは API から見えず重複に気づけないため、追加しない
- - `create`: `/schedule` スキルの書き方に従う。`run_once_at` と `cron_expression` は付けない。実装は PR を作るので、`session_context` に `"autofix_on_pr_create": true` を付ける。課題分析・レビューは PR を作らないため、付いていても何も起きない。リファインメントは epic ブランチの PR を作るが、作った後に購読を外す
+ - 既存の `update`: `get` した `job_config` を丸ごと送り、`ccr.events[0].data.message.content` と `ccr.session_context.model` だけを変える。トリガーは API から見えず重複に気づけないため、追加・変更しない。古いトリガーに `claude:under-review` が残っていても、プロンプトに無いので何もせずに終わる
+ - `create`: `/schedule` スキルの書き方に従う。`run_once_at` と `cron_expression` は付けない。実装は PR を作るので、`session_context` に `"autofix_on_pr_create": true` を付ける。課題分析は PR を作らないため、付いていても何も起きない。リファインメントは epic ブランチの PR を作るが、作った後に購読を外す
  - 新規の `update`: `{"clear_mcp_connections": true, "notifications": {"channel": {"email": false, "push": true, "slack": false}}}` を送る (`create` は接続済みのコネクタをすべて付けるため)
  - `create_webhook_trigger`: 上のトリガーの表の行ごとに、下記の body を、`events` をその行のイベントに、`values` をその行のラベルに置き換えて送る。`pull_request.labeled` は `field` を `pr.labels` にする。`pull_request.labels` は `unknown field` で拒否される
  - RemoteTrigger や Claude GitHub App が使えない場合は、上の表の内容で https://claude.ai/code/routines から手動で作るよう案内する
@@ -119,7 +117,7 @@ flowchart LR
 ルーティンの URL と一緒に、次の前提をユーザーに伝えてください (README の「🛟 ルーティンの前提」)。
  - ルーティンは、作った人の claude.ai アカウントに属し、チームでは共有されない。作った人の利用枠を使い、その人が抜けると止まる。そのときは、別の人が `/dev:setup` を実行し直して作り直す
  - `issues.labeled`・`issues.closed` のトリガーは、ルーティンのドキュメントに無い (載っている GitHub イベントは Pull request と Release だけ)
- - GitHub イベントは、ルーティンごと・アカウントごとの毎時の上限を超えると捨てられる (上限の数値は公開されていない)。ルーティンが 1 つなので、すべての工程で 1 つの上限を分け合う
+ - GitHub イベントは、ルーティンごと・アカウントごとの毎時の上限を超えると捨てられる (上限の数値は公開されていない)。ルーティンが 1 つなので、課題分析・リファインメント・実装で 1 つの上限を分け合う
  - 動かなかった・途中で止まった Issue / PR は、進行中のラベルが付いたまま 4.4 の `⏳ 進行中` に残る。10 分以上進まないものは、ラベルを外して付け直す
 
 ```json
@@ -157,37 +155,68 @@ claude plugin install stack@fastship || echo "⚠️ stack@fastship を入れら
 ### 4.4 判断待ちの一覧
 開発者は、リポジトリの Issue 一覧を下のクエリで絞って、次に判断することを確かめます。工程はラベルと PR の Draft / Ready で決まるため、GitHub Project は使いません。
 
-下の表の一覧ごとに、下のコマンドでリンクを作り、一覧の名前と一緒にユーザーに伝えてください。ブックマークするよう伝えます。リポジトリの Issue 一覧は、Issue と PR を一緒に出します。`<デフォルトブランチ>` は、対象リポジトリのデフォルトブランチに置き換えてください。epic ブランチに向けた Sub Issue の PR は実装がマージするため、`⑪ マージ待ち` に出さないためです。
+下の表の一覧ごとに、下のコマンドでリンクを作り、一覧の名前と一緒にユーザーに伝えてください。ブックマークするよう伝えます。リポジトリの Issue 一覧は、Issue と PR を一緒に出します。`<デフォルトブランチ>` は、対象リポジトリのデフォルトブランチに置き換えてください。epic ブランチに向けた Sub Issue の PR は実装がマージするため、`⑪ マージ待ち` に出さないためです。`⑪ マージ待ち` には、コードレビューが Approve した PR と、epic ブランチの PR (開発者がレビューする) を出します。
 
 | 一覧 | クエリ |
 |:--|:--|
 | `④ 承認待ち` | `is:issue is:open label:"claude:analyzed"` |
 | `❓ 回答待ち` | `is:open label:"claude:blocked"` |
-| `⑪ マージ待ち` | `is:pr is:open draft:false base:<デフォルトブランチ> -label:"claude:blocked" -label:"claude:under-review"` |
-| `⏳ 進行中` | `is:open label:"claude:analysis","claude:refine","claude:implement","claude:under-review" -label:"claude:blocked"` |
+| `⑪ マージ待ち` | `is:pr is:open draft:false base:<デフォルトブランチ> -label:"claude:blocked" (review:approved OR head:epic/)` |
+| `⏳ 進行中` | `is:open label:"claude:analysis","claude:refine","claude:implement" -label:"claude:blocked"` |
 
 ```bash
 jq -rn --arg q '<クエリ>' '"https://github.com/{owner/repo}/issues?q=\($q | @uri)"'
 ```
 
 ## 5. Actions の Claude レビュー
-FastShip の PR は ⑨ がレビューします。PR のイベントで Actions の Claude レビュー (claude-code-action) が自動で動くと、レビューが二重になり、GitHub Actions の時間も使います。FastShip の Claude の作業はルーティン (サブスク) で動かすため、Actions の Claude は人が頼んだときだけ動くようにします。
+PR のレビュー (⑨⑩) は、github-workflows の Claude のレビュー (`claude-code-review.yml`・`claude-security-review.yml`) が Actions で行います。実装が PR を Ready にすると動き、claude[bot] が行コメントと、コードレビューの判定 (Approve / Request changes) を投稿します。動いているか・止まったかは、PR の Checks に出ます。ルーティンは開発者のアカウントで動くため、自分の PR に Approve / Request changes を付けられません。
 
-1. claude-code-action を使うワークフローを探してください。他のワークフローを `uses:` で呼ぶもの (reusable workflow) は、呼び先も確かめてください。
+1. Claude の認証情報がリポジトリに渡るか確かめてください。下の 2 つのどちらかに `CLAUDE_CODE_OAUTH_TOKEN` か `ANTHROPIC_API_KEY` が出れば渡ります。
 
 ```bash
-grep -rlE 'anthropics/claude-code(-base)?-action' .github/workflows/
+gh api "repos/{owner/repo}/actions/organization-secrets" --jq '.secrets[].name'
+gh api "repos/{owner/repo}/actions/secrets" --jq '.secrets[].name'
 ```
 
-2. 見つかったワークフローの `on:` から、人が頼まなくても動くトリガーを洗い出してください。
-   - PR のイベント (`pull_request` / `pull_request_target`)。`types` の `opened`・`ready_for_review`・`synchronize`・`reopened`・`labeled` など、どれもまとめて確かめます。`types` が無ければ `opened`・`synchronize`・`reopened` で動きます。
-   - コメント・レビューのイベント (`issue_comment` / `pull_request_review_comment` / `pull_request_review`) のうち、`if:` で本文 (`/code-review`・`@claude` など) を絞っていないもの。⑨ のレビューや実装の返信でも動きます。
-3. 2 で出たら、ワークフローとトリガーを見せ、⑨ と二重になり Actions の時間を使うことを伝えて、自動の起動を止めるか確認してください。
-   - 止めるなら、PR のイベントを `on:` から外してください。本文を絞っていないコメントのトリガーは、`if:` で本文を絞ってください。コメントでの依頼 (`/code-review` など) は残します。
-   - `on:` に何も残らなければ、ワークフローを消すか確認してください。
-   - 止めないと答えたら残し、FastShip の PR でも二重に動くことを伝えてください。
-   - 変えたら、2・3 と同じコミットに入れてください。
-4. org の必須ワークフロー (Rulesets) に claude-code-action があれば、リポジトリからは止められません。下の 1 つ目のコマンドで必須ワークフローを出し、2 つ目で読んで 2 と同じように確かめてください。出たら、org の管理者に止めてもらうよう伝えてください。読めなければ (404 など)、ユーザーに聞いてください。
+ - 出なければ、レビューが何もせずに成功で終わり、epic ブランチへのマージも止まることを伝えてください。登録はユーザーに頼み、このセッションでは行いません。public リポジトリには登録しない方針です (fork の PR からトークンを読まれる恐れがあるため。github-workflows の `docs/SETUP.md` の 4.1)。
+2. 呼び出し側のワークフロー `.github/workflows/claude.yml` を、次の形にしてください。2・3 と同じコミットに入れます。
+   - 無ければ、github-workflows の最新のリリースの `self-claude.yml` をコピーし、各 job の `uses: ./.github/workflows/<ファイル>` を `uses: theindiehacker/github-workflows/.github/workflows/<ファイル>@<sha>  # <タグ>` に書き換えます (下のコマンドで、タグ・sha・中身が出ます)。
+   - あれば、`uses:` が最新のリリースより古ければ上げ、下の `if:` を足します。差分を見せて確認してください。
+   - `on:` に `pull_request` の `types: [opened, ready_for_review]` を入れます。
+   - `code-review`・`security-review` の job の `if:` を下にします。`security-review` の PR のイベントは、v2.2.0 以降の github-workflows が受け付けます。`claude:blocked` を除くのは、実装が人間に返すときにも PR を Ready にするためです。
+
+```bash
+tag=$(gh api repos/theindiehacker/github-workflows/releases/latest --jq .tag_name)
+gh api "repos/theindiehacker/github-workflows/commits/$tag" --jq .sha
+gh api "repos/theindiehacker/github-workflows/contents/.github/workflows/self-claude.yml?ref=$tag" --jq .content | base64 -d
+```
+
+```yaml
+  code-review:
+    if: (github.event_name == 'pull_request' && !github.event.pull_request.draft && !contains(github.event.pull_request.labels.*.name, 'claude:blocked')) || (github.event_name == 'issue_comment' && startsWith(github.event.comment.body, '/code-review'))
+  security-review:
+    if: (github.event_name == 'pull_request' && !github.event.pull_request.draft && !contains(github.event.pull_request.labels.*.name, 'claude:blocked')) || (github.event_name == 'issue_comment' && startsWith(github.event.comment.body, '/security-review'))
+```
+
+ - org の必須の zizmor は、変えたワークフローの `issue_comment` を落とします (`dangerous-triggers`)。`.github/zizmor.yml` の除外に、`claude.yml` の `issue_comment:` の行を `claude.yml:<行>` で書いてください (下)。既にあれば、行がずれていないか確かめて直します。このファイルの変更にはセキュリティチームの承認が要るので、PR が承認待ちになることをユーザーに伝えてください。
+
+```yaml
+# zizmor の設定。変えるときは、org のルールセット「✔️ セキュリティ設定変更の承認必須化」でセキュリティチームの承認が要る
+rules:
+  dangerous-triggers:
+    ignore:
+      # claude.yml の issue_comment は、コメントでの依頼 (/code-review・/security-review・@claude) に使う。
+      # 呼び先 (theindiehacker/github-workflows の claude.yml・claude-code-review.yml・claude-security-review.yml) が、
+      # 投稿者を author_association (OWNER / MEMBER / COLLABORATOR など) で絞っている
+      - claude.yml:<issue_comment: の行>
+```
+
+ - push で `workflow` スコープが無いと出たら、ユーザーに `! gh auth refresh -h github.com -s workflow` を頼んでください。
+3. ほかに claude-code-action を使うワークフローが PR で自動で動くと、レビューが二重になります。探して、自動の起動を止めるか確認してください。
+   - 探し方: `grep -rlE 'anthropics/claude-code(-base)?-action' .github/workflows/`。他のワークフローを `uses:` で呼ぶもの (reusable workflow) は、呼び先も確かめます。2 の `claude.yml` は除きます。
+   - 人が頼まなくても動くトリガー: PR のイベント (`pull_request` / `pull_request_target`。`types` が無ければ `opened`・`synchronize`・`reopened`) と、コメント・レビューのイベントのうち、`if:` で本文 (`/code-review`・`@claude` など) を絞っていないもの
+   - 止めるなら、PR のイベントを `on:` から外し、本文を絞っていないコメントのトリガーは `if:` で絞ります。`on:` に何も残らなければ、ワークフローを消すか確認します。変えたら 2・3 と同じコミットに入れます。
+   - org の必須ワークフロー (Rulesets) はリポジトリから止められません。下の 1 つ目のコマンドで出し、2 つ目で読んで確かめ、出たら org の管理者に止めてもらうよう伝えてください。読めなければ (404 など)、ユーザーに聞いてください。
 
 ```bash
 gh api "repos/{owner/repo}/rules/branches/<デフォルトブランチ>" --jq '.[] | select(.type == "workflows") | .parameters.workflows[] | "\(.repository_id) \(.path) \(.ref)"'
@@ -195,8 +224,8 @@ gh api "repositories/<repository_id>/contents/<path>?ref=<ref>" --jq .content | 
 ```
 
 ## 6. epic ブランチの CI
-Sub Issue の PR は epic ブランチ (`epic/<親 Issue>`) に向き、実装は ⑨ の ✅ と CI の成功でマージします (`/dev:implement` の 7)。epic ブランチに向けた PR で CI が動かないと、実装はマージできずに人間に返します (デフォルトブランチに向けた PR で CI が動いているとき)。
+Sub Issue の PR は epic ブランチ (`epic/<親 Issue>`) に向き、実装はコードレビューの Approve と CI の成功でマージします (`/dev:implement` の 7)。epic ブランチに向けた PR で CI が動かないと、実装はマージできずに人間に返します (デフォルトブランチに向けた PR で CI が動いているとき)。
 
 1. `.github/workflows/` で、`pull_request` / `pull_request_target` の `branches` が epic ブランチに当たらない (デフォルトブランチだけなど) ワークフローを探してください。`branches` が無いものと、`branches-ignore` だけのものは、epic ブランチに向けた PR でも動きます。
 2. 見つかったら見せて、`branches` に `epic/**` を足すか確認してください。足すなら、2・3 と同じコミットに入れてください。
-3. 5 の 4 で org の必須ワークフローが出たら、Ruleset の対象ブランチに `epic/**` が無いと、epic ブランチに向けた PR では動かないことを伝えてください。足すかは org の管理者が決めます。
+3. 5 の 3 で org の必須ワークフローが出たら、Ruleset の対象ブランチに `epic/**` が無いと、epic ブランチに向けた PR では動かないことを伝えてください。足すかは org の管理者が決めます。

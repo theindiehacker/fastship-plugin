@@ -1,6 +1,6 @@
 ---
 name: blocked
-description: FastShip のルーティン (課題分析・リファインメント・実装・レビュー) の共通ルール。開始時に多重起動を防ぎ、前回の質問と回答を読んで再開する。Claude だけで判断できないときは、Issue / PR に質問をコメントし、claude:blocked を付けて人間に返す。ルーティンの最初と、止めるときに使う。
+description: FastShip のルーティン (課題分析・リファインメント・実装) の共通ルール。開始時に多重起動を防ぎ、前回の質問と回答を読んで再開する。Claude だけで判断できないときは、Issue / PR に質問をコメントし、claude:blocked を付けて人間に返す。ルーティンの最初と、止めるときに使う。
 ---
 
 # ❓ 質問・差し戻し (claude:blocked)
@@ -12,7 +12,6 @@ description: FastShip のルーティン (課題分析・リファインメン�
 | 課題分析 | `claude:analysis` | Issue | `issues.labeled` |
 | リファインメント | `claude:refine` | Issue | `issues.labeled` |
 | 実装 | `claude:implement` | Sub Issue (1 PR で済むときは Issue)。PR を作った後は PR | `issues.labeled` / `pull_request.labeled` |
-| レビュー | `claude:under-review` | PR | `pull_request.labeled` |
 
 どちらの手順も `${CLAUDE_PLUGIN_ROOT}/scripts/blocked.sh` で行います。GitHub は `gh api` (REST) で操作します。
 
