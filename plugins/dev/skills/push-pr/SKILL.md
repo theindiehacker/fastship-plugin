@@ -330,6 +330,24 @@ gh api repos/{owner}/{repo}/pulls/${PR_NUMBER}/reviews \
 
 PR 作成 / 更新後は、まずステップ 1-c に従い PR にレビュー依頼をコメントする（`/security-review` は「要」の場合のみ。コードレビューは PR の作成時・Ready for Review への変更時に CI が自動で実行する）。続いて CI を監視し、失敗はフックをスキップせず修正・再 push。CI 通過後は bot / 人のレビュー（本文・インライン・会話）を全件確認し、`[must]`/`[imo]`/`[ask]`/`[nits]` 規約と CLAUDE.md の指摘対応方針で採否を判断。修正は CI 再監視、全件に日本語で返信する。修正 push 後の再レビューは、コードレビューなら `/code-review`、セキュリティレビュー由来の指摘なら `/security-review` を PR にコメントして依頼する（いずれもコメント完全一致でのみ起動する）。
 
+#### 11-a. 監視を終える前に
+
+Claude のコードレビューの Approve は、push で外れることがある（ブランチ保護の「古い承認を取り消す」）。前の commit への Approve は数えない。
+
+- push したら、head の commit に Claude の Approve があるか確かめる（下のコマンド）。無ければ `/code-review` で頼み直す。Claude の Approve は人の承認と違い、自分で頼み直せる。待つだけにしない
+- `mergeable_state` が `blocked` なら、理由（Approve が無い・外れた、必須のチェックが通っていない）を確かめてから報告する。「人の承認待ち」と決めつけない
+- 「マージできる」と報告して監視を終えるのは、head で次の 3 つがそろったときだけ: Claude の Approve・CI の成功・コンフリクトなし。そろうまでは、足りないものを直すか頼み直す
+- 呼び出し元（`/dev:implement` など）が再レビューのやり方を決めているときは、それに従う
+
+```bash
+# PR_NUMBER はステップ 1-a の値をリテラルで埋める
+sha=$(gh api "repos/{owner}/{repo}/pulls/${PR_NUMBER}" --jq .head.sha)
+# head への Claude の Approve。1 行以上出れば有る（取り消された Approve は state が DISMISSED になり、出ない）
+gh api --paginate "repos/{owner}/{repo}/pulls/${PR_NUMBER}/reviews?per_page=100" \
+  --jq ".[] | select(.user.login == \"claude[bot]\" and .state == \"APPROVED\" and .commit_id == \"${sha}\") | .id"
+gh api "repos/{owner}/{repo}/pulls/${PR_NUMBER}" --jq '{mergeable, mergeable_state}'
+```
+
 ## コメント投稿のイディオム
 
 **`gh pr comment` を使わないこと**（同上）。PR へのコメントは
