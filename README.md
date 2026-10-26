@@ -138,9 +138,10 @@ Claude Code からも `/dev:issue` で起票できます。Slack (Claude Tag) �
 ### 0.20.0 に上げたとき
 技術スタックによらない処理を、新しい [session プラグイン](#-セッション-session-プラグイン) にまとめました。Web のセッションの準備 (ツール・依存・Docker の起動) と、作業を終える前の gitleaks・trivy・semgrep の検査です。stack 0.1 の SessionStart (ツール・依存の導入) は session に移り、stack 0.2.0 は session に依存します。Web のセッション開始で通信が止まっても、待ち続けずにやり直します。
 
-1. `/dev:setup` を実行し直し、作った PR をマージします。`.claude/settings.json` の `enabledPlugins` に `"session@fastship": true` を、`mise.toml` に gitleaks・trivy・uv (session の検査が使う) を足します
-2. リポジトリに同じことをする hook (compose の起動、gitleaks・trivy・semgrep の検査、mise・依存の導入) があれば消します。両方あると、同じ処理が 2 回、同時に動きます
-3. [3. クラウド環境](#3-クラウド環境) のとおり、Setup script に `claude plugin install session@fastship` を足し、[クラウド環境を作り直します](#クラウド環境を作り直す) (`# dev 0.20.0`)
+1. ローカルで stack を入れているなら、`/plugin install session@fastship` を実行します。stack を 0.2.0 に更新しても session は入らず、依存が足りないエラーになります
+2. `/dev:setup` を実行し直し、作った PR をマージします。`.claude/settings.json` の `enabledPlugins` に `"session@fastship": true` を、`mise.toml` に gitleaks・trivy・uv (session の検査が使う) を足します
+3. リポジトリに同じことをする hook (compose の起動、gitleaks・trivy・semgrep の検査、mise・依存の導入) があれば消します。両方あると、同じ処理が 2 回、同時に動きます
+4. [3. クラウド環境](#3-クラウド環境) のとおり、Setup script に `claude plugin install session@fastship` を足し、[クラウド環境を作り直します](#クラウド環境を作り直す) (`# dev 0.20.0`)
 
 ### 0.19.0 に上げたとき
 月 1 回、Claude がリポジトリ全体をセキュリティ監査し、前からある問題を `security-audit` ラベルの Issue にするようにしました (github-workflows の v2.3.0 以降)。
