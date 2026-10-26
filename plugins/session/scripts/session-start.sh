@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Claude Code on the web のセッション開始時に、mise・ツール・lefthook のフックと、リポジトリの依存を入れる。
-# stack プラグインの SessionStart hook (hooks/hooks.json) から実行する。
+# session プラグインの SessionStart hook (hooks/hooks.json) から実行する。
 # stdout は Claude のコンテキストに入るため、進捗の出力は stderr に回す
 set -uo pipefail
 
@@ -61,7 +61,7 @@ setup_mise() {
   fi
 }
 
-# PostToolUse・Stop の hook が使う Biome・Ruff・Pyright などを、lock ファイルの版で入れる
+# stack プラグインの PostToolUse・Stop の hook が使う Biome・Ruff・Pyright などを、lock ファイルの版で入れる
 install_deps() {
   local lock dir
   while IFS= read -r lock; do

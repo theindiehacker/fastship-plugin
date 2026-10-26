@@ -25,7 +25,7 @@ stack プラグインの hook (整形・lint・型チェック) は、ここで�
 
  - `"latest"` は `mise latest <ツール>` の版に置き換えてください。
  - 使わない言語のツールは消してください。JavaScript / TypeScript が無ければ bun・node、Python が無ければ uv です。node は、Biome・tsc の起動スクリプト (`node_modules/.bin`) を動かすために要ります。無いと、node を入れていないマシンで hook と lefthook が止まります。
- - gitleaks・trivy は言語によらず残してください。Stop の hook が、シークレットと脆弱性を確かめるのに使います。
+ - gitleaks・trivy は言語によらず残してください。session プラグインの Stop の hook が、シークレットと脆弱性を確かめるのに使います。
  - `mise install` の後、`mise lock` で `mise.lock` を作ってください。Claude Code on the web は lock の URL からツールを入れます。
 
 ## 3. JavaScript / TypeScript (パッケージの dir ごと)

@@ -26,7 +26,8 @@ argument-hint: "[owner/repo]"
     }
   },
   "enabledPlugins": {
-    "dev@fastship": true
+    "dev@fastship": true,
+    "session@fastship": true
   }
 }
 ```
@@ -138,13 +139,15 @@ flowchart LR
 {
   claude plugin marketplace add anthropics/claude-plugins-official &&
   claude plugin marketplace add theindiehacker/fastship-plugin &&
-  claude plugin install dev@fastship
-} || echo "⚠️ dev@fastship を入れられませんでした" >&2
+  claude plugin install dev@fastship &&
+  claude plugin install session@fastship
+} || echo "⚠️ dev@fastship・session@fastship を入れられませんでした" >&2
 ```
 
  - 1 行目は依存 (`security-guidance`。stack なら `context7`・`pyright-lsp` も) のためです。無いと `dev` が読み込まれません
+ - session は技術スタックによらず入れます。Web のセッションの準備 (ツール・依存・Docker の起動) と、作業を終える前の gitleaks・trivy の検査を行います
  - Setup script は 0 以外で終わるとセッションが始まらないため、失敗しても警告だけ出します
- - 1 で `/stack:setup` を行ったら、次の行も足すよう案内してください。stack は dev と一緒には入りません。環境は他のリポジトリと共有しますが、stack の hook は道具と設定 (`mise.toml`・lock ファイル・`node_modules` の Biome・`.venv` の Ruff など) が無いリポジトリでは何もしません
+ - 1 で `/stack:setup` を行ったら、次の行も足すよう案内してください。stack は dev と一緒には入りません (session は stack の依存として入ります)。環境は他のリポジトリと共有しますが、stack の hook は道具と設定 (`mise.toml`・lock ファイル・`node_modules` の Biome・`.venv` の Ruff など) が無いリポジトリでは何もしません
 
 ```bash
 claude plugin install stack@fastship || echo "⚠️ stack@fastship を入れられませんでした" >&2

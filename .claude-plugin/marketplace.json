@@ -15,9 +15,16 @@
       "keywords": ["workflow", "github"]
     },
     {
+      "name": "session",
+      "source": "./plugins/session",
+      "description": "どの技術スタックでも使う、Claude Code on the web のセッションの準備 (ツール・依存・Docker) と、作業を終える前のシークレット・脆弱性の検査",
+      "category": "development",
+      "keywords": ["session", "docker", "mise", "gitleaks", "trivy", "hooks"]
+    },
+    {
       "name": "stack",
       "source": "./plugins/stack",
-      "description": "技術スタック (bun / Biome・uv / Ruff / Pyright・shadcn/ui・Tailwind CSS) の開発環境",
+      "description": "技術スタック (bun / Biome・uv / Ruff / Pyright・shadcn/ui・Tailwind CSS) の設定・整形・検査・書き方",
       "category": "development",
       "keywords": ["bun", "biome", "uv", "ruff", "pyright", "shadcn", "tailwindcss", "hooks"]
     }

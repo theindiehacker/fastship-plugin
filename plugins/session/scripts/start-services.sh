@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Claude Code on the web のセッション開始時に、リポジトリ直下の compose ファイルのサービスを起動する。
-# stack プラグインの SessionStart hook (hooks/hooks.json) から実行する。compose ファイルか docker が無ければ何もしない。
+# session プラグインの SessionStart hook (hooks/hooks.json) から実行する。compose ファイルか docker が無ければ何もしない。
 # stdout は Claude のコンテキストに入るため、ビルドと起動の進捗は stderr に回し、起動できなかったことだけを伝える
 set -uo pipefail
 
@@ -22,17 +22,17 @@ done
 # build のあるサービスに secret の ca-certificates を足す compose ファイルを作り、COMPOSE_FILE で重ねる。
 # Dockerfile は RUN --mount=type=secret,id=ca-certificates,... で受け取る (受け取らなければ何も変わらない)。
 # Web の Compose はビルドに Bake を使い、Bake は作業ディレクトリの外のファイルを読むときに許可 (--allow=fs.read) を求めて止まる。
-# そのため CA をプロジェクトの中 (.claude/stack/) にコピーし、git には info/exclude で無視させる。docker compose はリポジトリのルートで実行する
+# そのため CA をプロジェクトの中 (.claude/session/) にコピーし、git には info/exclude で無視させる。docker compose はリポジトリのルートで実行する
 add_proxy_ca() {
-  local dir="$PWD/.claude/stack" files="$PWD/$compose" override exclude
+  local dir="$PWD/.claude/session" files="$PWD/$compose" override exclude
   if [ -z "${SSL_CERT_FILE:-}" ] || ! command -v jq > /dev/null; then
     echo "⚠️ start-services: SSL_CERT_FILE か jq が無いため、ビルドにプロキシの CA を渡しません" >&2
     return 0
   fi
   mkdir -p "$dir" && cp "$SSL_CERT_FILE" "$dir/proxy-ca.crt" || return 0
   exclude=$(git rev-parse --git-path info/exclude 2> /dev/null) &&
-    ! grep -qxF /.claude/stack/ "$exclude" 2> /dev/null &&
-    mkdir -p "$(dirname "$exclude")" && echo /.claude/stack/ >> "$exclude"
+    ! grep -qxF /.claude/session/ "$exclude" 2> /dev/null &&
+    mkdir -p "$(dirname "$exclude")" && echo /.claude/session/ >> "$exclude"
 
   # COMPOSE_FILE を設定すると、compose は override のファイル (compose.override.yaml など) を読まなくなるため、あれば並べる
   override="${compose%.*}.override.${compose##*.}"
