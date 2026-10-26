@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Claude が作業を終える前に、変更したファイルが lint・整形・型チェックを通るか確かめる。
+# Claude が作業を終える前に、変更したファイルが lint・整形・型チェックを通るか、使っていないコード・依存や import の規約の違反が無いか確かめる。
 # 通らなければ exit 2 で結果 (stderr) を Claude に返し、作業を続けて直させる。
 # stack プラグインの Stop hook (hooks/hooks.json) から実行する。道具 (node_modules・.venv) が無い dir は確かめない
 set -uo pipefail
@@ -50,16 +50,18 @@ run() { # <dir> <コマンド>...  失敗したら、出力を report に足す
   local dir=$1
   shift
   (cd "$dir" && "$@") > "$out" 2>&1 && return 0
-  { echo "### ${dir}: ${1##*/} $2"; head -n 100 "$out"; echo; } >> "$report"
+  { echo "### ${dir}: ${1##*/} ${2:-}"; head -n 100 "$out"; echo; } >> "$report"
 }
 
-# JavaScript / TypeScript: Biome と tsc
+# JavaScript / TypeScript: Biome・knip・tsc
 pairs=$(group node_modules/.bin/biome '\.(jsx?|tsx?|[cm][jt]s|jsonc?|css|graphql)$')
 while IFS= read -r dir <&3; do
   [ -n "$dir" ] || continue
   files=()
   while IFS= read -r f; do files+=("$f"); done < <(files_in "$pairs" "$dir")
   run "$dir" node_modules/.bin/biome check --no-errors-on-unmatched "${files[@]}"
+  # 使っていないファイル・export・依存: knip。プロジェクト全体を確かめる (CI でも確かめるため、元からの違反は無い前提)
+  [ -x "$dir/node_modules/.bin/knip" ] && run "$dir" node_modules/.bin/knip
 
   [ -f "$dir/tsconfig.json" ] && [ -x "$dir/node_modules/.bin/tsc" ] || continue
   # Next.js のルートの型 (next-env.d.ts など) は gitignore されていることが多いため、型チェックの前に作る
@@ -70,7 +72,7 @@ while IFS= read -r dir <&3; do
   [ -z "$errors" ] || printf '### %s: tsc --noEmit\n%s\n\n' "$dir" "$(head -n 100 <<< "$errors")" >> "$report"
 done 3< <(cut -f1 <<< "$pairs" | uniq)
 
-# Python: Ruff と Pyright
+# Python: Ruff・Pyright・deptry・lint-imports
 pairs=$(group .venv/bin/ruff '\.pyi?$')
 while IFS= read -r dir <&3; do
   [ -n "$dir" ] || continue
@@ -80,11 +82,17 @@ while IFS= read -r dir <&3; do
   run "$dir" .venv/bin/ruff check --force-exclude "${files[@]}"
   run "$dir" .venv/bin/ruff format --check --force-exclude "${files[@]}"
   [ -x "$dir/.venv/bin/pyright" ] && run "$dir" .venv/bin/pyright "${files[@]}"
+  # 依存の過不足 (deptry) と import の規約 (lint-imports、設定があるときだけ)。プロジェクト全体を確かめる (CI でも確かめるため、元からの違反は無い前提)
+  [ -x "$dir/.venv/bin/deptry" ] && run "$dir" .venv/bin/deptry .
+  if [ -x "$dir/.venv/bin/lint-imports" ] &&
+    { grep -q '^\[tool\.importlinter' "$dir/pyproject.toml" 2> /dev/null || [ -f "$dir/.importlinter" ]; }; then
+    run "$dir" .venv/bin/lint-imports
+  fi
 done 3< <(cut -f1 <<< "$pairs" | uniq)
 
 [ -s "$report" ] || exit 0
 {
-  echo "変更したファイルが lint・整形・型チェックを通りません。直してから終えてください。"
+  echo "変更したファイルが lint・整形・型チェック・使っていないコードと依存 (knip・deptry)・import の規約 (lint-imports) の検査を通りません。直してから終えてください。"
   echo "自動で直せるもの: Biome は biome check --write、Ruff は ruff check --fix と ruff format"
   echo
   head -n 200 "$report"

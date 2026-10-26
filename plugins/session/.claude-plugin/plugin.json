@@ -2,7 +2,7 @@
   "name": "session",
   "displayName": "FastShip セッションプラグイン",
   "version": "0.1.0",
-  "description": "どの技術スタックでも使う。Claude Code on the web のセッションの準備と、作業を終える前のシークレット・脆弱性の検査",
+  "description": "どの技術スタックでも使う。Claude Code on the web のセッションの準備と、作業を終える前のシークレット・脆弱性の検査 (gitleaks・trivy・semgrep)",
   "repository": "https://github.com/theindiehacker/fastship-plugin",
-  "keywords": ["session", "docker", "mise", "gitleaks", "trivy", "hooks"]
+  "keywords": ["session", "docker", "mise", "gitleaks", "trivy", "semgrep", "hooks"]
 }

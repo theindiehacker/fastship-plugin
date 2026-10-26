@@ -17,9 +17,9 @@
     {
       "name": "session",
       "source": "./plugins/session",
-      "description": "どの技術スタックでも使う、Claude Code on the web のセッションの準備 (ツール・依存・Docker) と、作業を終える前のシークレット・脆弱性の検査",
+      "description": "どの技術スタックでも使う、Claude Code on the web のセッションの準備 (ツール・依存・Docker) と、作業を終える前のシークレット・脆弱性の検査 (gitleaks・trivy・semgrep)",
       "category": "development",
-      "keywords": ["session", "docker", "mise", "gitleaks", "trivy", "hooks"]
+      "keywords": ["session", "docker", "mise", "gitleaks", "trivy", "semgrep", "hooks"]
     },
     {
       "name": "stack",
