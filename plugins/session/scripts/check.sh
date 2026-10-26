@@ -6,18 +6,29 @@ set -uo pipefail
 
 input=$(cat)
 
-# 作業を続けさせた直後 (stop_hook_active) でも、続けさせたのが別の hook (stack の lint など) なら確かめる。
-# この hook 自身が一度止めた後は確かめない (直せないときに終わらなくなるのを防ぐ)。jq が無い環境でも判定できるよう、JSON は grep で見る
-sid=$(grep -o '"session_id" *: *"[^"]*"' <<< "$input" | sed 's/.*"\([^"]*\)"$/\1/')
-mark="${TMPDIR:-/tmp}/claude-session-check-blocked-${sid:-unknown}"
-if grep -Eq '"stop_hook_active" *: *true' <<< "$input"; then
-  [ -e "$mark" ] && exit 0
-else
-  rm -f "$mark"
-fi
-
 top=$(git -C "${CLAUDE_PROJECT_DIR:-.}" rev-parse --show-toplevel 2> /dev/null) || exit 0
 cd "$top" || exit 0
+
+# 止めた印と、前回通った状態を、セッションごとに覚える。ほかのユーザーが書き換えられないよう、/tmp ではなく .git の中 (0700) に置く。
+# session_id が無いか想定外の文字を含むときは覚えない。jq が無い環境でも読めるよう、JSON は grep で見る
+sid=$(grep -o '"session_id" *: *"[^"]*"' <<< "$input" | sed 's/.*"\([^"]*\)"$/\1/')
+case $sid in '' | *[!A-Za-z0-9_-]*) sid="" ;; esac
+mark=""
+passed=""
+state_dir=$(git rev-parse --git-path claude-hooks 2> /dev/null)
+if [ -n "$sid" ] && [ -n "$state_dir" ] && { [ -d "$state_dir" ] || mkdir -m 700 "$state_dir" 2> /dev/null; }; then
+  find "$state_dir" -type f -mtime +7 -delete 2> /dev/null
+  mark="$state_dir/session-check-blocked-$sid"
+  passed="$state_dir/session-check-passed-$sid"
+fi
+
+# 作業を続けさせた直後 (stop_hook_active) でも、続けさせたのが別の hook (stack の lint など) なら確かめる。
+# この hook 自身が一度止めた後は確かめない (直せないときに終わらなくなるのを防ぐ)。印を使えないときは、続けさせた直後はいつも確かめない
+if grep -Eq '"stop_hook_active" *: *true' <<< "$input"; then
+  { [ -z "$mark" ] || [ -e "$mark" ]; } && exit 0
+elif [ -n "$mark" ]; then
+  rm -f "$mark"
+fi
 
 # Claude がセッション中にコミット・push したものも確かめるよう、デフォルトブランチから分かれた点 (base) からの変更を見る
 base=""
@@ -44,8 +55,7 @@ state=$({
   git diff HEAD 2> /dev/null
   git ls-files --others --exclude-standard -z | xargs -0 -r sha256sum 2> /dev/null
 } | sha256sum | cut -d' ' -f1)
-passed="${TMPDIR:-/tmp}/claude-session-check-passed-${sid:-unknown}"
-[ "$(cat "$passed" 2> /dev/null)" = "$state" ] && exit 0
+[ -n "$passed" ] && [ "$(cat "$passed" 2> /dev/null)" = "$state" ] && exit 0
 
 # CLAUDE_ENV_FILE の PATH は Bash にしか効かないため、Web で session-start.sh が mise で入れた道具をここで使えるようにする
 export PATH="${MISE_DATA_DIR:-${HOME}/.local/share/mise}/shims:${HOME}/.local/bin:${PATH}"
@@ -53,7 +63,12 @@ export PATH="${MISE_DATA_DIR:-${HOME}/.local/share/mise}/shims:${HOME}/.local/bi
 # Stop の hook の上限 (600 秒) より前に終えるよう、全体の締め切りを決め、各検査には残りの時間だけを渡す
 DEADLINE=$(($(date +%s) + 540))
 left() { echo $((DEADLINE - $(date +%s))); }
-warn() { echo "⚠️ check: $*" >&2; }
+# 道具の失敗や時間切れで確かめきれなかったときは、通ったと覚えない (次の Stop で確かめ直す)
+incomplete=""
+warn() {
+  incomplete=1
+  echo "⚠️ check: $*" >&2
+}
 
 report=$(mktemp)
 out=$(mktemp)
@@ -129,11 +144,11 @@ if gitleaks version > /dev/null 2>&1 && [ "$(left)" -gt 0 ]; then
 fi
 
 if [ ! -s "$report" ]; then
-  rm -f "$mark"
-  echo "$state" > "$passed"
+  [ -z "$mark" ] || rm -f "$mark"
+  [ -z "$passed" ] || [ -n "$incomplete" ] || echo "$state" > "$passed"
   exit 0
 fi
-touch "$mark"
+[ -z "$mark" ] || touch "$mark"
 {
   echo "変更がシークレット・脆弱性の検査を通りません。直してから終えてください。"
   echo "シークレットはファイルから消してください。コミット済みのものは、キーを無効にして履歴から消す必要があるため、ユーザーに伝えてください。"

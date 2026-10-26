@@ -6,18 +6,26 @@ set -uo pipefail
 
 input=$(cat)
 
-# 作業を続けさせた直後 (stop_hook_active) でも、続けさせたのが別の hook (session のシークレットの検査など) なら確かめる。
-# この hook 自身が一度止めた後は確かめない (直せないときに終わらなくなるのを防ぐ)。jq が無い環境でも判定できるよう、JSON は grep で見る
-sid=$(grep -o '"session_id" *: *"[^"]*"' <<< "$input" | sed 's/.*"\([^"]*\)"$/\1/')
-mark="${TMPDIR:-/tmp}/claude-stack-check-blocked-${sid:-unknown}"
-if grep -Eq '"stop_hook_active" *: *true' <<< "$input"; then
-  [ -e "$mark" ] && exit 0
-else
-  rm -f "$mark"
-fi
-
 top=$(git -C "${CLAUDE_PROJECT_DIR:-.}" rev-parse --show-toplevel 2> /dev/null) || exit 0
 cd "$top" || exit 0
+
+# 止めた印をセッションごとに覚える。ほかのユーザーが書き換えられないよう、/tmp ではなく .git の中 (0700) に置く。
+# session_id が無いか想定外の文字を含むときは覚えない。jq が無い環境でも読めるよう、JSON は grep で見る
+sid=$(grep -o '"session_id" *: *"[^"]*"' <<< "$input" | sed 's/.*"\([^"]*\)"$/\1/')
+case $sid in '' | *[!A-Za-z0-9_-]*) sid="" ;; esac
+mark=""
+state_dir=$(git rev-parse --git-path claude-hooks 2> /dev/null)
+if [ -n "$sid" ] && [ -n "$state_dir" ] && { [ -d "$state_dir" ] || mkdir -m 700 "$state_dir" 2> /dev/null; }; then
+  mark="$state_dir/stack-check-blocked-$sid"
+fi
+
+# 作業を続けさせた直後 (stop_hook_active) でも、続けさせたのが別の hook (session のシークレットの検査など) なら確かめる。
+# この hook 自身が一度止めた後は確かめない (直せないときに終わらなくなるのを防ぐ)。印を使えないときは、続けさせた直後はいつも確かめない
+if grep -Eq '"stop_hook_active" *: *true' <<< "$input"; then
+  { [ -z "$mark" ] || [ -e "$mark" ]; } && exit 0
+elif [ -n "$mark" ]; then
+  rm -f "$mark"
+fi
 
 # コミットしていない変更 (新しいファイルを含み、消したファイルを除く)。質問に答えただけのときは何もしない。
 # 日本語などのパスがエスケープされないよう、core.quotePath を切る
@@ -103,10 +111,10 @@ while IFS= read -r dir <&3; do
 done 3< <(cut -f1 <<< "$pairs" | uniq)
 
 if [ ! -s "$report" ]; then
-  rm -f "$mark"
+  [ -z "$mark" ] || rm -f "$mark"
   exit 0
 fi
-touch "$mark"
+[ -z "$mark" ] || touch "$mark"
 {
   echo "変更したファイルが lint・整形・型チェック・使っていないコードと依存 (knip・deptry)・import の規約 (lint-imports) の検査を通りません。直してから終えてください。"
   echo "自動で直せるもの: Biome は biome check --write、Ruff は ruff check --fix と ruff format"
