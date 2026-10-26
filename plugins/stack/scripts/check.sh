@@ -1,18 +1,40 @@
 #!/usr/bin/env bash
-# Claude が作業を終える前に、変更したファイルが lint・整形・型チェックを通るか確かめる。
+# Claude が作業を終える前に、変更したファイルが lint・整形・型チェックを通るか、使っていないコード・依存や import の規約の違反が無いか確かめる。
 # 通らなければ exit 2 で結果 (stderr) を Claude に返し、作業を続けて直させる。
 # stack プラグインの Stop hook (hooks/hooks.json) から実行する。道具 (node_modules・.venv) が無い dir は確かめない
 set -uo pipefail
 
-# この hook で作業を続けさせた直後は確かめない (直せないときに終わらなくなるのを防ぐ)。
-# jq が無い環境でも判定できるよう、入力の JSON は grep で見る
-grep -Eq '"stop_hook_active" *: *true' && exit 0
+input=$(cat)
 
 top=$(git -C "${CLAUDE_PROJECT_DIR:-.}" rev-parse --show-toplevel 2> /dev/null) || exit 0
 cd "$top" || exit 0
 
-# コミットしていない変更 (新しいファイルを含み、消したファイルを除く)。質問に答えただけのときは何もしない
-changed=$({ git diff --name-only --diff-filter=d HEAD 2> /dev/null; git ls-files --others --exclude-standard; } | sort -u)
+# 止めた印をセッションごとに覚える。ほかのユーザーが書き換えられないよう、/tmp ではなく .git の中 (0700) に置く。
+# session_id が無いか想定外の文字を含むときは覚えない。jq が無い環境でも読めるよう、JSON は grep で見る
+sid=$(grep -o '"session_id" *: *"[^"]*"' <<< "$input" | sed 's/.*"\([^"]*\)"$/\1/')
+case $sid in '' | *[!A-Za-z0-9_-]*) sid="" ;; esac
+mark=""
+state_dir=$(git rev-parse --git-path claude-hooks 2> /dev/null)
+# session と stack の Stop は同時に動くため、片方の mkdir が負けても、できた dir を使う
+if [ -n "$sid" ] && [ -n "$state_dir" ] && { mkdir -m 700 "$state_dir" 2> /dev/null || [ -d "$state_dir" ]; }; then
+  find "$state_dir" -type f -mtime +7 -delete 2> /dev/null
+  mark="$state_dir/stack-check-blocked-$sid"
+fi
+
+# 作業を続けさせた直後 (stop_hook_active) でも、続けさせたのが別の hook (session のシークレットの検査など) なら確かめる。
+# この hook 自身が一度止めた後は確かめない (直せないときに終わらなくなるのを防ぐ)。印を使えないときは、続けさせた直後はいつも確かめない
+if grep -Eq '"stop_hook_active" *: *true' <<< "$input"; then
+  { [ -z "$mark" ] || [ -e "$mark" ]; } && exit 0
+elif [ -n "$mark" ]; then
+  rm -f "$mark"
+fi
+
+# コミットしていない変更 (新しいファイルを含み、消したファイルを除く)。質問に答えただけのときは何もしない。
+# 日本語などのパスがエスケープされないよう、core.quotePath を切る
+changed=$({
+  git -c core.quotePath=false diff --name-only --diff-filter=d HEAD 2> /dev/null
+  git -c core.quotePath=false ls-files --others --exclude-standard
+} | sort -u)
 [ -n "$changed" ] || exit 0
 
 # pyright (PyPI) が実行のたびに新しい版を PyPI に問い合わせ、警告を出すのを止める (版はリポジトリが固定する)
@@ -46,20 +68,50 @@ files_in() { # <group の出力> <dir>
   awk -F '\t' -v d="$2" '$1 == d { print $2 }' <<< "$1"
 }
 
+changed_names() { # <dir>  dir の中の変更したファイルを、dir からのパスと、Python の module 名 (lint-imports が出す) で出力する
+  local f rel
+  while IFS= read -r f; do
+    if [ "$1" = . ]; then
+      rel=$f
+    else
+      case $f in "$1"/*) rel=${f#"$1"/} ;; *) continue ;; esac
+    fi
+    echo "$rel"
+    case $rel in *.py | *.pyi)
+      rel=${rel%.py*}
+      rel=${rel%/__init__}
+      rel=${rel//\//.}
+      echo "$rel"
+      echo "${rel#*.}"
+      ;;
+    esac
+  done <<< "$changed"
+}
+
+run_changed() { # <dir> <コマンド>...  プロジェクト全体を確かめる道具。失敗したら、変更したファイルに関係する行だけを report に足す (元からある違反まで直させない)
+  local dir=$1 hits
+  shift
+  (cd "$dir" && "$@") > "$out" 2>&1 && return 0
+  hits=$(grep -F -f <(changed_names "$dir") "$out")
+  [ -z "$hits" ] || { echo "### ${dir}: ${1##*/} ${2:-}"; head -n 100 <<< "$hits"; echo; } >> "$report"
+}
+
 run() { # <dir> <コマンド>...  失敗したら、出力を report に足す
   local dir=$1
   shift
   (cd "$dir" && "$@") > "$out" 2>&1 && return 0
-  { echo "### ${dir}: ${1##*/} $2"; head -n 100 "$out"; echo; } >> "$report"
+  { echo "### ${dir}: ${1##*/} ${2:-}"; head -n 100 "$out"; echo; } >> "$report"
 }
 
-# JavaScript / TypeScript: Biome と tsc
+# JavaScript / TypeScript: Biome・knip・tsc
 pairs=$(group node_modules/.bin/biome '\.(jsx?|tsx?|[cm][jt]s|jsonc?|css|graphql)$')
 while IFS= read -r dir <&3; do
   [ -n "$dir" ] || continue
   files=()
   while IFS= read -r f; do files+=("$f"); done < <(files_in "$pairs" "$dir")
   run "$dir" node_modules/.bin/biome check --no-errors-on-unmatched "${files[@]}"
+  # 使っていないファイル・export・依存: knip。プロジェクト全体を確かめ、変更したファイルに関係するものだけを返す
+  [ -x "$dir/node_modules/.bin/knip" ] && run_changed "$dir" node_modules/.bin/knip
 
   [ -f "$dir/tsconfig.json" ] && [ -x "$dir/node_modules/.bin/tsc" ] || continue
   # Next.js のルートの型 (next-env.d.ts など) は gitignore されていることが多いため、型チェックの前に作る
@@ -70,7 +122,7 @@ while IFS= read -r dir <&3; do
   [ -z "$errors" ] || printf '### %s: tsc --noEmit\n%s\n\n' "$dir" "$(head -n 100 <<< "$errors")" >> "$report"
 done 3< <(cut -f1 <<< "$pairs" | uniq)
 
-# Python: Ruff と Pyright
+# Python: Ruff・Pyright・deptry・lint-imports
 pairs=$(group .venv/bin/ruff '\.pyi?$')
 while IFS= read -r dir <&3; do
   [ -n "$dir" ] || continue
@@ -80,11 +132,21 @@ while IFS= read -r dir <&3; do
   run "$dir" .venv/bin/ruff check --force-exclude "${files[@]}"
   run "$dir" .venv/bin/ruff format --check --force-exclude "${files[@]}"
   [ -x "$dir/.venv/bin/pyright" ] && run "$dir" .venv/bin/pyright "${files[@]}"
+  # 依存の過不足 (deptry) と import の規約 (lint-imports、設定があるときだけ)。プロジェクト全体を確かめ、変更したファイルに関係するものだけを返す
+  [ -x "$dir/.venv/bin/deptry" ] && run_changed "$dir" .venv/bin/deptry --no-ansi .
+  if [ -x "$dir/.venv/bin/lint-imports" ] &&
+    { grep -q '^\[tool\.importlinter' "$dir/pyproject.toml" 2> /dev/null || [ -f "$dir/.importlinter" ]; }; then
+    run_changed "$dir" .venv/bin/lint-imports
+  fi
 done 3< <(cut -f1 <<< "$pairs" | uniq)
 
-[ -s "$report" ] || exit 0
+if [ ! -s "$report" ]; then
+  [ -z "$mark" ] || rm -f "$mark"
+  exit 0
+fi
+[ -z "$mark" ] || touch "$mark"
 {
-  echo "変更したファイルが lint・整形・型チェックを通りません。直してから終えてください。"
+  echo "変更したファイルが lint・整形・型チェック・使っていないコードと依存 (knip・deptry)・import の規約 (lint-imports) の検査を通りません。直してから終えてください。"
   echo "自動で直せるもの: Biome は biome check --write、Ruff は ruff check --fix と ruff format"
   echo
   head -n 200 "$report"

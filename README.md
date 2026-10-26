@@ -64,9 +64,10 @@ flowchart LR
 /plugin marketplace add anthropics/claude-plugins-official
 /plugin marketplace add theindiehacker/fastship-plugin
 /plugin install dev@fastship
+/plugin install session@fastship
 ```
 
-dev は技術スタックに依存しません。bun / Biome・uv / Ruff / Pyright で開発するなら、`/plugin install stack@fastship` も実行します ([🧰 技術スタック](#-技術スタック-stack-プラグイン))。
+dev と session は技術スタックに依存しません ([🛫 セッション](#-セッション-session-プラグイン))。bun / Biome・uv / Ruff / Pyright で開発するなら、`/plugin install stack@fastship` も実行します ([🧰 技術スタック](#-技術スタック-stack-プラグイン))。
 
 ### 2. `/dev:setup` を実行する
 対象リポジトリで `/dev:setup` を実行します (別のリポジトリなら `/dev:setup owner/repo`)。ラベル・ルーティン 1 つ・テンプレート・Claude のレビューとセキュリティ監査の呼び出し (`.github/workflows/claude.yml`) を用意し、PR を作ります。[判断待ちの一覧](#-判断待ちの一覧) のリンクも伝えます。stack を入れていれば、技術スタックも入れるか聞きます。ほかの Claude のレビューが PR で自動で動くなら、二重になるので止めるか聞きます。導入済みなら最新版に更新します ([版を上げたとき](#版を上げたとき))。
@@ -87,13 +88,14 @@ dev は技術スタックに依存しません。bun / Biome・uv / Ruff / Pyrig
    {
      claude plugin marketplace add anthropics/claude-plugins-official &&
      claude plugin marketplace add theindiehacker/fastship-plugin &&
-     claude plugin install dev@fastship
-   } || echo "⚠️ dev@fastship を入れられませんでした" >&2
+     claude plugin install dev@fastship &&
+     claude plugin install session@fastship
+   } || echo "⚠️ dev@fastship・session@fastship を入れられませんでした" >&2
    ```
 
    ![セットアップスクリプトに貼る](docs/images/claude-2-setup-script.png)
 
-   setup で技術スタックを入れたなら、次の行も足します。stack は dev と一緒には入りません。
+   setup で技術スタックを入れたなら、次の行も足します。stack は dev と一緒には入りません (session は stack の依存として入ります)。
 
    ```bash
    claude plugin install stack@fastship || echo "⚠️ stack@fastship を入れられませんでした" >&2
@@ -125,13 +127,21 @@ Claude Code からも `/dev:issue` で起票できます。Slack (Claude Tag) �
 版の節に書いてあるときだけ行います。クラウド環境は Setup script の結果を約 7 日使い回すため、ほかの版は 7 日以内に入れ替わります。Setup script を変えると、次のセッションで作り直されます。
 
 1. [3. クラウド環境](#3-クラウド環境) の 1 と同じく、環境の ⚙️ を開く
-2. **セットアップスクリプト** の末尾に `# dev <版>` を足し (あれば版を書き換え)、**変更を保存**。版は [plugin.json](plugins/dev/.claude-plugin/plugin.json) の `version` です。stack だけ上がったときは `# stack <版>` を足します
+2. **セットアップスクリプト** の末尾に `# dev <版>` を足し (あれば版を書き換え)、**変更を保存**。版は [plugin.json](plugins/dev/.claude-plugin/plugin.json) の `version` です。session・stack だけ上がったときは `# session <版>`・`# stack <版>` を足します
 
    ![末尾に版を足す](docs/images/claude-4-setup-script-version.png)
 
 3. 次にルーティンが動いたら、https://claude.ai/code/routines の `{リポジトリ名} / FastShip` の **履歴** から、そのセッションを開く。`blocked.sh start` を実行した行を開き、パス (`.../fastship/dev/<版>`) が新しい版か確かめる
 
    ![スキルのパスで版を確かめる](docs/images/claude-5-skill-version.png)
+
+### 0.20.0 に上げたとき
+技術スタックによらない処理を、新しい [session プラグイン](#-セッション-session-プラグイン) にまとめました。Web のセッションの準備 (ツール・依存・Docker の起動) と、作業を終える前の gitleaks・trivy・semgrep の検査です。stack 0.1 の SessionStart (ツール・依存の導入) は session に移り、stack 0.2.0 は session に依存します。Web のセッション開始で通信が止まっても、待ち続けずにやり直します。
+
+1. ローカルで stack を入れているなら、`/plugin install session@fastship` を実行します。stack を 0.2.0 に更新しても session は入らず、依存が足りないエラーになります
+2. `/dev:setup` を実行し直し、作った PR をマージします。`.claude/settings.json` の `enabledPlugins` に `"session@fastship": true` を、`mise.toml` に gitleaks・trivy・uv (session の検査が使う) を足します
+3. リポジトリに同じことをする hook (compose の起動、gitleaks・trivy・semgrep の検査、mise・依存の導入) があれば消します。両方あると、同じ処理が 2 回、同時に動きます
+4. [3. クラウド環境](#3-クラウド環境) のとおり、Setup script に `claude plugin install session@fastship` を足し、[クラウド環境を作り直します](#クラウド環境を作り直す) (`# dev 0.20.0`)
 
 ### 0.19.0 に上げたとき
 月 1 回、Claude がリポジトリ全体をセキュリティ監査し、前からある問題を `security-audit` ラベルの Issue にするようにしました (github-workflows の v2.3.0 以降)。
@@ -319,20 +329,33 @@ Claude のレビューはルーティンではなく Actions で動くので、�
 
 Sub Issue は、PR がマージされるまで `claude:implement` が付いたままなので、PR がマージを待つ間も `⏳ 進行中` に載ります。止まっているかは、PR を見て確かめてください。PR が Draft のまま 10 分以上進まないときは、Sub Issue の `claude:implement` を外して付け直すと、実装が PR を Ready にして引き継ぎます。
 
-## 🧰 技術スタック (stack プラグイン)
+## 🛫 セッション (session プラグイン)
 
-`stack` は、使うリポジトリだけが入れるプラグインです。dev とは別に入れます。bun / Biome・uv / Ruff / Pyright・shadcn/ui・Tailwind CSS で開発するリポジトリに、次を配ります。
+`session` は、技術スタックによらず、どのリポジトリにも入れるプラグインです。セッションの始めに環境を整え、終わりに安全を確かめます。
 
 | 配るもの | 内容 |
 |:--|:--|
-| 🚀 SessionStart | Claude Code on the web で、mise のツールと、`bun.lock`・`uv.lock` の依存を入れ、lefthook の Git フック (pre-commit) を設定する |
+| 🚀 SessionStart | Claude Code on the web で、mise のツールと、lock ファイル (`bun.lock`・`uv.lock`) の依存を入れ、lefthook の Git フック (pre-commit) を設定する。その後、compose ファイルがあれば、Docker を起動してサービスを立ち上げる (`docker compose up --build -d --wait`)。通信が止まったら打ち切ってやり直し、hook の上限 (600 秒) より前に終える。セッションの開始と再開でだけ動く (compact・clear では動かない) |
+| ✔️ Stop | 変更が gitleaks (シークレット)・trivy (依存の脆弱性・IaC の設定ミス)・semgrep (コードの脆弱性) を通るまで、作業を続けさせる。デフォルトブランチから分かれた後の変更 (セッション中にコミット・push したものを含む) を確かめる。trivy は変更した lock ファイルと IaC (Dockerfile・`*.tf`・compose ファイル) だけを確かめる |
+
+ - SessionStart は Web でだけ動きます。プラグインの hook は開いたどのリポジトリでも動くため、ローカルでは信頼していないリポジトリのイメージをビルド・実行しないよう、compose を起動しません
+ - hook は、道具と設定 (`mise.toml`・lock ファイル・compose ファイルなど) があるリポジトリでだけ動きます。検査の道具 (gitleaks・trivy・uv) は、`/dev:setup` が `mise.toml` に入れます
+ - compose のファイルは、セッションの開始時に読んだもので `COMPOSE_FILE` を決めます。セッションの途中で build のあるサービスの名前を変えたり消したりしたら、セッションを開き直してください
+ - Web のプロキシは TLS を検査するため、イメージのビルドに、プロキシの CA を build の secret `ca-certificates` で渡します。Dockerfile では `RUN --mount=type=secret,id=ca-certificates,target=/etc/ssl/certs/ca-certificates.crt uv sync` のように受け取ります。Web では `docker compose` をリポジトリのルートで実行してください。サブディレクトリからだと、ビルドが CA の読み込みの許可待ちで止まります
+
+## 🧰 技術スタック (stack プラグイン)
+
+`stack` は、使うリポジトリだけが入れるプラグインです。dev とは別に入れます (session は依存として入ります)。bun / Biome・uv / Ruff / Pyright・shadcn/ui・Tailwind CSS で開発するリポジトリに、次を配ります。
+
+| 配るもの | 内容 |
+|:--|:--|
 | 🚫 PreToolUse | bun・uv のリポジトリで npm・pip などを止め、bun・uv を使わせる |
 | ✏️ PostToolUse | Claude が編集したファイルを Biome・Ruff で整形する |
-| ✔️ Stop | 変更したファイルが Biome・tsc・Ruff・Pyright を通るまで、作業を続けさせる |
+| ✔️ Stop | 変更したファイルが Biome・tsc・Ruff・Pyright を通り、knip (使っていないコード・依存)・deptry (Python の依存の過不足)・lint-imports (import の規約) の違反が無くなるまで、作業を続けさせる。knip・deptry・lint-imports はプロジェクト全体を確かめる |
 | 🎨 `/stack:ui` | shadcn/ui・Tailwind CSS の書き方 |
-| 📚 依存 | Context7 (版に合ったドキュメント)・pyright-lsp (編集した直後の型エラー) |
+| 📚 依存 | session (Web で、hook が使う依存を入れる)・Context7 (版に合ったドキュメント)・pyright-lsp (編集した直後の型エラー) |
 
 1. ローカルで `/plugin install stack@fastship` を実行してから、`/dev:setup` で技術スタックを入れると答えます。setup が `/stack:setup` で道具と設定を入れ、リポジトリの `.claude/settings.json` で stack を有効にします。
 2. クラウド環境のセットアップスクリプトに、`claude plugin install stack@fastship` の行を足します ([3. クラウド環境](#3-クラウド環境))。
 
-hook は、道具と設定 (`mise.toml`・lock ファイル・`node_modules` の Biome・`.venv` の Ruff など) があるリポジトリでだけ動きます。ローカルで pyright-lsp を使うには、`pyright-langserver` を PATH に入れてください (例: `uv tool install pyright`)。
+hook は、道具と設定 (`node_modules` の Biome・knip、`.venv` の Ruff・deptry・lint-imports と `[tool.importlinter]` など) があるリポジトリでだけ動きます。ローカルで pyright-lsp を使うには、`pyright-langserver` を PATH に入れてください (例: `uv tool install pyright`)。

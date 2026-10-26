@@ -26,10 +26,16 @@ argument-hint: "[owner/repo]"
     }
   },
   "enabledPlugins": {
-    "dev@fastship": true
+    "dev@fastship": true,
+    "session@fastship": true
   }
 }
 ```
+
+session の Stop の hook は、gitleaks (シークレット)・trivy (依存の脆弱性・IaC の設定ミス)・uv (semgrep を uvx で動かす) を使います。無いと検査しません。技術スタックによらず、対象リポジトリの `mise.toml` の `[tools]` に足してください。
+
+ - `mise.toml` が無ければ作ります。既にあるツールと版は残します。足すツールは `mise latest <ツール>` の版に固定します
+ - `[settings]` に `experimental = true` と `lockfile = true` が無ければ足し、`mise install` の後に `mise lock` で `mise.lock` を作ります。Claude Code on the web は、lock の URL からツールを入れます
 
 ## 3. Issue / PR テンプレートの配置
 FastShip プラグインのテンプレートを、対象リポジトリにコピーしてください。2 の設定と一緒にコミットします。コピーは GitHub の UI で Issue / PR を作るときに使われます。スキルはプラグインのテンプレートを直接読みます。
@@ -138,13 +144,15 @@ flowchart LR
 {
   claude plugin marketplace add anthropics/claude-plugins-official &&
   claude plugin marketplace add theindiehacker/fastship-plugin &&
-  claude plugin install dev@fastship
-} || echo "⚠️ dev@fastship を入れられませんでした" >&2
+  claude plugin install dev@fastship &&
+  claude plugin install session@fastship
+} || echo "⚠️ dev@fastship・session@fastship を入れられませんでした" >&2
 ```
 
  - 1 行目は依存 (`security-guidance`。stack なら `context7`・`pyright-lsp` も) のためです。無いと `dev` が読み込まれません
+ - session は技術スタックによらず入れます。Web のセッションの準備 (ツール・依存・Docker の起動) と、作業を終える前の gitleaks・trivy・semgrep の検査を行います (semgrep は uv の uvx で動くため、uv も要ります)
  - Setup script は 0 以外で終わるとセッションが始まらないため、失敗しても警告だけ出します
- - 1 で `/stack:setup` を行ったら、次の行も足すよう案内してください。stack は dev と一緒には入りません。環境は他のリポジトリと共有しますが、stack の hook は道具と設定 (`mise.toml`・lock ファイル・`node_modules` の Biome・`.venv` の Ruff など) が無いリポジトリでは何もしません
+ - 1 で `/stack:setup` を行ったら、次の行も足すよう案内してください。stack は dev と一緒には入りません (session は stack の依存として入ります)。環境は他のリポジトリと共有しますが、stack の hook は道具と設定 (`mise.toml`・lock ファイル・`node_modules` の Biome・`.venv` の Ruff など) が無いリポジトリでは何もしません
 
 ```bash
 claude plugin install stack@fastship || echo "⚠️ stack@fastship を入れられませんでした" >&2
