@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
-# Claude が作業を終える前に、変更したファイルが lint・整形・型チェックを通るか確かめる。
+# Claude が作業を終える前に、変更したファイルが lint・整形・型チェックを通り、シークレットと脆弱性を含まないか確かめる。
 # 通らなければ exit 2 で結果 (stderr) を Claude に返し、作業を続けて直させる。
-# stack プラグインの Stop hook (hooks/hooks.json) から実行する。道具 (node_modules・.venv) が無い dir は確かめない
+# stack プラグインの Stop hook (hooks/hooks.json) から実行する。道具 (node_modules・.venv・gitleaks・trivy) が無ければ確かめない
 set -uo pipefail
 
 # この hook で作業を続けさせた直後は確かめない (直せないときに終わらなくなるのを防ぐ)。
@@ -18,9 +18,13 @@ changed=$({ git diff --name-only --diff-filter=d HEAD 2> /dev/null; git ls-files
 # pyright (PyPI) が実行のたびに新しい版を PyPI に問い合わせ、警告を出すのを止める (版はリポジトリが固定する)
 export PYRIGHT_PYTHON_IGNORE_WARNINGS=1
 
+# CLAUDE_ENV_FILE の PATH は Bash にしか効かないため、Web で session-start.sh が mise で入れた gitleaks・trivy をここで使えるようにする
+export PATH="${MISE_DATA_DIR:-${HOME}/.local/share/mise}/shims:${HOME}/.local/bin:${PATH}"
+
 report=$(mktemp)
 out=$(mktemp)
-trap 'rm -f "$report" "$out"' EXIT
+index=$(mktemp)
+trap 'rm -f "$report" "$out" "$index"' EXIT
 
 find_up() { # <ファイル> <相対パス>  ファイルの dir からリポジトリ直下までさかのぼり、<相対パス> がある dir を出力する
   local dir
@@ -82,10 +86,35 @@ while IFS= read -r dir <&3; do
   [ -x "$dir/.venv/bin/pyright" ] && run "$dir" .venv/bin/pyright "${files[@]}"
 done 3< <(cut -f1 <<< "$pairs" | uniq)
 
+# 依存の脆弱性と IaC の設定ミス: trivy。lock ファイルか IaC を変えた dir だけを確かめる (元からある問題まで直させない)。
+# 検知レベルは org の必須ワークフロー (github-workflows の trivy.yml) にそろえる。抑制は .trivyignore だけで行う
+if command -v trivy > /dev/null; then
+  while IFS= read -r dir; do
+    [ -n "$dir" ] || continue
+    # 脆弱性 DB の取得が止まっても待ち続けないよう、300 秒で打ち切る。打ち切ったときは直させない
+    timeout 300 trivy fs --quiet --scanners vuln,misconfig --severity MEDIUM,HIGH,CRITICAL --ignore-unfixed --exit-code 1 \
+      --skip-dirs '**/.venv' --skip-dirs '**/node_modules' "$dir" > "$out" 2>&1
+    case $? in
+      0) ;;
+      124) echo "⚠️ check: trivy が 300 秒で終わらなかったため、${dir} を確かめません" >&2 ;;
+      *) { echo "### ${dir}: trivy fs"; head -n 100 "$out"; echo; } >> "$report" ;;
+    esac
+  done < <(grep -E '(^|/)(bun\.lockb?|package-lock\.json|yarn\.lock|pnpm-lock\.yaml|uv\.lock|poetry\.lock|requirements[^/]*\.txt|go\.sum|Cargo\.lock|Gemfile\.lock|Dockerfile[^/]*|[^/]*\.tf|(docker-)?compose[^/]*\.ya?ml)$' <<< "$changed" |
+    while IFS= read -r f; do dirname "$f"; done | sort -u)
+fi
+
+# シークレット: gitleaks。gitleaks はステージした内容だけを検査するため、ステージしていない変更や新しいファイルも載せた
+# 一時的なインデックスを使う (本物のインデックスは変えない)。抑制は .gitleaksignore だけで行い、インラインの gitleaks:allow は効かせない
+if command -v gitleaks > /dev/null && cp "$(git rev-parse --git-path index)" "$index" 2> /dev/null; then
+  export GIT_INDEX_FILE="$index"
+  git add -A > /dev/null 2>&1 && run . gitleaks git --pre-commit --staged --redact --verbose --no-banner --no-color --ignore-gitleaks-allow
+fi
+
 [ -s "$report" ] || exit 0
 {
-  echo "変更したファイルが lint・整形・型チェックを通りません。直してから終えてください。"
+  echo "変更したファイルが lint・整形・型チェック・シークレットと脆弱性の検査を通りません。直してから終えてください。"
   echo "自動で直せるもの: Biome は biome check --write、Ruff は ruff check --fix と ruff format"
+  echo "gitleaks・trivy の誤検知は、.gitleaksignore・.trivyignore に書いてください"
   echo
   head -n 200 "$report"
 } >&2

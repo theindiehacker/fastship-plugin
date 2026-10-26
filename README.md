@@ -133,6 +133,12 @@ Claude Code からも `/dev:issue` で起票できます。Slack (Claude Tag) �
 
    ![スキルのパスで版を確かめる](docs/images/claude-5-skill-version.png)
 
+### stack 0.2.0 に上げたとき
+stack の hook が、compose のサービスの起動 (SessionStart) と、gitleaks・trivy の検査 (Stop) も行うようにしました。Web のセッション開始で通信が止まっても、待ち続けずにやり直します。
+
+1. リポジトリに同じことをする hook (compose の起動、gitleaks・trivy の検査、mise・依存の導入) があれば消し、`.claude/settings.json` の `enabledPlugins` に `"stack@fastship": true` が無ければ足します。両方あると、同じ処理が 2 回、同時に動きます
+2. [クラウド環境を作り直します](#クラウド環境を作り直す) (`# stack 0.2.0`)
+
 ### 0.19.0 に上げたとき
 月 1 回、Claude がリポジトリ全体をセキュリティ監査し、前からある問題を `security-audit` ラベルの Issue にするようにしました (github-workflows の v2.3.0 以降)。
 
@@ -325,14 +331,16 @@ Sub Issue は、PR がマージされるまで `claude:implement` が付いた�
 
 | 配るもの | 内容 |
 |:--|:--|
-| 🚀 SessionStart | Claude Code on the web で、mise のツールと、`bun.lock`・`uv.lock` の依存を入れ、lefthook の Git フック (pre-commit) を設定する |
+| 🚀 SessionStart | Claude Code on the web で、mise のツールと、`bun.lock`・`uv.lock` の依存を入れ、lefthook の Git フック (pre-commit) を設定する。compose ファイルがあれば、Web とローカルの両方でサービスを起動する (`docker compose up --build -d --wait`) |
 | 🚫 PreToolUse | bun・uv のリポジトリで npm・pip などを止め、bun・uv を使わせる |
 | ✏️ PostToolUse | Claude が編集したファイルを Biome・Ruff で整形する |
-| ✔️ Stop | 変更したファイルが Biome・tsc・Ruff・Pyright を通るまで、作業を続けさせる |
+| ✔️ Stop | 変更したファイルが Biome・tsc・Ruff・Pyright・gitleaks (シークレット)・trivy (依存の脆弱性・IaC の設定ミス) を通るまで、作業を続けさせる |
 | 🎨 `/stack:ui` | shadcn/ui・Tailwind CSS の書き方 |
 | 📚 依存 | Context7 (版に合ったドキュメント)・pyright-lsp (編集した直後の型エラー) |
 
 1. ローカルで `/plugin install stack@fastship` を実行してから、`/dev:setup` で技術スタックを入れると答えます。setup が `/stack:setup` で道具と設定を入れ、リポジトリの `.claude/settings.json` で stack を有効にします。
 2. クラウド環境のセットアップスクリプトに、`claude plugin install stack@fastship` の行を足します ([3. クラウド環境](#3-クラウド環境))。
 
-hook は、道具と設定 (`mise.toml`・lock ファイル・`node_modules` の Biome・`.venv` の Ruff など) があるリポジトリでだけ動きます。ローカルで pyright-lsp を使うには、`pyright-langserver` を PATH に入れてください (例: `uv tool install pyright`)。
+hook は、道具と設定 (`mise.toml`・lock ファイル・`node_modules` の Biome・`.venv` の Ruff・mise の gitleaks・trivy・compose ファイルなど) があるリポジトリでだけ動きます。trivy は、lock ファイルか IaC (Dockerfile・`*.tf`・compose ファイル) を変えた dir だけを確かめます。
+
+Web のプロキシは TLS を検査するため、stack はイメージのビルドに、プロキシの CA を build の secret `ca-certificates` で渡します。Dockerfile では `RUN --mount=type=secret,id=ca-certificates,target=/etc/ssl/certs/ca-certificates.crt uv sync` のように受け取ります。Web では `docker compose` をリポジトリのルートで実行してください。サブディレクトリからだと、ビルドが CA の読み込みの許可待ちで止まります。ローカルで pyright-lsp を使うには、`pyright-langserver` を PATH に入れてください (例: `uv tool install pyright`)。
