@@ -136,10 +136,10 @@ Claude Code からも `/dev:issue` で起票できます。Slack (Claude Tag) �
    ![スキルのパスで版を確かめる](docs/images/claude-5-skill-version.png)
 
 ### 0.20.0 に上げたとき
-技術スタックによらない処理を、新しい [session プラグイン](#-セッション-session-プラグイン) にまとめました。Web のセッションの準備 (ツール・依存・Docker の起動) と、作業を終える前の gitleaks・trivy の検査です。stack 0.1 の SessionStart (ツール・依存の導入) は session に移り、stack 0.2.0 は session に依存します。Web のセッション開始で通信が止まっても、待ち続けずにやり直します。
+技術スタックによらない処理を、新しい [session プラグイン](#-セッション-session-プラグイン) にまとめました。Web のセッションの準備 (ツール・依存・Docker の起動) と、作業を終える前の gitleaks・trivy・semgrep の検査です。stack 0.1 の SessionStart (ツール・依存の導入) は session に移り、stack 0.2.0 は session に依存します。Web のセッション開始で通信が止まっても、待ち続けずにやり直します。
 
-1. `/dev:setup` を実行し直し、作った PR をマージします。`.claude/settings.json` の `enabledPlugins` に `"session@fastship": true` を足します
-2. リポジトリに同じことをする hook (compose の起動、gitleaks・trivy の検査、mise・依存の導入) があれば消します。両方あると、同じ処理が 2 回、同時に動きます
+1. `/dev:setup` を実行し直し、作った PR をマージします。`.claude/settings.json` の `enabledPlugins` に `"session@fastship": true` を、`mise.toml` に gitleaks・trivy・uv (session の検査が使う) を足します
+2. リポジトリに同じことをする hook (compose の起動、gitleaks・trivy・semgrep の検査、mise・依存の導入) があれば消します。両方あると、同じ処理が 2 回、同時に動きます
 3. [3. クラウド環境](#3-クラウド環境) のとおり、Setup script に `claude plugin install session@fastship` を足し、[クラウド環境を作り直します](#クラウド環境を作り直す) (`# dev 0.20.0`)
 
 ### 0.19.0 に上げたとき
@@ -334,11 +334,12 @@ Sub Issue は、PR がマージされるまで `claude:implement` が付いた�
 
 | 配るもの | 内容 |
 |:--|:--|
-| 🚀 SessionStart | Claude Code on the web で、mise のツールと、lock ファイル (`bun.lock`・`uv.lock`) の依存を入れ、lefthook の Git フック (pre-commit) を設定する。compose ファイルがあれば、Docker を起動してサービスを立ち上げる (`docker compose up --build -d --wait`)。通信が止まったら打ち切ってやり直す |
-| ✔️ Stop | 変更が gitleaks (シークレット)・trivy (依存の脆弱性・IaC の設定ミス)・semgrep (コードの脆弱性) を通るまで、作業を続けさせる。trivy は、lock ファイルか IaC (Dockerfile・`*.tf`・compose ファイル) を変えた dir だけを、semgrep は変更したファイルだけを確かめる |
+| 🚀 SessionStart | Claude Code on the web で、mise のツールと、lock ファイル (`bun.lock`・`uv.lock`) の依存を入れ、lefthook の Git フック (pre-commit) を設定する。その後、compose ファイルがあれば、Docker を起動してサービスを立ち上げる (`docker compose up --build -d --wait`)。通信が止まったら打ち切ってやり直し、hook の上限 (600 秒) より前に終える。セッションの開始と再開でだけ動く (compact・clear では動かない) |
+| ✔️ Stop | 変更が gitleaks (シークレット)・trivy (依存の脆弱性・IaC の設定ミス)・semgrep (コードの脆弱性) を通るまで、作業を続けさせる。デフォルトブランチから分かれた後の変更 (セッション中にコミット・push したものを含む) を確かめる。trivy は変更した lock ファイルと IaC (Dockerfile・`*.tf`・compose ファイル) だけを確かめる |
 
  - SessionStart は Web でだけ動きます。プラグインの hook は開いたどのリポジトリでも動くため、ローカルでは信頼していないリポジトリのイメージをビルド・実行しないよう、compose を起動しません
- - hook は、道具と設定 (`mise.toml`・lock ファイル・compose ファイル・mise の gitleaks・trivy・semgrep を動かす uv など) があるリポジトリでだけ動きます
+ - hook は、道具と設定 (`mise.toml`・lock ファイル・compose ファイルなど) があるリポジトリでだけ動きます。検査の道具 (gitleaks・trivy・uv) は、`/dev:setup` が `mise.toml` に入れます
+ - compose のファイルは、セッションの開始時に読んだもので `COMPOSE_FILE` を決めます。セッションの途中で build のあるサービスの名前を変えたり消したりしたら、セッションを開き直してください
  - Web のプロキシは TLS を検査するため、イメージのビルドに、プロキシの CA を build の secret `ca-certificates` で渡します。Dockerfile では `RUN --mount=type=secret,id=ca-certificates,target=/etc/ssl/certs/ca-certificates.crt uv sync` のように受け取ります。Web では `docker compose` をリポジトリのルートで実行してください。サブディレクトリからだと、ビルドが CA の読み込みの許可待ちで止まります
 
 ## 🧰 技術スタック (stack プラグイン)

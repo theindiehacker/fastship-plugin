@@ -32,6 +32,11 @@ argument-hint: "[owner/repo]"
 }
 ```
 
+session の Stop の hook は、gitleaks (シークレット)・trivy (依存の脆弱性・IaC の設定ミス)・uv (semgrep を uvx で動かす) を使います。無いと検査しません。技術スタックによらず、対象リポジトリの `mise.toml` の `[tools]` に足してください。
+
+ - `mise.toml` が無ければ作ります。既にあるツールと版は残します。足すツールは `mise latest <ツール>` の版に固定します
+ - `[settings]` に `experimental = true` と `lockfile = true` が無ければ足し、`mise install` の後に `mise lock` で `mise.lock` を作ります。Claude Code on the web は、lock の URL からツールを入れます
+
 ## 3. Issue / PR テンプレートの配置
 FastShip プラグインのテンプレートを、対象リポジトリにコピーしてください。2 の設定と一緒にコミットします。コピーは GitHub の UI で Issue / PR を作るときに使われます。スキルはプラグインのテンプレートを直接読みます。
 

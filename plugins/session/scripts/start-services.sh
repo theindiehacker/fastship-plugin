@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Claude Code on the web のセッション開始時に、リポジトリ直下の compose ファイルのサービスを起動する。
-# session プラグインの SessionStart hook (hooks/hooks.json) から実行する。compose ファイルか docker が無ければ何もしない。
+# session-start.sh が、ツールと依存を入れた後に実行する (締め切りは SESSION_DEADLINE で受け取る)。compose ファイルか docker が無ければ何もしない。
 # stdout は Claude のコンテキストに入るため、ビルドと起動の進捗は stderr に回し、起動できなかったことだけを伝える
 set -uo pipefail
 
@@ -18,13 +18,17 @@ for f in compose.yaml compose.yml docker-compose.yaml docker-compose.yml; do
 done
 [ -n "$compose" ] && command -v docker > /dev/null || exit 0
 
+# hook の上限 (600 秒) より前に終えるよう、締め切りまでの残りの時間で打ち切る
+DEADLINE=${SESSION_DEADLINE:-$(($(date +%s) + 570))}
+left() { echo $((DEADLINE - $(date +%s))); }
+
 # Web のプロキシは TLS を検査するため、イメージのビルドにプロキシの CA を渡す。
 # build のあるサービスに secret の ca-certificates を足す compose ファイルを作り、COMPOSE_FILE で重ねる。
 # Dockerfile は RUN --mount=type=secret,id=ca-certificates,... で受け取る (受け取らなければ何も変わらない)。
 # Web の Compose はビルドに Bake を使い、Bake は作業ディレクトリの外のファイルを読むときに許可 (--allow=fs.read) を求めて止まる。
 # そのため CA をプロジェクトの中 (.claude/session/) にコピーし、git には info/exclude で無視させる。docker compose はリポジトリのルートで実行する
 add_proxy_ca() {
-  local dir="$PWD/.claude/session" files="$PWD/$compose" override exclude
+  local dir="$PWD/.claude/session" base files exclude f
   if [ -z "${SSL_CERT_FILE:-}" ] || ! command -v jq > /dev/null; then
     echo "⚠️ start-services: SSL_CERT_FILE か jq が無いため、ビルドにプロキシの CA を渡しません" >&2
     return 0
@@ -34,9 +38,26 @@ add_proxy_ca() {
     ! grep -qxF /.claude/session/ "$exclude" 2> /dev/null &&
     mkdir -p "$(dirname "$exclude")" && echo /.claude/session/ >> "$exclude"
 
-  # COMPOSE_FILE を設定すると、compose は override のファイル (compose.override.yaml など) を読まなくなるため、あれば並べる
-  override="${compose%.*}.override.${compose##*.}"
-  [ -f "$override" ] && files="$files:$PWD/$override"
+  # COMPOSE_FILE を設定すると、compose は既定のファイルを読まなくなる。そのため、compose が読むはずのファイルを先に並べる。
+  # 環境変数か .env の COMPOSE_FILE があればそれを、無ければ compose ファイルと、compose が選ぶ override (見つけた最初の 1 つ) を使う
+  base=${COMPOSE_FILE:-$(sed -n 's/^COMPOSE_FILE=//p' .env 2> /dev/null | tail -n 1 | tr -d "\"'")}
+  if [ -z "$base" ]; then
+    base=$compose
+    for f in compose.override.yaml compose.override.yml docker-compose.override.yaml docker-compose.override.yml; do
+      if [ -f "$f" ]; then
+        base="$base:$f"
+        break
+      fi
+    done
+  fi
+  # 後続の Bash がどの dir から実行しても同じファイルを読むよう絶対パスにし、前のセッション開始で足した overlay は除く
+  files=$(tr ':' '\n' <<< "$base" | grep -v '/\.claude/session/compose\.proxy-ca\.yaml$' |
+    while IFS= read -r f; do
+      case $f in
+        /*) echo "$f" ;;
+        ?*) echo "$PWD/$f" ;;
+      esac
+    done | paste -sd: -)
 
   # profiles で分けたサービスも、docker compose run で名指ししてビルドするため含める
   COMPOSE_FILE="$files" COMPOSE_PROFILES='*' docker compose config --format json 2> /dev/null |
@@ -63,6 +84,9 @@ add_proxy_ca
 # デーモンが応答するまで 30 秒まで待つ
 for _ in $(seq 30); do docker info > /dev/null 2>&1 && break; sleep 1; done
 
-docker compose up --build -d --wait >&2 ||
-  echo "${compose} のサービスを起動できませんでした。docker compose up --build -d --wait を実行し、エラーを確かめてください。"
+# イメージの取得・ビルドが止まったり、ヘルスチェックが通らないままだったりしても、締め切りで打ち切り、起動できなかったことを伝える
+sec=$(left)
+if [ "$sec" -le 30 ] || ! timeout -k 10 "$sec" docker compose up --build -d --wait --wait-timeout "$((sec - 10))" >&2; then
+  echo "${compose} のサービスを起動できませんでした (時間切れを含む)。docker compose up --build -d --wait を実行し、エラーを確かめてください。"
+fi
 exit 0

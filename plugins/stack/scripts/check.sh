@@ -4,15 +4,27 @@
 # stack プラグインの Stop hook (hooks/hooks.json) から実行する。道具 (node_modules・.venv) が無い dir は確かめない
 set -uo pipefail
 
-# この hook で作業を続けさせた直後は確かめない (直せないときに終わらなくなるのを防ぐ)。
-# jq が無い環境でも判定できるよう、入力の JSON は grep で見る
-grep -Eq '"stop_hook_active" *: *true' && exit 0
+input=$(cat)
+
+# 作業を続けさせた直後 (stop_hook_active) でも、続けさせたのが別の hook (session のシークレットの検査など) なら確かめる。
+# この hook 自身が一度止めた後は確かめない (直せないときに終わらなくなるのを防ぐ)。jq が無い環境でも判定できるよう、JSON は grep で見る
+sid=$(grep -o '"session_id" *: *"[^"]*"' <<< "$input" | sed 's/.*"\([^"]*\)"$/\1/')
+mark="${TMPDIR:-/tmp}/claude-stack-check-blocked-${sid:-unknown}"
+if grep -Eq '"stop_hook_active" *: *true' <<< "$input"; then
+  [ -e "$mark" ] && exit 0
+else
+  rm -f "$mark"
+fi
 
 top=$(git -C "${CLAUDE_PROJECT_DIR:-.}" rev-parse --show-toplevel 2> /dev/null) || exit 0
 cd "$top" || exit 0
 
-# コミットしていない変更 (新しいファイルを含み、消したファイルを除く)。質問に答えただけのときは何もしない
-changed=$({ git diff --name-only --diff-filter=d HEAD 2> /dev/null; git ls-files --others --exclude-standard; } | sort -u)
+# コミットしていない変更 (新しいファイルを含み、消したファイルを除く)。質問に答えただけのときは何もしない。
+# 日本語などのパスがエスケープされないよう、core.quotePath を切る
+changed=$({
+  git -c core.quotePath=false diff --name-only --diff-filter=d HEAD 2> /dev/null
+  git -c core.quotePath=false ls-files --others --exclude-standard
+} | sort -u)
 [ -n "$changed" ] || exit 0
 
 # pyright (PyPI) が実行のたびに新しい版を PyPI に問い合わせ、警告を出すのを止める (版はリポジトリが固定する)
@@ -90,7 +102,11 @@ while IFS= read -r dir <&3; do
   fi
 done 3< <(cut -f1 <<< "$pairs" | uniq)
 
-[ -s "$report" ] || exit 0
+if [ ! -s "$report" ]; then
+  rm -f "$mark"
+  exit 0
+fi
+touch "$mark"
 {
   echo "変更したファイルが lint・整形・型チェック・使っていないコードと依存 (knip・deptry)・import の規約 (lint-imports) の検査を通りません。直してから終えてください。"
   echo "自動で直せるもの: Biome は biome check --write、Ruff は ruff check --fix と ruff format"

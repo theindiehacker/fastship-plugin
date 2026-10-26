@@ -4,9 +4,6 @@ bun = "latest"
 node = "latest"
 uv = "latest"
 lefthook = "latest"
-# session プラグインの Stop の hook が、シークレット (gitleaks) と、依存の脆弱性・IaC の設定ミス (trivy) を確かめる
-gitleaks = "latest"
-trivy = "latest"
 
 [settings]
 experimental = true

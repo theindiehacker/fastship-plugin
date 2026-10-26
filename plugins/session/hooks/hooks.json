@@ -2,14 +2,11 @@
   "hooks": {
     "SessionStart": [
       {
+        "matcher": "startup|resume",
         "hooks": [
           {
             "type": "command",
-            "command": "bash \"${CLAUDE_PLUGIN_ROOT}/scripts/session-start.sh\""
-          },
-          {
-            "type": "command",
-            "command": "bash \"${CLAUDE_PLUGIN_ROOT}/scripts/start-services.sh\"",
+            "command": "bash \"${CLAUDE_PLUGIN_ROOT}/scripts/session-start.sh\"",
             "timeout": 600
           }
         ]
