@@ -178,12 +178,13 @@ gh api "repos/{owner/repo}/actions/organization-secrets" --jq '.secrets[].name'
 gh api "repos/{owner/repo}/actions/secrets" --jq '.secrets[].name'
 ```
 
- - 出なければ、レビューが何もせずに成功で終わり、epic ブランチへのマージも止まることを伝えてください。登録はユーザーに頼み、このセッションでは行いません。public リポジトリには登録しない方針です (fork の PR からトークンを読まれる恐れがあるため。github-workflows の `docs/SETUP.md` の 4.1)。
+ - 出なければ、レビューとセキュリティ監査 (下の 2) が何もせずに成功で終わり、epic ブランチへのマージも止まることを伝えてください。登録はユーザーに頼み、このセッションでは行いません。public リポジトリには登録しない方針です (fork の PR からトークンを読まれる恐れがあるため。github-workflows の `docs/SETUP.md` の 4.1)。
 2. 呼び出し側のワークフロー `.github/workflows/claude.yml` を、次の形にしてください。2・3 と同じコミットに入れます。
    - 無ければ、github-workflows の最新のリリースの `self-claude.yml` をコピーし、各 job の `uses: ./.github/workflows/<ファイル>` を `uses: theindiehacker/github-workflows/.github/workflows/<ファイル>@<sha>  # <タグ>` に書き換えます (下のコマンドで、タグ・sha・中身が出ます)。
    - あれば、`uses:` が最新のリリースより古ければ上げ、下の `if:` を足します。差分を見せて確認してください。
    - `on:` に `pull_request` の `types: [opened, ready_for_review]` を入れます。
    - `code-review`・`security-review` の job の `if:` を下にします。`security-review` の PR のイベントは、v2.2.0 以降の github-workflows が受け付けます。`claude:blocked` を除くのは、実装が人間に返すときにも PR を Ready にするためです。
+   - `on:` に `schedule` (`cron: '17 0 1 * *'`) と `workflow_dispatch:` を入れ、`security-audit` job を足します (最新のリリースの `self-claude.yml` からコピーし、`uses:` を書き換えます)。月 1 回、Claude がリポジトリ全体をセキュリティ監査し、PR のレビューでは見ない前からある問題を `security-audit` ラベルの Issue にします。v2.3.0 以降の github-workflows にあります。public リポジトリでは、指摘が公開されるため動きません。
 
 ```bash
 tag=$(gh api repos/theindiehacker/github-workflows/releases/latest --jq .tag_name)
