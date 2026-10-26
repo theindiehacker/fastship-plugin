@@ -44,6 +44,8 @@ graph LR;
 
 課題分析・リファインメント・実装は、ルーティン (claude.ai のサブスク) で動かします。PR のレビュー (⑨⑩) は、[github-workflows](https://github.com/theindiehacker/github-workflows) の Claude のレビュー (コードレビュー・セキュリティレビュー) が GitHub Actions で行います。claude[bot] として投稿するため、開発者のアカウントで作った PR にも Approve / Request changes を付けられ、マージしてよいかが PR で分かります。レビューが動いているか・止まったかは、PR の Checks に出ます。Actions の時間と、シークレットの Claude の認証情報を使います。CI (required workflow など) は push のたびに動くため、実装は CI とレビューの指摘への修正をまとめて 1 回で push します。
 
+PR のレビューは差分しか見ないため、月 1 回、Claude がリポジトリ全体をセキュリティ監査し (これも github-workflows・GitHub Actions)、前からある問題を `security-audit` ラベルの Issue にします。誤検知や許容するリスクは「Close as not planned」で閉じると、次回から起票されません。
+
 Sub Issue に分けた Issue は、Sub Issue の PR を epic ブランチにまとめ、開発者は最後の 1 回だけレビュー・マージします ([🌿 ブランチ](#-ブランチ))。
 
 ## 🚀 導入
@@ -67,7 +69,7 @@ flowchart LR
 dev は技術スタックに依存しません。bun / Biome・uv / Ruff / Pyright で開発するなら、`/plugin install stack@fastship` も実行します ([🧰 技術スタック](#-技術スタック-stack-プラグイン))。
 
 ### 2. `/dev:setup` を実行する
-対象リポジトリで `/dev:setup` を実行します (別のリポジトリなら `/dev:setup owner/repo`)。ラベル・ルーティン 1 つ・テンプレート・Claude のレビューの呼び出し (`.github/workflows/claude.yml`) を用意し、PR を作ります。[判断待ちの一覧](#-判断待ちの一覧) のリンクも伝えます。stack を入れていれば、技術スタックも入れるか聞きます。ほかの Claude のレビューが PR で自動で動くなら、二重になるので止めるか聞きます。導入済みなら最新版に更新します ([版を上げたとき](#版を上げたとき))。
+対象リポジトリで `/dev:setup` を実行します (別のリポジトリなら `/dev:setup owner/repo`)。ラベル・ルーティン 1 つ・テンプレート・Claude のレビューとセキュリティ監査の呼び出し (`.github/workflows/claude.yml`) を用意し、PR を作ります。[判断待ちの一覧](#-判断待ちの一覧) のリンクも伝えます。stack を入れていれば、技術スタックも入れるか聞きます。ほかの Claude のレビューが PR で自動で動くなら、二重になるので止めるか聞きます。導入済みなら最新版に更新します ([版を上げたとき](#版を上げたとき))。
 
 3 は API で設定できないため、setup が案内したら画面で設定します。
 
@@ -130,6 +132,12 @@ Claude Code からも `/dev:issue` で起票できます。Slack (Claude Tag) �
 3. 次にルーティンが動いたら、https://claude.ai/code/routines の `{リポジトリ名} / FastShip` の **履歴** から、そのセッションを開く。`blocked.sh start` を実行した行を開き、パス (`.../fastship/dev/<版>`) が新しい版か確かめる
 
    ![スキルのパスで版を確かめる](docs/images/claude-5-skill-version.png)
+
+### 0.19.0 に上げたとき
+月 1 回、Claude がリポジトリ全体をセキュリティ監査し、前からある問題を `security-audit` ラベルの Issue にするようにしました (github-workflows の v2.3.0 以降)。
+
+1. `/dev:setup` を実行し直し、作った PR をマージします。`.github/workflows/claude.yml` に `schedule`・`workflow_dispatch` と `security-audit` job を足します。`claude.yml` を変えると org の必須の zizmor が `issue_comment` の行を見るため、`.github/zizmor.yml` の除外の行がずれていれば直します (このファイルの変更にはセキュリティチームの承認が要ります)
+2. マージ後、Actions → **🧠 Claude** → **Run workflow** で一度動かし、Issue ができるか (指摘が無ければ「監査の指摘: 0 件」で終わります) を確かめます
 
 ### 0.18.0 に上げたとき
 PR のレビューを、ルーティン (`/dev:review`) から Actions の Claude のレビュー (github-workflows) に移しました。claude[bot] が Approve / Request changes を付けるので、マージしてよいかが PR で分かります。レビューが動いているか・止まったかは、PR の Checks に出ます。`/dev:review` と `claude:under-review` はやめました。
