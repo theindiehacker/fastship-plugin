@@ -51,8 +51,9 @@ install_mise() {
   sec=$(left)
   [ "$sec" -gt 0 ] || return 1
   tmp=$(mktemp) &&
-    # 30 秒の間 1 KB/s を下回ったら止まったとみなし、打ち切ってやり直す (遅いだけなら打ち切らない)。全体は残りの時間で打ち切る
-    curl -fsSL --connect-timeout 10 --speed-limit 1024 --speed-time 30 --retry 3 --max-time "$sec" --retry-max-time "$sec" -o "$tmp" \
+    # 30 秒の間 1 KB/s を下回ったら止まったとみなし、打ち切ってやり直す (遅いだけなら打ち切らない)。
+    # curl の --max-time は 1 回ごとの上限なので、やり直しを含めた全体は timeout で残りの時間に収める
+    timeout -k 10 "$sec" curl -fsSL --connect-timeout 10 --speed-limit 1024 --speed-time 30 --retry 3 -o "$tmp" \
       "https://github.com/jdx/mise/releases/download/${MISE_VERSION}/mise-${MISE_VERSION}-linux-x64" &&
     echo "${MISE_SHA256}  ${tmp}" | sha256sum -c --quiet - &&
     mkdir -p "$BIN_DIR" &&

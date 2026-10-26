@@ -60,11 +60,17 @@ add_proxy_ca() {
     done | paste -sd: -)
 
   # profiles で分けたサービスも、docker compose run で名指ししてビルドするため含める
-  COMPOSE_FILE="$files" COMPOSE_PROFILES='*' docker compose config --format json 2> /dev/null |
+  # 作るのに失敗したとき、前のセッション開始で作った overlay (COMPOSE_FILE が指す) を空にしないよう、一時ファイルに書いてから置き換える
+  if ! COMPOSE_FILE="$files" COMPOSE_PROFILES='*' docker compose config --format json 2> /dev/null |
     jq --arg ca "$dir/proxy-ca.crt" '{
       services: (.services | with_entries(select(.value.build) | .value = {build: {secrets: ["ca-certificates"]}})),
       secrets: {"ca-certificates": {file: $ca}}
-    }' > "$dir/compose.proxy-ca.yaml" || return 0
+    }' > "$dir/compose.proxy-ca.yaml.tmp"; then
+    rm -f "$dir/compose.proxy-ca.yaml.tmp"
+    echo "⚠️ start-services: compose の設定を読めないため、ビルドにプロキシの CA を渡しません" >&2
+    return 0
+  fi
+  mv "$dir/compose.proxy-ca.yaml.tmp" "$dir/compose.proxy-ca.yaml"
 
   export COMPOSE_FILE="$files:$dir/compose.proxy-ca.yaml"
   # Claude が実行する docker compose・task にも効くよう、後続の Bash に渡す。セッションの再開でも実行されるため、同じ行を重ねて書かない

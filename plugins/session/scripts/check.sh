@@ -16,7 +16,8 @@ case $sid in '' | *[!A-Za-z0-9_-]*) sid="" ;; esac
 mark=""
 passed=""
 state_dir=$(git rev-parse --git-path claude-hooks 2> /dev/null)
-if [ -n "$sid" ] && [ -n "$state_dir" ] && { [ -d "$state_dir" ] || mkdir -m 700 "$state_dir" 2> /dev/null; }; then
+# session と stack の Stop は同時に動くため、片方の mkdir が負けても、できた dir を使う
+if [ -n "$sid" ] && [ -n "$state_dir" ] && { mkdir -m 700 "$state_dir" 2> /dev/null || [ -d "$state_dir" ]; }; then
   find "$state_dir" -type f -mtime +7 -delete 2> /dev/null
   mark="$state_dir/session-check-blocked-$sid"
   passed="$state_dir/session-check-passed-$sid"
@@ -81,7 +82,7 @@ FOUND=3
 # 依存の脆弱性と IaC の設定ミス: trivy。変更した lock ファイルと IaC のファイルだけを確かめる (元からある問題まで直させない)。
 # 検知レベルは org の必須ワークフロー (github-workflows の trivy.yml) にそろえる。抑制は .trivyignore だけで行う。
 # mise の shim は、そのリポジトリで設定されていないと失敗するため、実際に動くかを確かめてから使う
-targets=$(grep -E '(^|/)(bun\.lockb?|package-lock\.json|yarn\.lock|pnpm-lock\.yaml|uv\.lock|poetry\.lock|requirements[^/]*\.txt|go\.sum|Cargo\.lock|Gemfile\.lock|Dockerfile[^/]*|[^/]*\.tf|(docker-)?compose[^/]*\.ya?ml)$' <<< "$changed")
+targets=$(grep -E '(^|/)(bun\.lockb?|package-lock\.json|yarn\.lock|pnpm-lock\.yaml|uv\.lock|poetry\.lock|requirements[^/]*\.txt|go\.mod|go\.sum|Cargo\.lock|Gemfile\.lock|Dockerfile[^/]*|[^/]*\.tf|(docker-)?compose[^/]*\.ya?ml)$' <<< "$changed")
 if [ -n "$targets" ] && trivy --version > /dev/null 2>&1; then
   # 脆弱性 DB は 1 回だけ取得し、各ファイルでは取得しない
   if timeout -k 10 "$(left)" trivy fs --download-db-only --quiet > "$out" 2>&1; then
@@ -105,10 +106,12 @@ if [ -n "$targets" ] && trivy --version > /dev/null 2>&1; then
 fi
 
 # コードの脆弱性 (SAST): semgrep。変更したファイルだけを確かめる。版は Renovate が上げる (renovate.json)。
-# 検知レベルは org の必須ワークフローにそろえる。抑制は .semgrepignore だけで行い、インラインの nosemgrep は効かせない
-if uvx --version > /dev/null 2>&1 && [ "$(left)" -gt 0 ]; then
+# 検知レベルは org の必須ワークフローにそろえる。抑制は .semgrepignore だけで行い、インラインの nosemgrep は効かせない。
+# 起動とルールの取得に時間がかかるため、コード以外 (文書・画像・lock など) だけを変えたときは動かさない
+code=$(grep -Ev '\.(md|mdx|txt|rst|png|jpe?g|gif|svg|ico|webp|pdf|csv|lock|lockb|woff2?|ttf|eot|mp4|mov|zip|gz)$' <<< "$changed")
+if [ -n "$code" ] && uvx --version > /dev/null 2>&1 && [ "$(left)" -gt 0 ]; then
   files=()
-  while IFS= read -r f; do files+=("$f"); done <<< "$changed"
+  while IFS= read -r f; do files+=("$f"); done <<< "$code"
   # semgrep は --error のとき、検出で 1 を返し、ルールを取得できないなどの失敗では 2 以上を返す
   timeout -k 10 "$(left)" uvx semgrep@1.181.0 scan --config p/default --severity ERROR --error --metrics off --disable-version-check \
     --disable-nosem --quiet "${files[@]}" > "$out" 2>&1
@@ -120,11 +123,13 @@ if uvx --version > /dev/null 2>&1 && [ "$(left)" -gt 0 ]; then
 fi
 
 # シークレット: gitleaks。コミットしていない変更と、base からのコミットを確かめる。
-# gitleaks はステージした内容だけを検査するため、ステージしていない変更や新しいファイルも載せた一時的なインデックスを使う (本物のインデックスは変えない)。
-# 抑制は .gitleaksignore だけで行い、インラインの gitleaks:allow は効かせない
+# HEAD だけを載せた一時的なインデックスに、新しいファイル (ステージ済みを含む) を intent-to-add で足し、作業ツリーとの差分 (ステージ済み・新しいファイルを含む) を調べる。
+# 本物のインデックスは変えず、新しいファイルの中身を .git に書き込まない。抑制は .gitleaksignore だけで行い、インラインの gitleaks:allow は効かせない
 if gitleaks version > /dev/null 2>&1 && [ "$(left)" -gt 0 ]; then
-  if cp "$(git rev-parse --git-path index)" "$index" 2> /dev/null && GIT_INDEX_FILE="$index" git add -A > /dev/null 2>&1; then
-    GIT_INDEX_FILE="$index" timeout -k 10 "$(left)" gitleaks git --pre-commit --staged --redact --verbose --no-banner --no-color \
+  if GIT_INDEX_FILE="$index" git read-tree HEAD 2> /dev/null &&
+    { git ls-files --others --exclude-standard -z; git diff --cached --name-only --diff-filter=A -z HEAD; } |
+    GIT_INDEX_FILE="$index" xargs -0 -r git add -N -- > /dev/null 2>&1; then
+    GIT_INDEX_FILE="$index" timeout -k 10 "$(left)" gitleaks git --pre-commit --redact --verbose --no-banner --no-color \
       --ignore-gitleaks-allow --exit-code "$FOUND" > "$out" 2>&1
     case $? in
       0) ;;
@@ -132,12 +137,24 @@ if gitleaks version > /dev/null 2>&1 && [ "$(left)" -gt 0 ]; then
       *) warn "gitleaks でコミットしていない変更を確かめられませんでした: $(tail -n 1 "$out")" ;;
     esac
   fi
+  # コミット済みのものは、履歴を書き換えるまで毎回見つかる。同じものでは止めないよう、このセッションで伝えた fingerprint を覚え、新しいものだけで止める
   if [ -n "$commits" ]; then
     timeout -k 10 "$(left)" gitleaks git --log-opts="$commits" --redact --verbose --no-banner --no-color \
       --ignore-gitleaks-allow --exit-code "$FOUND" > "$out" 2>&1
     case $? in
       0) ;;
-      "$FOUND") { echo "### gitleaks git (コミット済み: ${commits})"; head -n 100 "$out"; echo; } >> "$report" ;;
+      "$FOUND")
+        reported="${state_dir}/session-check-reported-${sid}"
+        found=$(sed -n 's/^Fingerprint: *//p' "$out" | sort -u)
+        new=$found
+        [ -z "$sid" ] || new=$(comm -23 <(echo "$found") <(sort -u "$reported" 2> /dev/null))
+        if [ -n "$new" ]; then
+          { echo "### gitleaks git (コミット済み: ${commits})"; head -n 100 "$out"; echo; } >> "$report"
+          [ -z "$sid" ] || echo "$new" >> "$reported"
+        else
+          echo "⚠️ check: コミット済みのシークレット (このセッションで伝え済み) が、まだ履歴に残っています" >&2
+        fi
+        ;;
       *) warn "gitleaks でコミット済みの変更を確かめられませんでした: $(tail -n 1 "$out")" ;;
     esac
   fi

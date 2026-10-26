@@ -15,7 +15,9 @@ sid=$(grep -o '"session_id" *: *"[^"]*"' <<< "$input" | sed 's/.*"\([^"]*\)"$/\1
 case $sid in '' | *[!A-Za-z0-9_-]*) sid="" ;; esac
 mark=""
 state_dir=$(git rev-parse --git-path claude-hooks 2> /dev/null)
-if [ -n "$sid" ] && [ -n "$state_dir" ] && { [ -d "$state_dir" ] || mkdir -m 700 "$state_dir" 2> /dev/null; }; then
+# session と stack の Stop は同時に動くため、片方の mkdir が負けても、できた dir を使う
+if [ -n "$sid" ] && [ -n "$state_dir" ] && { mkdir -m 700 "$state_dir" 2> /dev/null || [ -d "$state_dir" ]; }; then
+  find "$state_dir" -type f -mtime +7 -delete 2> /dev/null
   mark="$state_dir/stack-check-blocked-$sid"
 fi
 
@@ -66,6 +68,34 @@ files_in() { # <group の出力> <dir>
   awk -F '\t' -v d="$2" '$1 == d { print $2 }' <<< "$1"
 }
 
+changed_names() { # <dir>  dir の中の変更したファイルを、dir からのパスと、Python の module 名 (lint-imports が出す) で出力する
+  local f rel
+  while IFS= read -r f; do
+    if [ "$1" = . ]; then
+      rel=$f
+    else
+      case $f in "$1"/*) rel=${f#"$1"/} ;; *) continue ;; esac
+    fi
+    echo "$rel"
+    case $rel in *.py | *.pyi)
+      rel=${rel%.py*}
+      rel=${rel%/__init__}
+      rel=${rel//\//.}
+      echo "$rel"
+      echo "${rel#*.}"
+      ;;
+    esac
+  done <<< "$changed"
+}
+
+run_changed() { # <dir> <コマンド>...  プロジェクト全体を確かめる道具。失敗したら、変更したファイルに関係する行だけを report に足す (元からある違反まで直させない)
+  local dir=$1 hits
+  shift
+  (cd "$dir" && "$@") > "$out" 2>&1 && return 0
+  hits=$(grep -F -f <(changed_names "$dir") "$out")
+  [ -z "$hits" ] || { echo "### ${dir}: ${1##*/} ${2:-}"; head -n 100 <<< "$hits"; echo; } >> "$report"
+}
+
 run() { # <dir> <コマンド>...  失敗したら、出力を report に足す
   local dir=$1
   shift
@@ -80,8 +110,8 @@ while IFS= read -r dir <&3; do
   files=()
   while IFS= read -r f; do files+=("$f"); done < <(files_in "$pairs" "$dir")
   run "$dir" node_modules/.bin/biome check --no-errors-on-unmatched "${files[@]}"
-  # 使っていないファイル・export・依存: knip。プロジェクト全体を確かめる (CI でも確かめるため、元からの違反は無い前提)
-  [ -x "$dir/node_modules/.bin/knip" ] && run "$dir" node_modules/.bin/knip
+  # 使っていないファイル・export・依存: knip。プロジェクト全体を確かめ、変更したファイルに関係するものだけを返す
+  [ -x "$dir/node_modules/.bin/knip" ] && run_changed "$dir" node_modules/.bin/knip
 
   [ -f "$dir/tsconfig.json" ] && [ -x "$dir/node_modules/.bin/tsc" ] || continue
   # Next.js のルートの型 (next-env.d.ts など) は gitignore されていることが多いため、型チェックの前に作る
@@ -102,11 +132,11 @@ while IFS= read -r dir <&3; do
   run "$dir" .venv/bin/ruff check --force-exclude "${files[@]}"
   run "$dir" .venv/bin/ruff format --check --force-exclude "${files[@]}"
   [ -x "$dir/.venv/bin/pyright" ] && run "$dir" .venv/bin/pyright "${files[@]}"
-  # 依存の過不足 (deptry) と import の規約 (lint-imports、設定があるときだけ)。プロジェクト全体を確かめる (CI でも確かめるため、元からの違反は無い前提)
-  [ -x "$dir/.venv/bin/deptry" ] && run "$dir" .venv/bin/deptry .
+  # 依存の過不足 (deptry) と import の規約 (lint-imports、設定があるときだけ)。プロジェクト全体を確かめ、変更したファイルに関係するものだけを返す
+  [ -x "$dir/.venv/bin/deptry" ] && run_changed "$dir" .venv/bin/deptry --no-ansi .
   if [ -x "$dir/.venv/bin/lint-imports" ] &&
     { grep -q '^\[tool\.importlinter' "$dir/pyproject.toml" 2> /dev/null || [ -f "$dir/.importlinter" ]; }; then
-    run "$dir" .venv/bin/lint-imports
+    run_changed "$dir" .venv/bin/lint-imports
   fi
 done 3< <(cut -f1 <<< "$pairs" | uniq)
 

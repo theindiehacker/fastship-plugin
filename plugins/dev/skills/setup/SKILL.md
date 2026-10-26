@@ -150,7 +150,7 @@ flowchart LR
 ```
 
  - 1 行目は依存 (`security-guidance`。stack なら `context7`・`pyright-lsp` も) のためです。無いと `dev` が読み込まれません
- - session は技術スタックによらず入れます。Web のセッションの準備 (ツール・依存・Docker の起動) と、作業を終える前の gitleaks・trivy の検査を行います
+ - session は技術スタックによらず入れます。Web のセッションの準備 (ツール・依存・Docker の起動) と、作業を終える前の gitleaks・trivy・semgrep の検査を行います (semgrep は uv の uvx で動くため、uv も要ります)
  - Setup script は 0 以外で終わるとセッションが始まらないため、失敗しても警告だけ出します
  - 1 で `/stack:setup` を行ったら、次の行も足すよう案内してください。stack は dev と一緒には入りません (session は stack の依存として入ります)。環境は他のリポジトリと共有しますが、stack の hook は道具と設定 (`mise.toml`・lock ファイル・`node_modules` の Biome・`.venv` の Ruff など) が無いリポジトリでは何もしません
 
