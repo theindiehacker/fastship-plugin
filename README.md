@@ -331,7 +331,7 @@ Sub Issue は、PR がマージされるまで `claude:implement` が付いた�
 
 | 配るもの | 内容 |
 |:--|:--|
-| 🚀 SessionStart | Claude Code on the web で、mise のツールと、`bun.lock`・`uv.lock` の依存を入れ、lefthook の Git フック (pre-commit) を設定する。compose ファイルがあれば、Web とローカルの両方でサービスを起動する (`docker compose up --build -d --wait`) |
+| 🚀 SessionStart | Claude Code on the web で、mise のツールと、`bun.lock`・`uv.lock` の依存を入れ、lefthook の Git フック (pre-commit) を設定する。compose ファイルがあれば、Web でサービスを起動する (`docker compose up --build -d --wait`。ローカルでは、信頼していないリポジトリを動かさないよう起動しない) |
 | 🚫 PreToolUse | bun・uv のリポジトリで npm・pip などを止め、bun・uv を使わせる |
 | ✏️ PostToolUse | Claude が編集したファイルを Biome・Ruff で整形する |
 | ✔️ Stop | 変更したファイルが Biome・tsc・Ruff・Pyright・gitleaks (シークレット)・trivy (依存の脆弱性・IaC の設定ミス) を通るまで、作業を続けさせる |
