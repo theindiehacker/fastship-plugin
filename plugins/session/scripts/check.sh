@@ -53,7 +53,7 @@ fi
 [ -s "$report" ] || exit 0
 {
   echo "変更がシークレット・脆弱性の検査を通りません。直してから終えてください。"
-  echo "誤検知は、.gitleaksignore・.trivyignore に書いてください"
+  echo "シークレットはファイルから消してください。.gitleaksignore・.trivyignore に書いてよいのは、ユーザーが誤検知だと確かめたものだけです"
   echo
   head -n 200 "$report"
 } >&2
