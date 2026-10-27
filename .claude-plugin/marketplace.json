@@ -12,7 +12,7 @@
       "source": "./plugins/dev",
       "description": "全社共通の開発ワークフロー",
       "category": "workflow",
-      "keywords": ["workflow", "github"]
+      "keywords": ["workflow", "github", "shadcn"]
     },
     {
       "name": "session",

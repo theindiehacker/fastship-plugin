@@ -1,6 +1,6 @@
 ---
 name: setup
-description: 対象リポジトリに技術スタック (bun / Biome・uv / Ruff / Pyright・lefthook) の設定を入れる。既にある設定と違うときは、差分を見せて確認してから置き換える。org の必須ワークフローが求めるもの (knip など) があれば足す。/dev:setup から使う。使い方 → /stack:setup
+description: 対象リポジトリに技術スタック (bun / Biome・uv / Ruff / Pyright・lefthook・shadcn/ui) の設定を入れる。既にある設定と違うときは、差分を見せて確認してから置き換える。org の必須ワークフローが求めるもの (knip など) があれば足す。/dev:setup から使う。使い方 → /stack:setup
 ---
 
 # 🧰 技術スタックの導入
@@ -31,11 +31,14 @@ stack プラグインの hook (整形・lint・型チェック) は、ここで�
 ## 3. JavaScript / TypeScript (パッケージの dir ごと)
 1. bun に置き換えるなら、`bun install` で `bun.lock` を作り、元の lock ファイルを消してください。
 2. `bun add -d --exact @biomejs/biome` で Biome を入れ、`templates/biome.json` を `biome.json` に置いてください。
-   - `files.includes` の `!src/components/ui` は、`components.json` の `aliases.ui` のパスに合わせてください。shadcn/ui を使っていなければ消します。生成したコード (API クライアントなど) の dir があれば、同じように除外してください。
+   - `files.includes` の `!src/components/ui` は、`components.json` の `aliases.ui` のパスに合わせてください。shadcn/ui を使わないパッケージ (6 で入れないもの) なら消します。生成したコード (API クライアントなど) の dir があれば、同じように除外してください。
    - その dir に `.gitignore` が無いと Biome が止まります。`vcs.root` にリポジトリ直下への相対パス (例: `"../"`) を書いてください。
 3. ESLint・Prettier を置き換えるなら、`bunx biome migrate eslint --write` と `bunx biome migrate prettier --write` で設定を移してから、`bun remove` で外し、設定ファイルを消してください。
 4. `package.json` の `scripts` に `"lint": "biome check"` と `"format": "biome check --write"` を足してください。
 5. TypeScript のパッケージで `typescript` が devDependencies に無ければ、`bun add -d --exact typescript` で入れてください。hook と lefthook の tsc が使います。
+6. React のパッケージで `components.json` が無ければ、`bunx --bun shadcn@latest init -d` で shadcn/ui を入れてください。UI コンポーネントは shadcn/ui に揃えます。
+   - Tailwind CSS か import alias が無いと止まります。出たメッセージに従って入れてから、実行し直してください。
+   - 別の UI ライブラリ (MUI・Chakra UI・Ant Design など) を使っていれば、入れずにユーザーに伝えてください。置き換えは差分が大きいため、別の PR にします。
 
 ## 4. Python (パッケージの dir ごと)
 1. uv に置き換えるなら、Poetry は `uvx migrate-to-uv`、`requirements.txt` は `uv init --bare` と `uv add -r requirements.txt` で移してください。

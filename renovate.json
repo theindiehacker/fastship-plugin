@@ -17,12 +17,20 @@
       "matchStrings": ["uvx (?<depName>[a-zA-Z0-9._-]+)@(?<currentValue>[^\\s\"]+)"],
       "datasourceTemplate": "pypi",
       "versioningTemplate": "pep440"
+    },
+    {
+      "description": "plugins/*/.mcp.json で npx に版を固定した MCP サーバー (shadcn など) を更新する",
+      "customType": "regex",
+      "managerFilePatterns": ["/^plugins/[^/]+/\\.mcp\\.json$/"],
+      "matchStrings": ["\"(?<depName>[a-z0-9@/._-]+)@(?<currentValue>\\d+\\.\\d+\\.\\d+)\""],
+      "datasourceTemplate": "npm",
+      "versioningTemplate": "semver"
     }
   ],
   "packageRules": [
     {
       "description": "公開から 7 日たった版だけを取り込む。乗っ取られて悪意のあるコードを入れられた版は、公開から数日で見つかり取り下げられることが多い",
-      "matchDatasources": ["pypi"],
+      "matchDatasources": ["pypi", "npm"],
       "minimumReleaseAge": "7 days"
     }
   ]
