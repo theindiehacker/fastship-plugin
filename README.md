@@ -138,7 +138,7 @@ Claude Code からも `/dev:issue` で起票できます。Slack (Claude Tag) �
 ### 0.21.0 に上げたとき
 UI コンポーネントを shadcn/ui に揃えるため、stack に shadcn/ui の MCP サーバーを入れました ([🎨 UI](#-ui-shadcnui))。
 
-1. ローカルで `claude plugin update dev@fastship` を実行します。stack を入れていれば `claude plugin update stack@fastship` も実行し、Claude Code を開き直して、`/mcp` で `plugin:stack:shadcn` が connected か確かめます。MCP は bun で動くため、bun 1.4.4 以上が PATH に要ります。古い bun は `--minimum-release-age` を知らず、接続に失敗します (クラウドの環境の bun は 1.4.4)
+1. ローカルで `claude plugin update dev@fastship` を実行します。stack を入れていれば `claude plugin update stack@fastship` も実行し、Claude Code を開き直して、`/mcp` で `plugin:stack:shadcn` が connected か確かめます。MCP は bun で動くため、bun 1.4.4 以上が PATH に要ります。古い bun は `--minimum-release-age` を無視し、7 日待たずに動きます (クラウドの環境の bun は 1.4.4)
 2. stack を入れているリポジトリでは、`/dev:setup` を実行し直し、作った PR をマージします。`components.json` の無い React の Web アプリに、shadcn/ui を入れるか聞きます。`mise.toml` の bun が 1.4.4 より古ければ上げます (Web のセッションの Bash は、この bun を使います)
 3. [クラウド環境を作り直します](#クラウド環境を作り直す) (`# dev 0.21.0`。stack も入れていれば `# stack 0.3.0`)
 
