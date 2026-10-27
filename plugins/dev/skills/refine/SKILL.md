@@ -64,7 +64,7 @@ gh api --paginate "repos/{owner}/{repo}/issues/123/dependencies/blocked_by" --jq
  - 要件 (機能要件・非機能要件) は、どれも 1 つ以上の Sub Issue の 完了条件 に入れてください。非機能要件は、当てはまる Sub Issue すべての 完了条件 に入れます。実装は完了条件ごとにテストか動作確認で確かめるため、どこにも入らない要件は確かめられません。
  - 見本があれば、見本で見せたもの (画面の場面・API・ツール・構成) も、どれも 1 つ以上の Sub Issue の 完了条件 に入れてください。書き方は `- 見本 (#<見本の PR> の <sha の先頭 7 桁>) の <場面・API など> と同じ <構成と文言 / 入出力 / リソース> になっている` です。実装は、この行を見本と見比べて確かめます。
  - 依存 は、前の Sub Issue のコードが無いと作れないときだけ付けてください。依存の無い Sub Issue は、同時に実装が始まります。
- - 画面を作る Sub Issue が 2 つ以上あり、そのパッケージに `components.json` が無ければ、shadcn/ui を入れる Sub Issue を最初に作り、画面の Sub Issue をそれに依存させてください。それぞれが `shadcn init` すると (`/dev:implement` の 3)、PR どうしがコンフリクトするためです。
+ - 画面を作る Sub Issue が 2 つ以上あり、そのパッケージが React の Web アプリで、`components.json` も別の UI ライブラリ (MUI など) も無ければ、shadcn/ui を入れる Sub Issue を最初に作り、画面の Sub Issue をそれに依存させてください。それぞれが `shadcn init` すると (`/dev:implement` の 3)、PR どうしがコンフリクトするためです。
 
 ### 1 PR で済むとき
 次をすべて満たすときは、Sub Issue を作らず、この Issue をそのまま実装に回します。Sub Issue を 1 つ作っても親の解決策を写すだけになり、Issue・待ちが増えるためです。4 と 5 の 1 は行わず、下の手順の後に 5 の 2 に進んでください。

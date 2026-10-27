@@ -212,7 +212,7 @@ FastShip プロジェクト (GitHub Project) をやめ、判断待ちはリポ�
 `/dev:implement` は、リポジトリの検査 (`CLAUDE.md`・CI に書かれたテスト・lint・型チェック) を自分で実行してから PR を作ります。技術スタックの hook (stack プラグイン) は要りません。
 
 ## 🎨 UI (shadcn/ui)
-画面の UI コンポーネントは、どのリポジトリでも shadcn/ui で作ります (課題分析の見本・実装)。自作や、別の UI ライブラリは足しません。
+React の Web アプリの画面の UI コンポーネントは、どのリポジトリでも shadcn/ui で作ります (課題分析の見本・実装)。自作や、別の UI ライブラリは足しません。
 
 dev は [shadcn/ui の MCP サーバー](https://ui.shadcn.com/docs/mcp) (`plugins/dev/.mcp.json`) を配ります。Claude はレジストリのコンポーネントを探し、使い方の例を見て、CLI で追加します。
 
