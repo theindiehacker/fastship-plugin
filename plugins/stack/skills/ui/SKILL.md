@@ -22,8 +22,8 @@ shadcn/ui・Tailwind CSS・Base UI は版ごとに書き方が変わり、学習
 | プロジェクトの設定 (style・base・Tailwind の版) を見る | `bun shadcn info` |
 | コンポーネントの API を見る | `bun shadcn docs <名前>` |
 
- - MCP の検索・一覧には、`registries` に `["@shadcn"]` を渡してください。省くと「No registries are configured」で失敗します。`components.json` に独自のレジストリがあれば (`get_project_registries` で分かります)、それも足します。
- - コマンドは `components.json` のある dir で実行してください。`package.json` に `shadcn` があれば `bun shadcn`、無ければ `bunx --bun --minimum-release-age 604800 shadcn@latest` (公開から 7 日たった最新の版) を使います (上の例は `bun shadcn`)。MCP が使えなければ、同じ CLI の `search @shadcn -q <キーワード>` で探します。
+ - MCP の検索・一覧には、`registries` に `["@shadcn"]` を渡してください。省くと「No registries are configured」で失敗します。`components.json` に独自のレジストリがあれば、それも足します。`get_project_registries` はリポジトリ直下の `components.json` しか読まないため、サブ dir にあるときは、そのファイルの `registries` を読んでください。
+ - コマンドは `components.json` のある dir で実行してください。`package.json` に `shadcn` があれば `bun shadcn`、無ければ `bunx --bun --minimum-release-age 604800 shadcn@latest` (公開から 7 日たった最新の版。bun 1.4.4 以上) を使います (上の例は `bun shadcn`)。MCP が使えなければ、同じ CLI の `search @shadcn -q <キーワード>` で探します。
  - MCP の `get_add_command_for_items` のコマンドは、そのまま使わないでください。リポジトリ直下の lock ファイルで道具を選び (`npx` になると hook が止めます)、版も `@latest` のためです。
  - コンポーネントは手で書かず、`add` で追加してください。既にあるものは作り直さずに使ってください。
  - 追加したファイル (`components.json` の `aliases.ui`、例: `src/components/ui`) は CLI の生成物です。見た目は使う側の `className` かテーマ (CSS 変数) で変え、生成物を書き換えるのはそれで足りないときだけにしてください。

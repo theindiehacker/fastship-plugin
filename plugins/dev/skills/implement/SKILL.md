@@ -85,8 +85,8 @@ git show "<sha>:<パス>"
  - 層の分け方はリポジトリの今の作りに合わせ、無い層やフレームワークを足さないでください。
  - React の Web アプリの画面の UI コンポーネントは、shadcn/ui を使ってください。自作したり、別の UI ライブラリを足したりしないでください。
    - `/stack:ui` が使えれば、それに従って探し、追加してください (shadcn の MCP も stack が配ります)。
-   - 使えなければ、`components.json` のある dir で、CLI の `shadcn search @shadcn -q <キーワード>`・`shadcn view <名前>` で探し、`shadcn add <名前>` で追加します。CLI は、`package.json` に `shadcn` があればその版を、無ければパッケージの道具で実行します。bun なら `bunx --bun --minimum-release-age 604800 shadcn@latest` (公開から 7 日たった最新の版)、npm なら `npx shadcn@latest` です。
-   - `components.json` が無い (shadcn/ui を入れていない) パッケージでは、入れずに、今の作り (別の UI ライブラリなど) に合わせてください。init はテーマと基本のスタイルを書き換え、既にある画面の見た目を変えるため、入れるかは人間が決めます (`/stack:setup`)。この Issue で新しく作る Web アプリにだけ、`shadcn init -d` で入れます (上の「フレームワークを足さない」の例外)。そのパッケージに knip があれば、`/stack:setup` の「6. org の必須ワークフロー」の knip の設定も足します。
+   - 使えなければ、`components.json` のある dir で、CLI の `shadcn search @shadcn -q <キーワード>`・`shadcn view <名前>` で探し、`shadcn add <名前>` で追加します。CLI は、`package.json` に `shadcn` があればその版を、無ければパッケージの道具で実行します。公開から 7 日たった最新の版で動かすため、bun (1.4.4 以上) なら `bunx --bun --minimum-release-age 604800 shadcn@latest`、npm なら `npx --before=$(date -u -d '7 days ago' +%F) shadcn@latest` です。
+   - `components.json` が無い (shadcn/ui を入れていない) パッケージでは、入れずに、今の作り (別の UI ライブラリなど) に合わせてください。init はテーマと基本のスタイルを書き換え、既にある画面の見た目を変えるため、入れるかは人間が決めます (`/stack:setup`)。この Issue で新しく作る Web アプリにだけ、`shadcn init -d` で入れます (上の「フレームワークを足さない」の例外)。そのパッケージに knip があれば、生成物を使っていないと出さないよう、knip の設定の `entry` に `aliases.ui` の dir の glob を、`ignore` に `aliases.utils` のファイルを、`ignoreDependencies` にアイコンのパッケージ (`lucide-react` など) を足します。`entry` を初めて書くときは、knip の既定の entry (`src/index.ts` など) も一緒に書きます。
  - やること に無いもの、やらないこと にあるものは作らないでください。見本のうち、完了条件に入っていないものも作りません (別の Sub Issue の分です)。
  - 見本は ④ で承認された仕様です。見本と違う画面・定義・構成にしないでください。見本どおりに作れなければ、「判断できないとき」です。
  - 見本のコード (モック画面・定義・スタブ) は、`git checkout <sha> -- <パス>` で持ってきて、出発点にしてかまいません。固定のデータとスタブは、本物の処理に置き換えて残さないでください。スクリーンショット (`.fastship/`) は持ってこないでください。
