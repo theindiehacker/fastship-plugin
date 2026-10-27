@@ -32,6 +32,17 @@
       "description": "公開から 7 日たった版だけを取り込む。乗っ取られて悪意のあるコードを入れられた版は、公開から数日で見つかり取り下げられることが多い",
       "matchDatasources": ["pypi", "npm"],
       "minimumReleaseAge": "7 days"
+    },
+    {
+      "description": "plugins/*/.mcp.json の版を上げたら、そのプラグインの plugin.json の version も上げる。上げないと claude plugin update で届かない",
+      "matchFileNames": ["plugins/*/.mcp.json"],
+      "bumpVersions": [
+        {
+          "filePatterns": ["{{packageFileDir}}/.claude-plugin/plugin.json"],
+          "matchStrings": ["\"version\":\\s*\"(?<version>[^\"]+)\""],
+          "bumpType": "patch"
+        }
+      ]
     }
   ]
 }

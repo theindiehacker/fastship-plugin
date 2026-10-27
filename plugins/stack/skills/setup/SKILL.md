@@ -5,7 +5,7 @@ description: 対象リポジトリに技術スタック (bun / Biome・uv / Ruff
 
 # 🧰 技術スタックの導入
 
-stack プラグインの hook (整形・lint・型チェック) は、ここで入れる道具と設定を使います。雛形は `${CLAUDE_PLUGIN_ROOT}/templates/` にあります。版は導入するときの最新に固定してください。
+stack プラグインの hook (整形・lint・型チェック) は、ここで入れる道具と設定を使います。雛形は `${CLAUDE_PLUGIN_ROOT}/templates/` にあります。ここで入れる道具の版は、導入するときの最新に固定してください。shadcn の init がアプリに足す依存は、init のとおり (caret) にし、lock で固定します。
 
 ## 1. 調べる
  - パッケージの dir を洗い出してください。JavaScript / TypeScript は `package.json` のある dir、Python は `pyproject.toml` (または `requirements.txt`・`setup.py`) のある dir です。`node_modules` などの生成物は除きます。
