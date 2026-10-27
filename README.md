@@ -139,7 +139,7 @@ Claude Code からも `/dev:issue` で起票できます。Slack (Claude Tag) �
 UI コンポーネントを shadcn/ui に揃えるため、dev に shadcn/ui の MCP サーバーを入れました ([🎨 UI](#-ui-shadcnui))。
 
 1. ローカルで `claude plugin update dev@fastship` (stack を入れていれば `stack@fastship` も) を実行し、Claude Code を開き直して、`/mcp` で `plugin:dev:shadcn` が connected か確かめます。MCP は `npx` で動くため、Node.js が要ります
-2. stack を入れているリポジトリでは、`/dev:setup` を実行し直し、作った PR をマージします。`components.json` の無い React のパッケージに、shadcn/ui を入れます
+2. stack を入れているリポジトリでは、`/dev:setup` を実行し直し、作った PR をマージします。`components.json` の無い React の Web アプリに、shadcn/ui を入れます
 
 ### 0.20.0 に上げたとき
 技術スタックによらない処理を、新しい [session プラグイン](#-セッション-session-プラグイン) にまとめました。Web のセッションの準備 (ツール・依存・Docker の起動) と、作業を終える前の gitleaks・trivy・semgrep の検査です。stack 0.1 の SessionStart (ツール・依存の導入) は session に移り、stack 0.2.0 は session に依存します。Web のセッション開始で通信が止まっても、待ち続けずにやり直します。
@@ -369,7 +369,7 @@ Sub Issue は、PR がマージされるまで `claude:implement` が付いた�
 | 🎨 `/stack:ui` | shadcn/ui・Tailwind CSS の書き方 (shadcn の MCP で探して例を見て、CLI で追加する) |
 | 📚 依存 | session (Web で、hook が使う依存を入れる)・Context7 (版に合ったドキュメント)・pyright-lsp (編集した直後の型エラー) |
 
-1. ローカルで `/plugin install stack@fastship` を実行してから、`/dev:setup` で技術スタックを入れると答えます。setup が `/stack:setup` で道具と設定を入れ (React のパッケージには shadcn/ui も入れます)、リポジトリの `.claude/settings.json` で stack を有効にします。
+1. ローカルで `/plugin install stack@fastship` を実行してから、`/dev:setup` で技術スタックを入れると答えます。setup が `/stack:setup` で道具と設定を入れ (React の Web アプリには shadcn/ui も入れます)、リポジトリの `.claude/settings.json` で stack を有効にします。
 2. クラウド環境のセットアップスクリプトに、`claude plugin install stack@fastship` の行を足します ([3. クラウド環境](#3-クラウド環境))。
 
 hook は、道具と設定 (`node_modules` の Biome・knip、`.venv` の Ruff・deptry・lint-imports と `[tool.importlinter]` など) があるリポジトリでだけ動きます。ローカルで pyright-lsp を使うには、`pyright-langserver` を PATH に入れてください (例: `uv tool install pyright`)。

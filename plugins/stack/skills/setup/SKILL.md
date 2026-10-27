@@ -30,15 +30,15 @@ stack プラグインの hook (整形・lint・型チェック) は、ここで�
 
 ## 3. JavaScript / TypeScript (パッケージの dir ごと)
 1. bun に置き換えるなら、`bun install` で `bun.lock` を作り、元の lock ファイルを消してください。
-2. `bun add -d --exact @biomejs/biome` で Biome を入れ、`templates/biome.json` を `biome.json` に置いてください。
-   - `files.includes` の `!src/components/ui` は、`components.json` の `aliases.ui` のパスに合わせてください。shadcn/ui を使わないパッケージ (6 で入れないもの) なら消します。生成したコード (API クライアントなど) の dir があれば、同じように除外してください。
-   - その dir に `.gitignore` が無いと Biome が止まります。`vcs.root` にリポジトリ直下への相対パス (例: `"../"`) を書いてください。
-3. ESLint・Prettier を置き換えるなら、`bunx biome migrate eslint --write` と `bunx biome migrate prettier --write` で設定を移してから、`bun remove` で外し、設定ファイルを消してください。
-4. `package.json` の `scripts` に `"lint": "biome check"` と `"format": "biome check --write"` を足してください。
-5. TypeScript のパッケージで `typescript` が devDependencies に無ければ、`bun add -d --exact typescript` で入れてください。hook と lefthook の tsc が使います。
-6. React のパッケージで `components.json` が無ければ、`bunx --bun shadcn@latest init -d` で shadcn/ui を入れてください。UI コンポーネントは shadcn/ui に揃えます。
+2. React の Web アプリ (Next.js・Vite・React Router など) で `components.json` が無ければ、`bunx --bun shadcn@latest init -d` で shadcn/ui を入れてください。UI コンポーネントは shadcn/ui に揃えます。React Native・Expo とライブラリのパッケージには入れません。
    - Tailwind CSS か import alias が無いと止まります。出たメッセージに従って入れてから、実行し直してください。
    - 別の UI ライブラリ (MUI・Chakra UI・Ant Design など) を使っていれば、入れずにユーザーに伝えてください。置き換えは差分が大きいため、別の PR にします。
+3. `bun add -d --exact @biomejs/biome` で Biome を入れ、`templates/biome.json` を `biome.json` に置いてください。
+   - `files.includes` の `!src/components/ui` は、`components.json` の `aliases.ui` のパスに合わせてください。shadcn/ui を使っていなければ消します。生成したコード (API クライアントなど) の dir があれば、同じように除外してください。
+   - その dir に `.gitignore` が無いと Biome が止まります。`vcs.root` にリポジトリ直下への相対パス (例: `"../"`) を書いてください。
+4. ESLint・Prettier を置き換えるなら、`bunx biome migrate eslint --write` と `bunx biome migrate prettier --write` で設定を移してから、`bun remove` で外し、設定ファイルを消してください。
+5. `package.json` の `scripts` に `"lint": "biome check"` と `"format": "biome check --write"` を足してください。
+6. TypeScript のパッケージで `typescript` が devDependencies に無ければ、`bun add -d --exact typescript` で入れてください。hook と lefthook の tsc が使います。
 
 ## 4. Python (パッケージの dir ごと)
 1. uv に置き換えるなら、Poetry は `uvx migrate-to-uv`、`requirements.txt` は `uv init --bare` と `uv add -r requirements.txt` で移してください。
@@ -70,7 +70,7 @@ gh api "repositories/<repository_id>/contents/<path>?ref=<ref>" --jq .content | 
 ```bash
 bunx biome check .
 bunx tsc --noEmit
-bun run knip --dependencies  # 6 で knip を入れたとき
+bun run knip --dependencies  # 6 (org の必須ワークフロー) で knip を入れたとき
 uv run ruff check
 uv run ruff format --check
 uv run pyright

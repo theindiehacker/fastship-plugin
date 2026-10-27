@@ -17,13 +17,14 @@ shadcn/ui・Tailwind CSS・Base UI は版ごとに書き方が変わり、学習
 | 使えるコンポーネントを探す | MCP の `search_items_in_registries` |
 | 使い方の例 (`button-demo` など) を見る | MCP の `get_item_examples_from_registries` |
 | 中身 (ファイル・依存) を見る | MCP の `view_items_in_registries` |
-| 追加する | MCP の `get_add_command_for_items` が返すコマンド |
+| 追加する | `bun shadcn add <名前>` |
 | 追加・作成の後に確かめる | MCP の `get_audit_checklist` |
 | プロジェクトの設定 (style・base・Tailwind の版) を見る | `bun shadcn info` |
 | コンポーネントの API を見る | `bun shadcn docs <名前>` |
 
  - MCP の検索・一覧には、`registries` に `["@shadcn"]` を渡してください。省くと「No registries are configured」で失敗します。`components.json` に独自のレジストリがあれば (`get_project_registries` で分かります)、それも足します。
  - コマンドは `components.json` のある dir で実行してください。`package.json` に `shadcn` があれば `bun shadcn`、無ければ `bunx --bun shadcn@latest` を使います (上の例は `bun shadcn`)。MCP が使えなければ、`bun shadcn search -q <キーワード>` で探します。
+ - MCP の `get_add_command_for_items` のコマンドは、そのまま使わないでください。リポジトリ直下の lock ファイルで道具を選び (`npx` になると hook が止めます)、版も `@latest` のためです。
  - コンポーネントは手で書かず、`add` で追加してください。既にあるものは作り直さずに使ってください。
  - 追加したファイル (`components.json` の `aliases.ui`、例: `src/components/ui`) は CLI の生成物です。見た目は使う側の `className` かテーマ (CSS 変数) で変え、生成物を書き換えるのはそれで足りないときだけにしてください。
  - base は Radix UI と Base UI があり、props が違います (例: 要素の差し替えは Radix UI が `asChild`、Base UI が `render`)。`info` で base を確かめ、`docs` の書き方に合わせてください。

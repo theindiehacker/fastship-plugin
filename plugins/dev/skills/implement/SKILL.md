@@ -84,8 +84,9 @@ git show "<sha>:<パス>"
  - 業務のルール (計算・状態の変化・制約) は、ドメインのコード (エンティティ・値オブジェクト・ドメインサービスなど) に置いてください。画面・API・DB の処理には書かないでください。
  - 層の分け方はリポジトリの今の作りに合わせ、無い層やフレームワークを足さないでください。
  - 画面の UI コンポーネントは shadcn/ui を使ってください。自作したり、別の UI ライブラリを足したりしないでください。
-   - shadcn の MCP で探し (`search_items_in_registries`。`registries` に `["@shadcn"]` を渡す)、例を見て (`get_item_examples_from_registries`)、`get_add_command_for_items` のコマンドを `components.json` のある dir で実行して追加します。`/stack:ui` が使えれば、それに従ってください。
-   - `components.json` が無ければ、`npx shadcn@latest init -d` (bun なら `bunx --bun shadcn@latest init -d`) で入れてください。Tailwind CSS か import alias が無いと止まるので、出たメッセージに従って入れてから実行し直します。別の UI ライブラリ (MUI など) を使っているパッケージでは混ぜず、「判断できないとき」です。
+   - shadcn の MCP で探し (`search_items_in_registries`。`registries` に `["@shadcn"]` を渡す)、例を見て (`get_item_examples_from_registries`)、`components.json` のある dir で `shadcn add <名前>` を実行して追加します。`/stack:ui` が使えれば、それに従ってください。
+   - shadcn の CLI は、`package.json` に `shadcn` があればその版 (`bun shadcn` など) を、無ければパッケージの道具 (`bunx --bun shadcn@latest`・`npx shadcn@latest` など) で実行します。MCP の `get_add_command_for_items` は、リポジトリ直下の lock ファイルで道具を選び、版も `@latest` なので、そのまま使わないでください。
+   - `components.json` が無ければ、`shadcn init -d` で入れてください。Tailwind CSS か import alias が無いと止まるので、出たメッセージに従って入れてから実行し直します。別の UI ライブラリ (MUI など) を使っているパッケージでは混ぜず、「判断できないとき」です。
  - やること に無いもの、やらないこと にあるものは作らないでください。見本のうち、完了条件に入っていないものも作りません (別の Sub Issue の分です)。
  - 見本は ④ で承認された仕様です。見本と違う画面・定義・構成にしないでください。見本どおりに作れなければ、「判断できないとき」です。
  - 見本のコード (モック画面・定義・スタブ) は、`git checkout <sha> -- <パス>` で持ってきて、出発点にしてかまいません。固定のデータとスタブは、本物の処理に置き換えて残さないでください。スクリーンショット (`.fastship/`) は持ってこないでください。
