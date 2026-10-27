@@ -65,7 +65,7 @@ gh api "repositories/<repository_id>/contents/<path>?ref=<ref>" --jq .content | 
 ```
 
  - 例: theindiehacker の `🔷 typescript` は、`bun.lock` と、devDependencies の `biome`・`knip`・`typescript` を求めます。knip (使っていない依存を見つける) は `bun add -d --exact knip` で入れます。
- - knip を入れたパッケージに shadcn/ui があれば (`components.json`)、生成物を使っていないと出さないよう、knip の設定の `entry` に `aliases.ui` の dir を、`ignore` に `aliases.utils` のファイル (例: `src/lib/utils.ts`) を、`ignoreDependencies` に `iconLibrary` のパッケージ (`lucide-react` など) を足してください。
+ - knip を入れたパッケージに shadcn/ui があれば (`components.json`)、生成物を使っていないと出さないよう、knip の設定の `entry` に `aliases.ui` の dir の glob (例: `src/components/ui/**/*.tsx`) を、`ignore` に `aliases.utils` のファイル (例: `src/lib/utils.ts`) を、`ignoreDependencies` に `iconLibrary` のパッケージ (`lucide-react` など) を足してください。
 
 ## 7. 確かめる
 各パッケージの dir で次を実行し、結果をユーザーに伝えてください。
