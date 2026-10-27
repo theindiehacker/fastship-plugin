@@ -4,6 +4,6 @@
   "version": "0.21.0",
   "description": "全社共通の開発ワークフロープラグイン",
   "repository": "https://github.com/theindiehacker/fastship-plugin",
-  "keywords": ["workflow", "github", "shadcn"],
+  "keywords": ["workflow", "github"],
   "dependencies": ["security-guidance@claude-plugins-official"]
 }

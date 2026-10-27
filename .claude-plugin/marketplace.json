@@ -12,7 +12,7 @@
       "source": "./plugins/dev",
       "description": "全社共通の開発ワークフロー",
       "category": "workflow",
-      "keywords": ["workflow", "github", "shadcn"]
+      "keywords": ["workflow", "github"]
     },
     {
       "name": "session",
@@ -24,7 +24,7 @@
     {
       "name": "stack",
       "source": "./plugins/stack",
-      "description": "技術スタック (bun / Biome・uv / Ruff / Pyright・shadcn/ui・Tailwind CSS) の設定・整形・検査・書き方",
+      "description": "技術スタック (bun / Biome・uv / Ruff / Pyright・shadcn/ui・Tailwind CSS) の設定・整形・検査・書き方と、shadcn/ui の MCP",
       "category": "development",
       "keywords": ["bun", "biome", "uv", "ruff", "pyright", "shadcn", "tailwindcss", "hooks"]
     }

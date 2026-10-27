@@ -136,9 +136,9 @@ Claude Code からも `/dev:issue` で起票できます。Slack (Claude Tag) �
    ![スキルのパスで版を確かめる](docs/images/claude-5-skill-version.png)
 
 ### 0.21.0 に上げたとき
-UI コンポーネントを shadcn/ui に揃えるため、dev に shadcn/ui の MCP サーバーを入れました ([🎨 UI](#-ui-shadcnui))。
+UI コンポーネントを shadcn/ui に揃えるため、stack に shadcn/ui の MCP サーバーを入れました ([🎨 UI](#-ui-shadcnui))。
 
-1. ローカルで `claude plugin update dev@fastship` (stack を入れていれば `stack@fastship` も) を実行し、Claude Code を開き直して、`/mcp` で `plugin:dev:shadcn` が connected か確かめます。MCP は `npx` で動くため、Node.js が要ります
+1. stack を入れているなら、ローカルで `claude plugin update dev@fastship` と `claude plugin update stack@fastship` を実行し、Claude Code を開き直して、`/mcp` で `plugin:stack:shadcn` が connected か確かめます。MCP は bun で動くため、bun が PATH に要ります
 2. stack を入れているリポジトリでは、`/dev:setup` を実行し直し、作った PR をマージします。`components.json` の無い React の Web アプリに、shadcn/ui を入れるか聞きます
 
 ### 0.20.0 に上げたとき
@@ -214,9 +214,9 @@ FastShip プロジェクト (GitHub Project) をやめ、判断待ちはリポ�
 ## 🎨 UI (shadcn/ui)
 React の Web アプリの画面の UI コンポーネントは、どのリポジトリでも shadcn/ui で作ります (課題分析の見本・実装)。自作や、別の UI ライブラリは足しません。
 
-dev は [shadcn/ui の MCP サーバー](https://ui.shadcn.com/docs/mcp) (`plugins/dev/.mcp.json`) を配ります。Claude はレジストリのコンポーネントを探し、使い方の例を見て、CLI で追加します。
+stack は [shadcn/ui の MCP サーバー](https://ui.shadcn.com/docs/mcp) (`plugins/stack/.mcp.json`) を配ります。Claude はレジストリのコンポーネントを探し、使い方の例を見て、CLI で追加します。stack の無いリポジトリでは、CLI で探します。
 
- - `npx` で動くため、Node.js が要ります。claude.ai のチャット (`/dev:issue`) では動きません
+ - bun (`bunx --bun`) で動くため、Node.js は要りません。shadcn が使う依存も、公開から 7 日たった版だけを入れます (`--minimum-release-age`、renovate と同じ日数)
  - 実装は、shadcn/ui の無い既存のアプリには入れず、今の作りに合わせます。init が既にある画面の見た目を変えるためです。入れるかは `/dev:setup` (stack) で聞きます。新しく作る Web アプリには、実装が入れます
 
 ## 🏷️ ラベル
@@ -367,6 +367,7 @@ Sub Issue は、PR がマージされるまで `claude:implement` が付いた�
 | ✏️ PostToolUse | Claude が編集したファイルを Biome・Ruff で整形する |
 | ✔️ Stop | 変更したファイルが Biome・tsc・Ruff・Pyright を通り、knip (使っていないコード・依存)・deptry (Python の依存の過不足)・lint-imports (import の規約) の違反が無くなるまで、作業を続けさせる。knip・deptry・lint-imports はプロジェクト全体を確かめる |
 | 🎨 `/stack:ui` | shadcn/ui・Tailwind CSS の書き方 (shadcn の MCP で探して例を見て、CLI で追加する) |
+| 🧩 MCP | shadcn/ui の MCP サーバー (コンポーネントを探す・使い方の例を見る) ([🎨 UI](#-ui-shadcnui)) |
 | 📚 依存 | session (Web で、hook が使う依存を入れる)・Context7 (版に合ったドキュメント)・pyright-lsp (編集した直後の型エラー) |
 
 1. ローカルで `/plugin install stack@fastship` を実行してから、`/dev:setup` で技術スタックを入れると答えます。setup が `/stack:setup` で道具と設定を入れ (React の Web アプリには、shadcn/ui を入れるかも聞きます)、リポジトリの `.claude/settings.json` で stack を有効にします。

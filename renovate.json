@@ -19,7 +19,7 @@
       "versioningTemplate": "pep440"
     },
     {
-      "description": "plugins/*/.mcp.json で npx に版を固定した MCP サーバー (shadcn など) を更新する",
+      "description": "plugins/*/.mcp.json で bunx に版を固定した MCP サーバー (shadcn など) を更新する",
       "customType": "regex",
       "managerFilePatterns": ["/^plugins/[^/]+/\\.mcp\\.json$/"],
       "matchStrings": ["\"(?<depName>[a-z0-9@/._-]+)@(?<currentValue>\\d+\\.\\d+\\.\\d+)\""],
