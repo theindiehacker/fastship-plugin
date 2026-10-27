@@ -26,7 +26,7 @@ stack プラグインの hook (整形・lint・型チェック) は、ここで�
  - `"latest"` は `mise latest <ツール>` の版に置き換えてください。
  - 使わない言語のツールは消してください。JavaScript / TypeScript が無ければ bun・node です。uv は Python が無くても残します (session の semgrep が uvx で動くため)。node は、Biome・tsc の起動スクリプト (`node_modules/.bin`) を動かすために要ります。無いと、node を入れていないマシンで hook と lefthook が止まります。
  - gitleaks・trivy・uv は、`/dev:setup` が session プラグインのために `mise.toml` に入れます。消さないでください。
- - 既にある bun が 1.4.4 より古ければ、`mise latest bun` の版に上げてください。shadcn の MCP と CLI が使う `--minimum-release-age` は、bun 1.4.4 からです。
+ - 既にある bun が 1.4.4 より古ければ、`mise latest bun` の版に上げてください。shadcn の MCP と CLI (`scripts/shadcn.sh`) は、公開から 7 日待つ設定 (bun 1.4.4 から) が効かない bun では止まります。
  - `mise install` の後、`mise lock` で `mise.lock` を作ってください。Claude Code on the web は lock の URL からツールを入れます。
 
 ## 3. JavaScript / TypeScript (パッケージの dir ごと)
@@ -34,7 +34,7 @@ stack プラグインの hook (整形・lint・型チェック) は、ここで�
 2. React の Web アプリ (Next.js・Vite・React Router など。React Native・Expo とライブラリは除く) で `components.json` が無ければ、shadcn/ui を入れるかユーザーに聞いてください。UI コンポーネントは shadcn/ui に揃えます。
    - 別の UI ライブラリ (MUI・Chakra UI・Ant Design など) を使っていれば、入れません。置き換えは差分が大きいため、別の PR にすると伝えてください。
    - 既にある画面があれば、見た目が変わることも伝えてください。init はテーマと基本のスタイルを書き換えます。Tailwind CSS を新しく入れるなら、そのリセット (Preflight) でも変わります。
-   - 入れるなら、`bunx --bun --minimum-release-age=604800 shadcn@latest init -d` を実行してください (公開から 7 日たった最新の版で動かす)。`--minimum-release-age` は bun 1.4.4 からです。古い bun はこの flag を無視し、7 日待たずに動きます (2. mise で上げる)。flag は、古い bun が値をパッケージ名と読まないよう、`=` でつないだ 1 語で書きます。Tailwind CSS か import alias が無いと止まるので、メッセージに従って入れてから実行し直します。
+   - 入れるなら、`bash "${CLAUDE_PLUGIN_ROOT}/scripts/shadcn.sh" latest init -d` を実行してください。公開から 7 日たった最新の版で動かします。bun が 1.4.4 より古いと止まるので、2 で上げてください。Tailwind CSS か import alias が無いと止まるので、メッセージに従って入れてから実行し直します。
    - init が足した依存は消さないでください。`shadcn add` は、コンポーネントが使う依存 (`lucide-react` など) を足し直しません。
 3. `bun add -d --exact @biomejs/biome` で Biome を入れ、`templates/biome.json` を `biome.json` に置いてください。
    - `files.includes` の `!src/components/ui` は、`components.json` の `aliases.ui` のパスに合わせてください。shadcn/ui を使っていなければ消します。生成したコード (API クライアントなど) の dir があれば、同じように除外してください。

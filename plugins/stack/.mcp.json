@@ -1,8 +1,8 @@
 {
   "mcpServers": {
     "shadcn": {
-      "command": "bunx",
-      "args": ["--bun", "--minimum-release-age=604800", "shadcn@4.22.1", "mcp"]
+      "command": "bash",
+      "args": ["${CLAUDE_PLUGIN_ROOT}/scripts/shadcn.sh", "4.22.1", "mcp"]
     }
   }
 }
