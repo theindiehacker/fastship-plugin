@@ -139,7 +139,8 @@ Claude Code からも `/dev:issue` で起票できます。Slack (Claude Tag) �
 UI コンポーネントを shadcn/ui に揃えるため、stack に shadcn/ui の MCP サーバーを入れました ([🎨 UI](#-ui-shadcnui))。
 
 1. ローカルで `claude plugin update dev@fastship` を実行します。stack を入れていれば `claude plugin update stack@fastship` も実行し、Claude Code を開き直して、`/mcp` で `plugin:stack:shadcn` が connected か確かめます。MCP は bun で動くため、bun 1.4.4 以上が PATH に要ります。古い bun は `--minimum-release-age` を知らず、接続に失敗します (クラウドの環境の bun は 1.4.4)
-2. stack を入れているリポジトリでは、`/dev:setup` を実行し直し、作った PR をマージします。`components.json` の無い React の Web アプリに、shadcn/ui を入れるか聞きます
+2. stack を入れているリポジトリでは、`/dev:setup` を実行し直し、作った PR をマージします。`components.json` の無い React の Web アプリに、shadcn/ui を入れるか聞きます。`mise.toml` の bun が 1.4.4 より古ければ上げます (Web のセッションの Bash は、この bun を使います)
+3. [クラウド環境を作り直します](#クラウド環境を作り直す) (`# dev 0.21.0`。stack も入れていれば `# stack 0.3.0`)
 
 ### 0.20.0 に上げたとき
 技術スタックによらない処理を、新しい [session プラグイン](#-セッション-session-プラグイン) にまとめました。Web のセッションの準備 (ツール・依存・Docker の起動) と、作業を終える前の gitleaks・trivy・semgrep の検査です。stack 0.1 の SessionStart (ツール・依存の導入) は session に移り、stack 0.2.0 は session に依存します。Web のセッション開始で通信が止まっても、待ち続けずにやり直します。

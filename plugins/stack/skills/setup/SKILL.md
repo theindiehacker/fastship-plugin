@@ -26,6 +26,7 @@ stack プラグインの hook (整形・lint・型チェック) は、ここで�
  - `"latest"` は `mise latest <ツール>` の版に置き換えてください。
  - 使わない言語のツールは消してください。JavaScript / TypeScript が無ければ bun・node です。uv は Python が無くても残します (session の semgrep が uvx で動くため)。node は、Biome・tsc の起動スクリプト (`node_modules/.bin`) を動かすために要ります。無いと、node を入れていないマシンで hook と lefthook が止まります。
  - gitleaks・trivy・uv は、`/dev:setup` が session プラグインのために `mise.toml` に入れます。消さないでください。
+ - 既にある bun が 1.4.4 より古ければ、`mise latest bun` の版に上げてください。shadcn の MCP と CLI が使う `--minimum-release-age` は、bun 1.4.4 からです。
  - `mise install` の後、`mise lock` で `mise.lock` を作ってください。Claude Code on the web は lock の URL からツールを入れます。
 
 ## 3. JavaScript / TypeScript (パッケージの dir ごと)
@@ -33,7 +34,7 @@ stack プラグインの hook (整形・lint・型チェック) は、ここで�
 2. React の Web アプリ (Next.js・Vite・React Router など。React Native・Expo とライブラリは除く) で `components.json` が無ければ、shadcn/ui を入れるかユーザーに聞いてください。UI コンポーネントは shadcn/ui に揃えます。
    - 別の UI ライブラリ (MUI・Chakra UI・Ant Design など) を使っていれば、入れません。置き換えは差分が大きいため、別の PR にすると伝えてください。
    - 既にある画面があれば、見た目が変わることも伝えてください。init はテーマと基本のスタイルを書き換えます。Tailwind CSS を新しく入れるなら、そのリセット (Preflight) でも変わります。
-   - 入れるなら、`bunx --bun --minimum-release-age 604800 shadcn@latest init -d` を実行してください (公開から 7 日たった最新の版で動かす)。`--minimum-release-age` は bun 1.4.4 からです。古い bun は 604800 をパッケージ名と読んで失敗するので、`mise.toml` の bun を上げてください。Tailwind CSS か import alias が無いと止まるので、メッセージに従って入れてから実行し直します。
+   - 入れるなら、`bunx --bun --minimum-release-age 604800 shadcn@latest init -d` を実行してください (公開から 7 日たった最新の版で動かす)。`--minimum-release-age` は bun 1.4.4 からです。古い bun は 604800 をパッケージ名と読んで失敗します。Tailwind CSS か import alias が無いと止まるので、メッセージに従って入れてから実行し直します。
    - init が足した依存は消さないでください。`shadcn add` は、コンポーネントが使う依存 (`lucide-react` など) を足し直しません。
 3. `bun add -d --exact @biomejs/biome` で Biome を入れ、`templates/biome.json` を `biome.json` に置いてください。
    - `files.includes` の `!src/components/ui` は、`components.json` の `aliases.ui` のパスに合わせてください。shadcn/ui を使っていなければ消します。生成したコード (API クライアントなど) の dir があれば、同じように除外してください。
@@ -65,15 +66,21 @@ gh api "repositories/<repository_id>/contents/<path>?ref=<ref>" --jq .content | 
 ```
 
  - 例: theindiehacker の `🔷 typescript` は、`bun.lock` と、devDependencies の `biome`・`knip`・`typescript` を求めます。knip (使っていない依存を見つける) は `bun add -d --exact knip` で入れます。
- - knip を入れたパッケージに shadcn/ui があれば (`components.json`)、生成物を使っていないと出さないよう、knip の設定の `entry` に `aliases.ui` の dir の glob (例: `src/components/ui/**/*.tsx`) を、`ignore` に `aliases.utils` のファイル (例: `src/lib/utils.ts`) を、`ignoreDependencies` に `iconLibrary` のパッケージ (`lucide-react` など) を足してください。`entry` を初めて書くときは、knip の既定の entry (`src/index.ts` など) も一緒に書きます。書くと既定が使われなくなるためです。
 
 ## 7. 確かめる
+knip があり shadcn/ui も入れたパッケージ (`components.json`) では、先に knip の設定を足してください。生成物を、使っていないと出さないためです。
+
+ - `entry` に `aliases.ui` の dir の glob (例: `src/components/ui/**/*.tsx`)
+ - `ignore` に `aliases.utils` のファイル (例: `src/lib/utils.ts`)
+ - `ignoreDependencies` に `iconLibrary` のパッケージ (`lucide-react` など)
+ - `entry` を初めて書くときは、knip の既定の entry (`src/index.ts` など) も一緒に書く。書くと既定が使われなくなるため
+
 各パッケージの dir で次を実行し、結果をユーザーに伝えてください。
 
 ```bash
 bunx biome check .
 bunx tsc --noEmit
-bun run knip --dependencies  # 6 (org の必須ワークフロー) で knip を入れたとき
+bun run knip --dependencies  # knip があるとき
 uv run ruff check
 uv run ruff format --check
 uv run pyright
