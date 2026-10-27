@@ -33,9 +33,8 @@ stack プラグインの hook (整形・lint・型チェック) は、ここで�
 2. React の Web アプリ (Next.js・Vite・React Router など。React Native・Expo とライブラリは除く) で `components.json` が無ければ、shadcn/ui を入れるかユーザーに聞いてください。UI コンポーネントは shadcn/ui に揃えます。
    - 別の UI ライブラリ (MUI・Chakra UI・Ant Design など) を使っていれば、入れません。置き換えは差分が大きいため、別の PR にすると伝えてください。
    - 既にある画面があれば、見た目が変わることも伝えてください。init はテーマと基本のスタイルを書き換えます。Tailwind CSS を新しく入れるなら、そのリセット (Preflight) でも変わります。
-   - 入れるなら、`bunx --bun shadcn@latest init -d` を実行してください。Tailwind CSS か import alias が無いと止まるので、メッセージに従って入れてから実行し直します。
+   - 入れるなら、`bunx --bun --minimum-release-age 604800 shadcn@latest init -d` を実行してください (公開から 7 日たった最新の版で動かす)。Tailwind CSS か import alias が無いと止まるので、メッセージに従って入れてから実行し直します。
    - init が足した依存は消さないでください。`shadcn add` は、コンポーネントが使う依存 (`lucide-react` など) を足し直しません。
-   - knip (「6. org の必須ワークフロー」で入れたとき) が生成物を使っていないと出さないよう、knip の設定の `entry` に `aliases.ui` の dir を、`ignore` に `lib/utils.ts` を、`ignoreDependencies` に `components.json` の `iconLibrary` のパッケージ (`lucide-react` など) を足してください。
 3. `bun add -d --exact @biomejs/biome` で Biome を入れ、`templates/biome.json` を `biome.json` に置いてください。
    - `files.includes` の `!src/components/ui` は、`components.json` の `aliases.ui` のパスに合わせてください。shadcn/ui を使っていなければ消します。生成したコード (API クライアントなど) の dir があれば、同じように除外してください。
    - その dir に `.gitignore` が無いと Biome が止まります。`vcs.root` にリポジトリ直下への相対パス (例: `"../"`) を書いてください。
@@ -66,6 +65,7 @@ gh api "repositories/<repository_id>/contents/<path>?ref=<ref>" --jq .content | 
 ```
 
  - 例: theindiehacker の `🔷 typescript` は、`bun.lock` と、devDependencies の `biome`・`knip`・`typescript` を求めます。knip (使っていない依存を見つける) は `bun add -d --exact knip` で入れます。
+ - knip を入れたパッケージに shadcn/ui があれば (`components.json`)、生成物を使っていないと出さないよう、knip の設定の `entry` に `aliases.ui` の dir を、`ignore` に `aliases.utils` のファイル (例: `src/lib/utils.ts`) を、`ignoreDependencies` に `iconLibrary` のパッケージ (`lucide-react` など) を足してください。
 
 ## 7. 確かめる
 各パッケージの dir で次を実行し、結果をユーザーに伝えてください。

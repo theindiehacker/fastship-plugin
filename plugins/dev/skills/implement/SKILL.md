@@ -84,8 +84,8 @@ git show "<sha>:<パス>"
  - 業務のルール (計算・状態の変化・制約) は、ドメインのコード (エンティティ・値オブジェクト・ドメインサービスなど) に置いてください。画面・API・DB の処理には書かないでください。
  - 層の分け方はリポジトリの今の作りに合わせ、無い層やフレームワークを足さないでください。
  - React の Web アプリの画面の UI コンポーネントは、shadcn/ui を使ってください。自作したり、別の UI ライブラリを足したりしないでください。
-   - shadcn の MCP (stack プラグイン) があれば、それで探し (`search_items_in_registries`。`registries` に `["@shadcn"]` を渡す)、例を見て (`get_item_examples_from_registries`)、`components.json` のある dir で `shadcn add <名前>` を実行して追加します。MCP が無ければ、CLI の `shadcn search @shadcn -q <キーワード>`・`shadcn view <名前>` で探します。`/stack:ui` が使えれば、それに従ってください。
-   - shadcn の CLI は、`package.json` に `shadcn` があればその版 (`bun shadcn` など) を、無ければパッケージの道具 (`bunx --bun shadcn@latest`・`npx shadcn@latest` など) で実行します。MCP の `get_add_command_for_items` は、リポジトリ直下の lock ファイルで道具を選び、版も `@latest` なので、そのまま使わないでください。
+   - `/stack:ui` が使えれば、それに従って探し、追加してください (shadcn の MCP も stack が配ります)。
+   - 使えなければ、`components.json` のある dir で、CLI の `shadcn search @shadcn -q <キーワード>`・`shadcn view <名前>` で探し、`shadcn add <名前>` で追加します。CLI は、`package.json` に `shadcn` があればその版を、無ければパッケージの道具 (`npx shadcn@latest` など) で実行します。
    - `components.json` が無い (shadcn/ui を入れていない) パッケージでは、入れずに、今の作り (別の UI ライブラリなど) に合わせてください。init はテーマと基本のスタイルを書き換え、既にある画面の見た目を変えるため、入れるかは人間が決めます (`/stack:setup`)。この Issue で新しく作る Web アプリにだけ、`shadcn init -d` で入れます (上の「フレームワークを足さない」の例外)。
  - やること に無いもの、やらないこと にあるものは作らないでください。見本のうち、完了条件に入っていないものも作りません (別の Sub Issue の分です)。
  - 見本は ④ で承認された仕様です。見本と違う画面・定義・構成にしないでください。見本どおりに作れなければ、「判断できないとき」です。

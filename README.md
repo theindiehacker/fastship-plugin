@@ -138,7 +138,7 @@ Claude Code からも `/dev:issue` で起票できます。Slack (Claude Tag) �
 ### 0.21.0 に上げたとき
 UI コンポーネントを shadcn/ui に揃えるため、stack に shadcn/ui の MCP サーバーを入れました ([🎨 UI](#-ui-shadcnui))。
 
-1. stack を入れているなら、ローカルで `claude plugin update dev@fastship` と `claude plugin update stack@fastship` を実行し、Claude Code を開き直して、`/mcp` で `plugin:stack:shadcn` が connected か確かめます。MCP は bun で動くため、bun が PATH に要ります
+1. ローカルで `claude plugin update dev@fastship` を実行します。stack を入れていれば `claude plugin update stack@fastship` も実行し、Claude Code を開き直して、`/mcp` で `plugin:stack:shadcn` が connected か確かめます。MCP は bun で動くため、bun が PATH に要ります
 2. stack を入れているリポジトリでは、`/dev:setup` を実行し直し、作った PR をマージします。`components.json` の無い React の Web アプリに、shadcn/ui を入れるか聞きます
 
 ### 0.20.0 に上げたとき
@@ -217,6 +217,7 @@ React の Web アプリの画面の UI コンポーネントは、どのリポ�
 stack は [shadcn/ui の MCP サーバー](https://ui.shadcn.com/docs/mcp) (`plugins/stack/.mcp.json`) を配ります。Claude はレジストリのコンポーネントを探し、使い方の例を見て、CLI で追加します。stack の無いリポジトリでは、CLI で探します。
 
  - bun (`bunx --bun`) で動くため、Node.js は要りません。shadcn が使う依存も、公開から 7 日たった版だけを入れます (`--minimum-release-age`、renovate と同じ日数)
+ - stack を有効にしたリポジトリでは、UI が無くても起動します。bun が無いと接続に失敗しますが、ほかの機能には影響しません
  - 実装は、shadcn/ui の無い既存のアプリには入れず、今の作りに合わせます。init が既にある画面の見た目を変えるためです。入れるかは `/dev:setup` (stack) で聞きます。新しく作る Web アプリには、実装が入れます
 
 ## 🏷️ ラベル
