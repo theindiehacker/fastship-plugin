@@ -138,7 +138,7 @@ Claude Code からも `/dev:issue` で起票できます。Slack (Claude Tag) �
 ### 0.21.0 に上げたとき
 UI コンポーネントを shadcn/ui に揃えるため、stack に shadcn/ui の MCP サーバーを入れました ([🎨 UI](#-ui-shadcnui))。
 
-1. ローカルで `claude plugin update dev@fastship` を実行します。stack を入れていれば `claude plugin update stack@fastship` も実行し、Claude Code を開き直して、`/mcp` で `plugin:stack:shadcn` が connected か確かめます。MCP は bun で動くため、bun 1.4.4 以上が PATH に要ります。古い bun では、7 日待つ設定が効かないので、MCP は起動せずに止まります (クラウドの環境の bun は 1.4.4)
+1. ローカルで `claude plugin update dev@fastship` を実行します。stack を入れていれば `claude plugin update stack@fastship` も実行し、shadcn/ui を入れたリポジトリで Claude Code を開き直して、`/mcp` で `plugin:stack:shadcn` が connected か確かめます。MCP は bun で動くため、bun 1.4.4 以上が PATH に要ります。古い bun では、7 日待つ設定が効かないので、MCP は起動せずに止まります (クラウドの環境の bun は 1.4.4)
 2. stack を入れているリポジトリでは、`/dev:setup` を実行し直し、作った PR をマージします。`components.json` の無い React の Web アプリに、shadcn/ui を入れるか聞きます。`mise.toml` の bun が 1.4.4 より古ければ上げます (Web のセッションの Bash は、この bun を使います)
 3. [クラウド環境を作り直します](#クラウド環境を作り直す) (`# dev 0.21.0`。stack も入れていれば `# stack 0.3.0`)
 
@@ -215,10 +215,10 @@ FastShip プロジェクト (GitHub Project) をやめ、判断待ちはリポ�
 ## 🎨 UI (shadcn/ui)
 React の Web アプリの画面の UI コンポーネントは、どのリポジトリでも shadcn/ui で作ります (課題分析の見本・実装)。自作や、別の UI ライブラリは足しません。
 
-stack は [shadcn/ui の MCP サーバー](https://ui.shadcn.com/docs/mcp) (`plugins/stack/.mcp.json`) を配ります。Claude はレジストリのコンポーネントを探し、使い方の例を見て、CLI で追加します。stack の無いリポジトリでは、CLI で探します。
+stack は [shadcn/ui の MCP サーバー](https://ui.shadcn.com/docs/mcp) (`plugins/stack/.mcp.json`) を配ります。Claude はレジストリのコンポーネントを探し、使い方の例を見て、CLI で追加します。探し方・追加の仕方は `/stack:ui` が配ります。
 
  - bun (`scripts/shadcn.sh`) で動くため、Node.js は要りません。MCP は、shadcn が使う依存も、公開から 7 日たった版だけで動きます (`--minimum-release-age`、renovate と同じ日数)。bun が 1.4.4 より古いと、この設定が効かないので起動しません。プロジェクトに足す依存 (`shadcn add` が入れるもの) には、この制限はかかりません
- - stack を入れた環境 (ローカル・クラウド環境) では、UI の無いリポジトリでも起動します。起動はセッションと並行して進み、作業は待ちません。bun が無いと接続に失敗しますが、ほかの機能には影響しません
+ - `components.json` のあるリポジトリ (サブ dir も含む) でだけ起動します。無いリポジトリでは起動せず、`/mcp` には接続の失敗と出ます。bun が無いときも同じで、ほかの機能には影響しません
  - 実装は、shadcn/ui の無い既存のアプリには入れず、今の作りに合わせます。init が既にある画面の見た目を変えるためです。入れるかは `/dev:setup` (stack) で聞きます。新しく作る Web アプリには、実装が入れます
 
 ## 🏷️ ラベル
