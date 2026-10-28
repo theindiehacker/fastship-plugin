@@ -80,7 +80,7 @@ knip があり shadcn/ui も入れたパッケージ (`components.json`) では�
 
 ```bash
 bun biome check .
-bunx tsc --noEmit
+bun tsc --noEmit
 bun run knip --dependencies  # knip があるとき
 uv run ruff check
 uv run ruff format --check

@@ -13,40 +13,50 @@ shift
 # bun を選ぶ dir。CLI は実行した dir (components.json のある dir)、MCP はプロジェクト
 bun_dir=$PWD
 
-# 数える components.json か (shadcn-vue・shadcn-svelte も同じ名前のファイルを使うため、$schema で外す)
+# 数える components.json か。shadcn/ui の $schema か、$schema が無ければ React の印 (tsx・rsc) がある (shadcn-vue・shadcn-svelte なども同じ名前のファイルを使うため)
 is_shadcn_ui() { # <パス>
-  [ -f "$1" ] && ! grep -Eq 'shadcn-(vue|svelte)' "$1"
+  [ -f "$1" ] || return 1
+  if grep -q '"[$]schema"' "$1"; then
+    grep -q 'ui\.shadcn\.com/schema' "$1"
+  else
+    grep -Eq '"(tsx|rsc)"' "$1"
+  fi
 }
 
-# list の中に、数える components.json があれば 0
-has_shadcn_ui() { # <dir> <改行区切りのパス (dir からの相対か絶対)>
+# 標準入力の NUL 区切りのパス (dir からの相対か絶対) から、数える components.json を探し、その dir を found_dir に入れる
+find_shadcn_ui() { # <dir>
   local file
-  while IFS= read -r file; do
-    [ -n "$file" ] || continue
+  while IFS= read -r -d '' file; do
     case "$file" in /*) ;; *) file="$1/$file" ;; esac
-    is_shadcn_ui "$file" && return 0
-  done <<< "$2"
+    if is_shadcn_ui "$file"; then
+      found_dir=$(dirname "$file")
+      return 0
+    fi
+  done
   return 1
 }
 
 # MCP は shadcn/ui を入れたリポジトリでだけ起動する。UI の無いリポジトリで取得・常駐しないため
 if [ "${1:-}" = mcp ]; then
   root="${CLAUDE_PROJECT_DIR:-$PWD}"
-  bun_dir=$root
+  found_dir=
   # components.json を、サブ dir は 3 階層 (packages/apps/web/components.json など) まで探す。.gitignore で外したもの (node_modules など) は数えない
   if top=$(git -C "$root" rev-parse --show-toplevel 2> /dev/null); then
-    # Claude Code をサブ dir で開いても、リポジトリ全体を探す。glob では * が / をまたがない。日本語のパスもそのまま出す
+    # Claude Code をサブ dir で開いても、リポジトリ全体を探す。glob では * が / をまたがない
     pathspec=(':(glob)components.json' ':(glob)*/components.json' ':(glob)*/*/components.json' ':(glob)*/*/*/components.json')
-    git_ls() { git -C "$top" -c core.quotePath=false ls-files "$@" -- "${pathspec[@]}" 2> /dev/null || true; }
+    git_ls() { git -C "$top" ls-files -z "$@" -- "${pathspec[@]}" 2> /dev/null || true; }
     # commit 前のもの (init した直後) は、commit 済みのものに無いときだけ探す (未追跡のファイルを毎回たどらないため)
-    has_shadcn_ui "$top" "$(git_ls)" || has_shadcn_ui "$top" "$(git_ls --others --exclude-standard)" || found=no
+    find_shadcn_ui "$top" < <(git_ls) || find_shadcn_ui "$top" < <(git_ls --others --exclude-standard) || true
   else
-    has_shadcn_ui "$root" "$(find "$root" -maxdepth 4 -name node_modules -prune -o -name components.json -print 2> /dev/null || true)" || found=no
+    find_shadcn_ui "$root" < <(find "$root" -maxdepth 4 -name node_modules -prune -o -name components.json -print0 2> /dev/null || true) || true
   fi
-  if [ "${found:-}" = no ]; then
+  if [ -z "$found_dir" ]; then
     echo "shadcn/ui の components.json が無いので、shadcn の MCP は起動しません (shadcn/ui を入れたリポジトリでだけ起動します)" >&2
     exit 1
   fi
+  # shadcn の MCP は、起動した dir の components.json (レジストリ・設定) を読む。見つけた dir で起動する
+  cd "$found_dir"
+  bun_dir=$PWD
 fi
 
 # --minimum-release-age は bun 1.4.4 から。古い bun はこの flag を無視し、7 日待たずに動くため使わない

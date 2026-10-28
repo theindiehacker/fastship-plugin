@@ -22,7 +22,7 @@ shadcn/ui・Tailwind CSS・Base UI は版ごとに書き方が変わり、学習
 | プロジェクトの設定 (style・base・Tailwind の版) を見る | `bun shadcn info` |
 | コンポーネントの API を見る | `bun shadcn docs <名前>` |
 
- - MCP の検索・一覧には、`registries` に `["@shadcn"]` を渡してください。省くと「No registries are configured」で失敗します。`components.json` に独自のレジストリがあれば、それも足します。`get_project_registries` はリポジトリ直下の `components.json` しか読まないため、サブ dir にあるときは、そのファイルの `registries` を読んでください。
+ - MCP の検索・一覧には、`registries` に `["@shadcn"]` を渡してください。省くと「No registries are configured」で失敗します。`components.json` に独自のレジストリがあれば、それも足します。MCP は、最初に見つけた shadcn/ui の `components.json` の dir で動きます。別のパッケージの `components.json` のレジストリは、そのファイルの `registries` を読んでください。
  - コマンドは `components.json` のある dir で実行してください。`package.json` に `shadcn` があれば `bun shadcn`、無ければ `bash "${CLAUDE_PLUGIN_ROOT}/scripts/shadcn.sh" latest` を使います (上の例は `bun shadcn`)。このスクリプトは、公開から 7 日たった最新の版で動かします。bun が 1.4.4 より古いと、7 日待てないので止まります。bun を使わないリポジトリでは、`npx --before="$(node -p 'new Date(Date.now() - 7 * 864e5).toISOString()')" shadcn@latest` を使います (7 日前までに公開された最新の版)。MCP が使えなければ、同じ CLI の `search @shadcn -q <キーワード>` で探します。`package.json` の `shadcn` が古くて `search`・`docs` が無ければ、`shadcn.sh` の方を使います。
  - MCP の `get_add_command_for_items` のコマンドは、そのまま使わないでください。リポジトリ直下の lock ファイルで道具を選び (`npx` になると hook が止めます)、版も `@latest` のためです。
  - コンポーネントは手で書かず、`add` で追加してください。既にあるものは作り直さずに使ってください。
