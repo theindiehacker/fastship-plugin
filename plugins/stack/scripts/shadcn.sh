@@ -21,42 +21,50 @@ is_shadcn_ui() { # <パス>
   fi
 }
 
-# 標準入力の NUL 区切りのパス (dir からの相対か絶対) から、数える components.json を探し、その dir を found_dir に入れる
+# 標準入力の NUL 区切りのパス (dir からの相対か絶対) のうち、数える components.json でいちばん浅いものの dir を found_dir に入れる
 find_shadcn_ui() { # <dir>
-  local file
+  local file depth best='' best_depth=''
   while IFS= read -r -d '' file; do
     case "$file" in /*) ;; *) file="$1/$file" ;; esac
-    if is_shadcn_ui "$file"; then
-      found_dir=$(dirname "$file")
-      return 0
+    case "$file" in */node_modules/*) continue ;; esac
+    is_shadcn_ui "$file" || continue
+    depth=$(tr -cd / <<< "$file" | wc -c)
+    if [ -z "$best" ] || ((depth < best_depth)); then
+      best=$file
+      best_depth=$depth
     fi
   done
-  return 1
+  [ -n "$best" ] || return 1
+  found_dir=$(dirname "$best")
 }
 
-# git で dir の下の components.json を、浅い順 (dir 直下、1 階層下…) に探す
-git_search() { # <dir> [--others --exclude-standard]
-  local dir=$1 depth
+# dir の下の components.json を、3 階層下 (packages/apps/web/components.json など) まで NUL 区切りで出す
+list_components_json() { # <dir> [--others --exclude-standard]
+  local dir=$1
   shift
-  # glob では * が / をまたがない
-  for depth in '' '*/' '*/*/' '*/*/*/'; do
-    find_shadcn_ui "$dir" < <(git -C "$dir" ls-files -z "$@" -- ":(glob)${depth}components.json" 2> /dev/null || true) && return 0
-  done
-  return 1
+  if [ -n "${top:-}" ]; then
+    # glob では * が / をまたがない。.gitignore で外したもの (node_modules など) は出さない
+    git -C "$dir" ls-files -z "$@" -- ':(glob)components.json' ':(glob)*/components.json' ':(glob)*/*/components.json' ':(glob)*/*/*/components.json' 2> /dev/null || true
+  else
+    # git の外 (ホームなど) では bash の glob で探す。隠し dir (.cache・.venv など) には入らない
+    local file
+    for file in "$dir"/components.json "$dir"/*/components.json "$dir"/*/*/components.json "$dir"/*/*/*/components.json; do
+      if [ -f "$file" ]; then printf '%s\0' "$file"; fi
+    done
+  fi
 }
 
-# MCP は shadcn/ui を入れたリポジトリでだけ起動する。UI の無いリポジトリで取得・常駐しないため
-if [ "${1:-}" = mcp ]; then
+# MCP (引数が mcp だけ) は shadcn/ui を入れたリポジトリでだけ起動する。UI の無いリポジトリで取得・常駐しないため。mcp init などの CLI は除く
+if [ "${1:-}" = mcp ] && [ $# -eq 1 ]; then
   root="${CLAUDE_PROJECT_DIR:-$PWD}"
+  top=$(git -C "$root" rev-parse --show-toplevel 2> /dev/null || true)
   found_dir=
-  # components.json を、Claude Code を開いた dir、リポジトリ全体の順に、3 階層下 (packages/apps/web/components.json など) まで探す。.gitignore で外したもの (node_modules など) は数えない
-  if top=$(git -C "$root" rev-parse --show-toplevel 2> /dev/null); then
-    # commit 前のもの (init した直後) は、commit 済みのものに無いときだけ探す (未追跡のファイルを毎回たどらないため)
-    git_search "$root" || git_search "$top" || git_search "$root" --others --exclude-standard || git_search "$top" --others --exclude-standard || true
-  else
-    # git の外 (ホームなど) では、隠し dir (.cache・.venv など) と node_modules に潜らない (開いた dir 自体は隠し dir でも探す)
-    find_shadcn_ui "$root" < <(find "$root" -maxdepth 4 \( -name node_modules -o -name '.?*' \) ! -path "$root" -prune -o -name components.json -print0 2> /dev/null || true) || true
-  fi
+  # Claude Code を開いた dir、リポジトリ全体の順に探す。commit 前のもの (init した直後) は、commit 済みのものに無いときだけ探す (未追跡のファイルを毎回たどらないため)
+  find_shadcn_ui "$root" < <(list_components_json "$root") ||
+    { [ -n "$top" ] && [ "$top" != "$root" ] && find_shadcn_ui "$top" < <(list_components_json "$top"); } ||
+    { [ -n "$top" ] && find_shadcn_ui "$root" < <(list_components_json "$root" --others --exclude-standard); } ||
+    { [ -n "$top" ] && [ "$top" != "$root" ] && find_shadcn_ui "$top" < <(list_components_json "$top" --others --exclude-standard); } ||
+    true
   if [ -z "$found_dir" ]; then
     echo "shadcn/ui の components.json が無いので、shadcn の MCP は起動しません (shadcn/ui を入れたリポジトリでだけ起動します)" >&2
     exit 1

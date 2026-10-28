@@ -365,7 +365,7 @@ Sub Issue は、PR がマージされるまで `claude:implement` が付いた�
 
 | 配るもの | 内容 |
 |:--|:--|
-| 🚫 PreToolUse | bun・uv のリポジトリで npm・pip などを止め、bun・uv を使わせる |
+| 🚫 PreToolUse | bun・uv のリポジトリで npm・pip などを止め、bun・uv を使わせる。公開から 7 日待つ指定の無い shadcn の実行 (`bunx shadcn` など) も止める |
 | ✏️ PostToolUse | Claude が編集したファイルを Biome・Ruff で整形する |
 | ✔️ Stop | 変更したファイルが Biome・tsc・Ruff・Pyright を通り、knip (使っていないコード・依存)・deptry (Python の依存の過不足)・lint-imports (import の規約) の違反が無くなるまで、作業を続けさせる。knip・deptry・lint-imports はプロジェクト全体を確かめる |
 | 🎨 `/stack:ui` | shadcn/ui・Tailwind CSS の書き方 (shadcn の MCP で探して例を見て、CLI で追加する) |
