@@ -10,8 +10,6 @@ if [ $# -lt 1 ]; then
 fi
 version=$1
 shift
-# bun を選ぶ dir。CLI は実行した dir (components.json のある dir)、MCP はプロジェクト
-bun_dir=$PWD
 
 # 数える components.json か。shadcn/ui の $schema か、$schema が無ければ React の印 (tsx・rsc) がある (shadcn-vue・shadcn-svelte なども同じ名前のファイルを使うため)
 is_shadcn_ui() { # <パス>
@@ -36,20 +34,28 @@ find_shadcn_ui() { # <dir>
   return 1
 }
 
+# git で dir の下の components.json を、浅い順 (dir 直下、1 階層下…) に探す
+git_search() { # <dir> [--others --exclude-standard]
+  local dir=$1 depth
+  shift
+  # glob では * が / をまたがない
+  for depth in '' '*/' '*/*/' '*/*/*/'; do
+    find_shadcn_ui "$dir" < <(git -C "$dir" ls-files -z "$@" -- ":(glob)${depth}components.json" 2> /dev/null || true) && return 0
+  done
+  return 1
+}
+
 # MCP は shadcn/ui を入れたリポジトリでだけ起動する。UI の無いリポジトリで取得・常駐しないため
 if [ "${1:-}" = mcp ]; then
   root="${CLAUDE_PROJECT_DIR:-$PWD}"
   found_dir=
-  # components.json を、サブ dir は 3 階層 (packages/apps/web/components.json など) まで探す。.gitignore で外したもの (node_modules など) は数えない
+  # components.json を、Claude Code を開いた dir、リポジトリ全体の順に、3 階層下 (packages/apps/web/components.json など) まで探す。.gitignore で外したもの (node_modules など) は数えない
   if top=$(git -C "$root" rev-parse --show-toplevel 2> /dev/null); then
-    # Claude Code をサブ dir で開いても、リポジトリ全体を探す。glob では * が / をまたがない
-    pathspec=(':(glob)components.json' ':(glob)*/components.json' ':(glob)*/*/components.json' ':(glob)*/*/*/components.json')
-    git_ls() { git -C "$top" ls-files -z "$@" -- "${pathspec[@]}" 2> /dev/null || true; }
     # commit 前のもの (init した直後) は、commit 済みのものに無いときだけ探す (未追跡のファイルを毎回たどらないため)
-    find_shadcn_ui "$top" < <(git_ls) || find_shadcn_ui "$top" < <(git_ls --others --exclude-standard) || true
+    git_search "$root" || git_search "$top" || git_search "$root" --others --exclude-standard || git_search "$top" --others --exclude-standard || true
   else
-    # git の外 (ホームなど) では、隠し dir (.cache・.venv など) と node_modules に潜らない
-    find_shadcn_ui "$root" < <(find "$root" -maxdepth 4 \( -name node_modules -o -name '.?*' \) -prune -o -name components.json -print0 2> /dev/null || true) || true
+    # git の外 (ホームなど) では、隠し dir (.cache・.venv など) と node_modules に潜らない (開いた dir 自体は隠し dir でも探す)
+    find_shadcn_ui "$root" < <(find "$root" -maxdepth 4 \( -name node_modules -o -name '.?*' \) ! -path "$root" -prune -o -name components.json -print0 2> /dev/null || true) || true
   fi
   if [ -z "$found_dir" ]; then
     echo "shadcn/ui の components.json が無いので、shadcn の MCP は起動しません (shadcn/ui を入れたリポジトリでだけ起動します)" >&2
@@ -57,7 +63,6 @@ if [ "${1:-}" = mcp ]; then
   fi
   # shadcn の MCP は、起動した dir の components.json (レジストリ・設定) を読む。見つけた dir で起動する
   cd "$found_dir"
-  bun_dir=$PWD
 fi
 
 # --minimum-release-age は bun 1.4.4 から。古い bun はこの flag を無視し、7 日待たずに動くため使わない
@@ -73,10 +78,10 @@ new_enough() { # <bun のパス>
   ((major > 1 || (major == 1 && (minor > 4 || (minor == 4 && patch >= 4))))) && ! [[ $major.$minor.$patch == 1.4.4 && -n $pre ]]
 }
 
-# bun_dir の mise.toml の bun、PATH の bun の順に、1.4.4 以上のものを使う。どちらかが古くても、もう一方で動かせるようにする
+# この dir の mise.toml の bun、PATH の bun の順に、1.4.4 以上のものを使う。どちらかが古くても、もう一方で動かせるようにする
 bun=
 tried=
-for candidate in "$(cd "$bun_dir" && mise which bun 2> /dev/null || true)" "$(command -v bun || true)"; do
+for candidate in "$(mise which bun 2> /dev/null || true)" "$(command -v bun || true)"; do
   [ -n "$candidate" ] || continue
   case "$tried" in *" $candidate ("*) continue ;; esac
   if new_enough "$candidate"; then

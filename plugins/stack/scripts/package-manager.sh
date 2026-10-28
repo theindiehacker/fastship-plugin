@@ -23,7 +23,8 @@ if has_lock '*bun.lock' '*bun.lockb' && runs 'npm|npx|yarn|pnpm|pnpx'; then
  - npm install → bun install (lock どおりに入れるなら bun install --frozen-lockfile)
  - npm install <パッケージ> → bun add <パッケージ> (開発用は bun add -d)
  - npm run <スクリプト> → bun run <スクリプト>
- - npx <コマンド> → bunx <コマンド>
+ - npx <コマンド> → bunx <コマンド>。パッケージに入っている道具 (biome・tsc など) は bun <コマンド> (bunx は、入っていないと npm の同じ名前の別のパッケージを動かすため)
+ - npx shadcn → /stack:ui の scripts/shadcn.sh (公開から 7 日たった版で動かすため)
 EOF
   exit 2
 fi
