@@ -16,10 +16,11 @@ if [ "${1:-}" = mcp ]; then
   root="${CLAUDE_PROJECT_DIR:-$PWD}"
   # サブ dir も、commit 前のもの (init した直後) も数える。.gitignore で外したもの (node_modules など) は数えない
   if git -C "$root" rev-parse --is-inside-work-tree > /dev/null 2>&1; then
-    found=$(git -C "$root" ls-files --cached --others --exclude-standard -- components.json '*/components.json')
+    # :(top) で、Claude Code をサブ dir で開いてもリポジトリ全体を探す
+    found=$(git -C "$root" ls-files --cached --others --exclude-standard -- ':(top)components.json' ':(top)*/components.json' 2> /dev/null || true)
   else
     # git の外 (ホームなど) で深く潜らないよう、4 階層 (apps/web/components.json など) までにする
-    found=$(find "$root" -maxdepth 4 -name node_modules -prune -o -name components.json -print -quit)
+    found=$(find "$root" -maxdepth 4 -name node_modules -prune -o -name components.json -print -quit 2> /dev/null || true)
   fi
   if [ -z "$found" ]; then
     echo "components.json が無いので、shadcn の MCP は起動しません (shadcn/ui を入れたリポジトリでだけ起動します)" >&2
