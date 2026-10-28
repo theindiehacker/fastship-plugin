@@ -14,10 +14,11 @@ shift
 # MCP は shadcn/ui を入れたリポジトリ (components.json がある) でだけ起動する。UI の無いリポジトリで取得・常駐しないため
 if [ "${1:-}" = mcp ]; then
   root="${CLAUDE_PROJECT_DIR:-$PWD}"
+  # サブ dir も、commit 前のもの (init した直後) も数える。.gitignore で外したもの (node_modules など) は数えない
   if git -C "$root" rev-parse --is-inside-work-tree > /dev/null 2>&1; then
-    found=$(git -C "$root" ls-files -- '*components.json' | head -n 1)
+    found=$(git -C "$root" ls-files --cached --others --exclude-standard -- components.json '*/components.json')
   else
-    found=$([ -f "$root/components.json" ] && echo components.json || true)
+    found=$(find "$root" -name node_modules -prune -o -name components.json -print -quit)
   fi
   if [ -z "$found" ]; then
     echo "components.json が無いので、shadcn の MCP は起動しません (shadcn/ui を入れたリポジトリでだけ起動します)" >&2
