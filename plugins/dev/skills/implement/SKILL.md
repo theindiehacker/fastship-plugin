@@ -185,6 +185,6 @@ bash "${CLAUDE_PLUGIN_ROOT}/scripts/epic.sh" merge <PR>
  - PR を Draft / Ready に切り替えられない (CCR のルートも `gh pr ready` も失敗する)
  - epic ブランチにマージできない (7 で `FAILED` と出る)
  - CI が、変更と関係のない理由 (シークレット・外部サービスなど) で失敗する。または同じ失敗を 2 回直しても通らない
- - 再レビューを 5 回頼んでも Request changes が続く。またはレビューの指摘が Sub Issue・親 Issue と食い違い、どちらに従うか決められない
+ - Claude のコードレビューの Request changes が 5 回付いた (数え方は `/dev:push-pr` の 11)。またはレビューの指摘が Sub Issue・親 Issue と食い違い、どちらに従うか決められない
 
 名前や小さな設計の選択など、決めれば進められるものは止めずに決め、理由を PR の Diff コメントに書いてください。

@@ -84,7 +84,7 @@ claude-opus-5・フレッシュコンテキストで各レビューを実行す�
 - `.github/workflows/**` / Terraform / 依存関係（lock ファイル）の変更
 
 明らかに該当しない場合（ドキュメント・UI 文言・スタイル・テストのみ等）は依頼しない。**迷ったら依頼する（安全側）**。
-PR の作成時にセキュリティレビューも CI が自動で実行するリポジトリ（PR の Checks に `セキュリティレビュー` が出る。FastShip を導入したリポジトリなど）では、PR の作成時・Ready for Review への変更時には依頼しない（二重に起動するため）。
+PR の作成時にセキュリティレビューも CI が自動で実行するリポジトリ（PR の Checks に `セキュリティレビュー` が出る。FastShip を導入したリポジトリなど）では、PR の作成時・Ready for Review への変更時には依頼しない（二重に起動するため）。こうしたリポジトリでは、ステップ 11 で Ready に戻すたびにセキュリティレビューも動く（`/dev:implement` と同じ）。再レビューは Request changes 5 回までなので、その分の費用は許容する。
 CI の指摘（該当行へのインラインコメントとして投稿される）への対応はステップ 11 のレビュー対応ループで行い、
 対応後の再実行は、ステップ 11 のとおり PR を Ready に戻して行う（`/security-review` は、Ready で自動で動かないリポジトリだけコメントで依頼する）。
 レビューワークフローが未導入のリポジトリではコメントしても起動しないので、
@@ -328,21 +328,31 @@ gh api repos/{owner}/{repo}/pulls/${PR_NUMBER}/reviews \
 
 ### 11. CI 監視とレビューコメントへの対応・返信
 
-PR 作成 / 更新後は、まずステップ 1-c に従い PR にレビュー依頼をコメントする（`/security-review` は「要」の場合のみ。コードレビューは PR の作成時・Ready for Review への変更時に CI が自動で実行する）。続いて CI とレビューを監視し、head に Claude の Approve が付くまで次を繰り返す。
+PR 作成 / 更新後は、まずステップ 1-c に従い PR にレビュー依頼をコメントする（`/security-review` は「要」の場合のみ。コードレビューは PR の作成時・Ready for Review への変更時に CI が自動で実行する）。続いて CI とレビューを監視し、head に Claude の Approve が付くまで次を繰り返す。Claude のレビューが無いリポジトリ（`/code-review` をコメントしても PR の Checks に `コードレビュー` が出ない）では、Approve を待たない。CI と人のレビューに対応したら、Claude のレビューが無いことをユーザーに伝えて終える。
 
 1. CI の結果とレビューがそろったら、CI の失敗と bot / 人のレビュー（本文・インライン・会話）を全件確認し、`[must]`/`[imo]`/`[ask]`/`[nits]` 規約と CLAUDE.md の指摘対応方針で採否を判断する
 2. 直すものがあれば、直し始める前に PR を Draft に戻す（ステップ 8-b の末尾）。Ready のまま push を重ねず、修正後に Ready に戻したときに 1 回だけ再レビューが動くようにするため
+   - Approve の後の小さな修正（PR が変えたファイルの中で、振る舞いを変えないもの: タイポ・名前・コメント・import・整形・テストの追加など）だけは、Draft にせず Ready のまま push し、再レビューしない（Approve が外れることがあるため）。直した commit と、再レビューしないことを返信に書く
 3. CI の失敗と採用した指摘をすべて直し、フックをスキップせずに検査を通してから、まとめて 1 回 push する（CI は push のたびに全部動く）
 4. 全件に日本語で返信し、直した指摘のスレッドを Resolve する（下記「スレッドの Resolve」）。直さなかった指摘と質問は、理由を返信して開いたままにする（Approve の後にユーザーが確かめられるように）
-5. PR を Ready に戻す（ステップ 8-b。一度 Ready にした PR を戻すだけなので 8-a は省く）。コードレビューが CI で自動で動き、PR 全体を見直す。`/code-review` はコメントしない（二重に起動する）。セキュリティレビュー由来の指摘を直したときは、Ready で自動で動かないリポジトリでだけ `/security-review` をコメントする（コメント完全一致でのみ起動する）
+5. PR を Ready に戻す（ステップ 8-b。一度 Ready にした PR を戻すだけなので 8-a は省く）。コードレビューが CI で自動で動き、PR 全体を見直す。`/code-review` はコメントしない（二重に起動し、実行中のレビューがキャンセルされる）。Ready に戻しても PR の Checks に `コードレビュー` が出ないリポジトリでだけ、`/code-review` をコメントする。セキュリティレビュー由来の指摘を直したときも同じく、Ready で自動で動かないリポジトリでだけ `/security-review` をコメントする（コメント完全一致でのみ起動する）
 
-Request changes が 5 回続いたら繰り返さず、続く指摘と理由をユーザーに伝えて判断を仰ぐ（ルーティンからは `/dev:blocked` の「2. 止める」）。
+Claude のコードレビューの Request changes が 5 回付いたら（下のコマンドで 5 以上）、繰り返さず、続く指摘と理由をユーザーに伝えて判断を仰ぐ（ルーティンからは `/dev:blocked` の「2. 止める」）。セッションが変わっても数え直しにならないよう、PR のレビューから数える。
+
+```bash
+gh api --paginate "repos/{owner}/{repo}/pulls/${PR_NUMBER}/reviews?per_page=100" \
+  --jq '.[] | select(.user.login == "claude[bot]" and .state == "CHANGES_REQUESTED") | .id' | wc -l
+```
 
 #### 11-a. 監視を終える前に
 
 Claude のコードレビューの Approve は、push で外れることがある（ブランチ保護の「古い承認を取り消す」）。前の commit への Approve は数えない。
 
-- push したら、head の commit に Claude の Approve があるか確かめる（下のコマンド）。無く、コードレビューも動いていなければ（PR の Checks に `コードレビュー` が実行中で出ていなければ）、PR を Draft にしてから Ready に戻して頼み直す（ステップ 8-b）。Claude の Approve は人の承認と違い、自分で頼み直せる。待つだけにしない
+- push したら、head の commit に Claude の Approve があるか確かめる（下のコマンド）。Claude の Approve は人の承認と違い、自分で頼み直せる。待つだけにしない。無ければ次のとおりにする
+  - head に Claude の Request changes があれば、ステップ 11 のループに戻って直す。直さずに頼み直さない
+  - コードレビューが動いている（PR の Checks の `コードレビュー` が `queued` か `in_progress`）なら、結果を待つ。切り替えると、実行中のレビューがキャンセルされる
+  - どちらでもなければ、PR を Draft にしてから Ready に戻して頼み直す（ステップ 8-b）
+  - Approve の後の小さな修正（ステップ 11 の 2）で Approve が外れたときは、頼み直さない。直した commit と、再レビューしていないことをユーザーに伝える
 - `mergeable_state` が `blocked` なら、理由（Approve が無い・外れた、必須のチェックが通っていない）を確かめてから報告する。「人の承認待ち」と決めつけない
 - 「マージできる」と報告して監視を終えるのは、head で次の 3 つがそろったときだけ: Claude の Approve・CI の成功・コンフリクトなし。そろうまでは、足りないものを直すか頼み直す
 - 呼び出し元（`/dev:implement` など）が再レビューのやり方を決めているときは、それに従う
@@ -350,9 +360,12 @@ Claude のコードレビューの Approve は、push で外れることがあ�
 ```bash
 # PR_NUMBER はステップ 1-a の値をリテラルで埋める
 sha=$(gh api "repos/{owner}/{repo}/pulls/${PR_NUMBER}" --jq .head.sha)
-# head への Claude の Approve。1 行以上出れば有る（取り消された Approve は state が DISMISSED になり、出ない）
+# head への Claude のレビュー。最後の行が最新の判定（APPROVED / CHANGES_REQUESTED。取り消された Approve は DISMISSED）
 gh api --paginate "repos/{owner}/{repo}/pulls/${PR_NUMBER}/reviews?per_page=100" \
-  --jq ".[] | select(.user.login == \"claude[bot]\" and .state == \"APPROVED\" and .commit_id == \"${sha}\") | .id"
+  --jq ".[] | select(.user.login == \"claude[bot]\" and .commit_id == \"${sha}\") | .state"
+# head のコードレビューの状態（queued / in_progress / completed）
+gh api --paginate "repos/{owner}/{repo}/commits/${sha}/check-runs?per_page=100" \
+  --jq '.check_runs[] | select(.name | contains("コードレビュー")) | "\(.status) \(.conclusion)"'
 gh api "repos/{owner}/{repo}/pulls/${PR_NUMBER}" --jq '{mergeable, mergeable_state}'
 ```
 
@@ -371,20 +384,28 @@ gh api --method POST "repos/{owner}/{repo}/issues/${PR_NUMBER}/comments" --input
 
 ## スレッドの Resolve
 
-Resolve は REST に無く、claude.ai/code では GraphQL（`gh api graphql`）が 403 になるため、GitHub の MCP を使う:
+Resolve は REST に無い。claude.ai/code では GraphQL（`gh api graphql`）が 403 になるため、CCR のルートを使う（ステップ 8-b の ready_for_review と同じ）:
 
-1. `pull_request_read`（`method: get_review_comments`）でスレッドを出し、直した指摘のスレッドの ID を確かめる（解決済みは飛ばす）
-2. `resolve_review_thread`（`threadId` にスレッドの ID）で Resolve する
+```bash
+# 未解決のスレッドの、コメントの ID・ファイル・行を出す（返信した指摘のコメントの ID で、どのスレッドか分かる）
+gh api "repos/{owner}/{repo}/pulls/${PR_NUMBER}/ccr/review_threads" \
+  --jq '.[] | select(.resolved | not) | "\(.comment_ids[0]) \(.path):\(.line)"'
+# 直した指摘のスレッドを Resolve する（スレッドにある、REST のレビューコメントの ID を渡す）
+gh api --method POST "repos/{owner}/{repo}/pulls/${PR_NUMBER}/ccr/comments/<コメントの ID>/resolve" > /dev/null
+```
 
-MCP が無い（ローカルの CLI）ときは、GraphQL で同じことをする:
+CCR のルートが無い（ローカルの CLI で 404 `Not Found`）ときは、GraphQL で同じことをする:
 
 ```bash
 # 未解決のスレッドの ID・ファイル・指摘の冒頭を出す
-gh api graphql -F owner='{owner}' -F name='{repo}' -F pr=${PR_NUMBER} -f query='
-  query($owner: String!, $name: String!, $pr: Int!) {
+gh api graphql --paginate -F owner='{owner}' -F name='{repo}' -F pr=${PR_NUMBER} -f query='
+  query($owner: String!, $name: String!, $pr: Int!, $endCursor: String) {
     repository(owner: $owner, name: $name) {
       pullRequest(number: $pr) {
-        reviewThreads(first: 100) { nodes { id isResolved comments(first: 1) { nodes { path body } } } }
+        reviewThreads(first: 100, after: $endCursor) {
+          nodes { id isResolved comments(first: 1) { nodes { path body } } }
+          pageInfo { hasNextPage endCursor }
+        }
       }
     }
   }' --jq '.data.repository.pullRequest.reviewThreads.nodes[] | select(.isResolved | not)
