@@ -48,7 +48,8 @@ if [ "${1:-}" = mcp ]; then
     # commit 前のもの (init した直後) は、commit 済みのものに無いときだけ探す (未追跡のファイルを毎回たどらないため)
     find_shadcn_ui "$top" < <(git_ls) || find_shadcn_ui "$top" < <(git_ls --others --exclude-standard) || true
   else
-    find_shadcn_ui "$root" < <(find "$root" -maxdepth 4 -name node_modules -prune -o -name components.json -print0 2> /dev/null || true) || true
+    # git の外 (ホームなど) では、隠し dir (.cache・.venv など) と node_modules に潜らない
+    find_shadcn_ui "$root" < <(find "$root" -maxdepth 4 \( -name node_modules -o -name '.?*' \) -prune -o -name components.json -print0 2> /dev/null || true) || true
   fi
   if [ -z "$found_dir" ]; then
     echo "shadcn/ui の components.json が無いので、shadcn の MCP は起動しません (shadcn/ui を入れたリポジトリでだけ起動します)" >&2

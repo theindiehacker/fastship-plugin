@@ -5,11 +5,11 @@ pre-commit:
     - name: biome
       root: frontend/
       glob: "*.{js,jsx,ts,tsx,mjs,cjs,mts,cts,json,jsonc,css,graphql}"
-      run: bunx biome check --no-errors-on-unmatched {staged_files}
+      run: bun biome check --no-errors-on-unmatched {staged_files}
     - name: tsc
       root: frontend/
       glob: "*.{ts,tsx,mts,cts}"
-      run: bunx tsc --noEmit
+      run: bun tsc --noEmit
     - name: ruff
       root: backend/
       glob: "*.{py,pyi}"
