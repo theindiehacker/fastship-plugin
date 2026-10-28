@@ -218,7 +218,7 @@ shadcn/ui を入れた React の Web アプリ (`components.json` がある) で
 stack は [shadcn/ui の MCP サーバー](https://ui.shadcn.com/docs/mcp) (`plugins/stack/.mcp.json`) を配ります。Claude はレジストリのコンポーネントを探し、使い方の例を見て、CLI で追加します。探し方・追加の仕方は `/stack:ui` が配ります。
 
  - bun (`scripts/shadcn.sh`) で動くため、Node.js は要りません。MCP は、shadcn が使う依存も、公開から 7 日たった版だけで動きます (`--minimum-release-age`、renovate と同じ日数)。bun が 1.4.4 より古いと、この設定が効かないので起動しません。プロジェクトに足す依存 (`shadcn add` が入れるもの) には、この制限はかかりません
- - shadcn/ui の `components.json` があるリポジトリ (4 階層までのサブ dir も含む) でだけ起動します。無いリポジトリでは起動せず、`/mcp` には接続の失敗と出ます。bun が無いときも同じで、ほかの機能には影響しません
+ - shadcn/ui の `components.json` があるリポジトリ (3 階層下のサブ dir まで。例: `packages/apps/web/components.json`) でだけ起動します。shadcn-vue・shadcn-svelte の `components.json` では起動しません。無いリポジトリでは起動せず、`/mcp` には接続の失敗と出ます。bun が無いときも同じで、ほかの機能には影響しません
  - 実装は、shadcn/ui の無い既存のアプリには入れず、今の作りに合わせます。init が既にある画面の見た目を変えるためです。入れるかは `/dev:setup` (stack) で聞きます。新しく作る Web アプリには、実装が入れます
 
 ## 🏷️ ラベル

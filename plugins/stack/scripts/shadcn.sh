@@ -10,57 +10,69 @@ if [ $# -lt 1 ]; then
 fi
 version=$1
 shift
+# bun を選ぶ dir。CLI は実行した dir (components.json のある dir)、MCP はプロジェクト
+bun_dir=$PWD
+
+# 数える components.json か (shadcn-vue・shadcn-svelte も同じ名前のファイルを使うため、$schema で外す)
+is_shadcn_ui() { # <パス>
+  [ -f "$1" ] && ! grep -Eq 'shadcn-(vue|svelte)' "$1"
+}
+
+# list の中に、数える components.json があれば 0
+has_shadcn_ui() { # <dir> <改行区切りのパス (dir からの相対か絶対)>
+  local file
+  while IFS= read -r file; do
+    [ -n "$file" ] || continue
+    case "$file" in /*) ;; *) file="$1/$file" ;; esac
+    is_shadcn_ui "$file" && return 0
+  done <<< "$2"
+  return 1
+}
 
 # MCP は shadcn/ui を入れたリポジトリでだけ起動する。UI の無いリポジトリで取得・常駐しないため
 if [ "${1:-}" = mcp ]; then
   root="${CLAUDE_PROJECT_DIR:-$PWD}"
-  # components.json を 4 階層 (apps/web/components.json など) まで探す。commit 前のもの (init した直後) も数え、.gitignore で外したもの (node_modules など) は数えない
+  bun_dir=$root
+  # components.json を、サブ dir は 3 階層 (packages/apps/web/components.json など) まで探す。.gitignore で外したもの (node_modules など) は数えない
   if top=$(git -C "$root" rev-parse --show-toplevel 2> /dev/null); then
-    # Claude Code をサブ dir で開いても、リポジトリ全体を探す。glob では * が / をまたがない
+    # Claude Code をサブ dir で開いても、リポジトリ全体を探す。glob では * が / をまたがない。日本語のパスもそのまま出す
     pathspec=(':(glob)components.json' ':(glob)*/components.json' ':(glob)*/*/components.json' ':(glob)*/*/*/components.json')
-    list=$(git -C "$top" ls-files -- "${pathspec[@]}" 2> /dev/null || true)
-    # commit 前のものは、commit 済みのものが無いときだけ探す (未追跡のファイルを毎回たどらないため)
-    [ -n "$list" ] || list=$(git -C "$top" ls-files --others --exclude-standard -- "${pathspec[@]}" 2> /dev/null || true)
+    git_ls() { git -C "$top" -c core.quotePath=false ls-files "$@" -- "${pathspec[@]}" 2> /dev/null || true; }
+    # commit 前のもの (init した直後) は、commit 済みのものに無いときだけ探す (未追跡のファイルを毎回たどらないため)
+    has_shadcn_ui "$top" "$(git_ls)" || has_shadcn_ui "$top" "$(git_ls --others --exclude-standard)" || found=no
   else
-    top=$root
-    list=$(find "$root" -maxdepth 4 -name node_modules -prune -o -name components.json -print 2> /dev/null || true)
+    has_shadcn_ui "$root" "$(find "$root" -maxdepth 4 -name node_modules -prune -o -name components.json -print 2> /dev/null || true)" || found=no
   fi
-  # shadcn/ui (React) のものだけを数える。shadcn-vue・shadcn-svelte も同じ名前のファイルを使うため、$schema で見分ける
-  found=
-  while IFS= read -r file; do
-    [ -n "$file" ] || continue
-    case "$file" in /*) ;; *) file="$top/$file" ;; esac
-    if grep -q 'ui\.shadcn\.com/schema' "$file" 2> /dev/null; then
-      found=$file
-      break
-    fi
-  done <<< "$list"
-  if [ -z "$found" ]; then
+  if [ "${found:-}" = no ]; then
     echo "shadcn/ui の components.json が無いので、shadcn の MCP は起動しません (shadcn/ui を入れたリポジトリでだけ起動します)" >&2
     exit 1
   fi
 fi
 
 # --minimum-release-age は bun 1.4.4 から。古い bun はこの flag を無視し、7 日待たずに動くため使わない
+# 1.4.4 以上なら 0。読んだ版 (読めなければ失敗の理由) を bun_version に入れる
 new_enough() { # <bun のパス>
-  local v
-  v=$("$1" --version 2> /dev/null) || return 1
-  [[ $v =~ ^([0-9]+)\.([0-9]+)\.([0-9]+) ]] || return 1
-  local major=${BASH_REMATCH[1]} minor=${BASH_REMATCH[2]} patch=${BASH_REMATCH[3]}
+  if ! bun_version=$("$1" --version 2>&1); then
+    bun_version=$(tail -n 1 <<< "$bun_version")
+    return 1
+  fi
+  [[ $bun_version =~ ([0-9]+)\.([0-9]+)\.([0-9]+)(-[^[:space:]]*)?$ ]] || return 1
+  local major=${BASH_REMATCH[1]} minor=${BASH_REMATCH[2]} patch=${BASH_REMATCH[3]} pre=${BASH_REMATCH[4]}
   # 1.4.4 の正式版より前の canary (1.4.4-canary.*) も古いものとして扱う
-  ((major > 1 || (major == 1 && (minor > 4 || (minor == 4 && patch >= 4))))) && [[ $v != 1.4.4-* ]]
+  ((major > 1 || (major == 1 && (minor > 4 || (minor == 4 && patch >= 4))))) && ! [[ $major.$minor.$patch == 1.4.4 && -n $pre ]]
 }
 
-# この dir の mise.toml の bun、PATH の bun の順に、1.4.4 以上のものを使う。どちらかが古くても、もう一方で動かせるようにする
+# bun_dir の mise.toml の bun、PATH の bun の順に、1.4.4 以上のものを使う。どちらかが古くても、もう一方で動かせるようにする
 bun=
 tried=
-for candidate in "$(mise which bun 2> /dev/null || true)" "$(command -v bun || true)"; do
+for candidate in "$(cd "$bun_dir" && mise which bun 2> /dev/null || true)" "$(command -v bun || true)"; do
   [ -n "$candidate" ] || continue
+  case "$tried" in *" $candidate ("*) continue ;; esac
   if new_enough "$candidate"; then
     bun=$candidate
     break
   fi
-  tried="$tried $candidate ($("$candidate" --version 2>&1 | tail -n 1))"
+  tried="$tried $candidate ($bun_version)"
 done
 if [ -z "$bun" ]; then
   if [ -z "$tried" ]; then
