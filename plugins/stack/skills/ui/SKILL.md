@@ -26,7 +26,7 @@ shadcn/ui・Tailwind CSS・Base UI は版ごとに書き方が変わり、学習
  - コマンドは `components.json` のある dir で実行してください。`package.json` に `shadcn` があれば `bun shadcn`、無ければ `bash "${CLAUDE_PLUGIN_ROOT}/scripts/shadcn.sh" latest` を使います (上の例は `bun shadcn`)。このスクリプトは、公開から 7 日たった最新の版で動かします。bun が 1.4.4 より古いと、7 日待てないので止まります。bun を使わないリポジトリでは、`npx --before="$(node -p 'new Date(Date.now() - 7 * 864e5).toISOString()')" shadcn@latest` を使います (7 日前までに公開された最新の版)。MCP が使えなければ、同じ CLI の `search @shadcn -q <キーワード>` で探します。`package.json` の `shadcn` が古くて `search`・`docs` が無ければ、`shadcn.sh` の方を使います。
  - MCP の `get_add_command_for_items` のコマンドは、そのまま使わないでください。リポジトリ直下の lock ファイルで道具を選び (`npx` になると hook が止めます)、版も `@latest` のためです。
  - コンポーネントは手で書かず、`add` で追加してください。既にあるものは作り直さずに使ってください。
- - `add` の後は、`bun run format` (無ければ `bunx biome check --write`) で整形してください。CLI が書いたファイル (`hooks` など) は、編集の hook では整形されないためです。
+ - Biome を入れたパッケージでは、`add` の後に、CLI が書いたファイル (`hooks` など) だけを `bun biome check --write <ファイル>` で整形してください。CLI が書いたファイルは、編集の hook では整形されないためです。パッケージ全体は整形しません (関係の無い差分が入るため)。`bunx biome` は使わないでください。Biome が入っていないと、npm の別のパッケージ `biome` が動きます。
  - 追加したファイル (`components.json` の `aliases.ui`、例: `src/components/ui`) は CLI の生成物です。見た目は使う側の `className` かテーマ (CSS 変数) で変え、生成物を書き換えるのはそれで足りないときだけにしてください。
  - base は Radix UI と Base UI があり、props が違います (例: 要素の差し替えは Radix UI が `asChild`、Base UI が `render`)。`info` で base を確かめ、`docs` の書き方に合わせてください。
 

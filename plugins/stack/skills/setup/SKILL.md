@@ -39,7 +39,7 @@ stack プラグインの hook (整形・lint・型チェック) は、ここで�
 3. `bun add -d --exact @biomejs/biome` で Biome を入れ、`templates/biome.json` を `biome.json` に置いてください。
    - `files.includes` の `!src/components/ui` は、`components.json` の `aliases.ui` のパスに合わせてください。shadcn/ui を使っていなければ消します。生成したコード (API クライアントなど) の dir があれば、同じように除外してください。
    - その dir に `.gitignore` が無いと Biome が止まります。`vcs.root` にリポジトリ直下への相対パス (例: `"../"`) を書いてください。
-   - 2 で shadcn/ui を入れたら、init が書いたファイル (`lib/utils.ts`・CSS など) を `bunx biome check --write` で整形してください。CLI が書いたファイルは、編集の hook では整形されず、そのままだと lefthook と Stop の検査で止まります。
+   - 2 で shadcn/ui を入れたら、init が書いたファイル (`lib/utils.ts`・CSS など) だけを、ここで入れた Biome で整形してください (`bun biome check --write <ファイル>`)。CLI が書いたファイルは、編集の hook では整形されず、そのままだと lefthook と Stop の検査で止まります。
 4. ESLint・Prettier を置き換えるなら、`bunx biome migrate eslint --write` と `bunx biome migrate prettier --write` で設定を移してから、`bun remove` で外し、設定ファイルを消してください。
 5. `package.json` の `scripts` に `"lint": "biome check"` と `"format": "biome check --write"` を足してください。
 6. TypeScript のパッケージで `typescript` が devDependencies に無ければ、`bun add -d --exact typescript` で入れてください。hook と lefthook の tsc が使います。
