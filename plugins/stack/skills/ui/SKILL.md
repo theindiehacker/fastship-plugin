@@ -5,7 +5,7 @@ description: shadcn/ui と Tailwind CSS で画面を作る・直すときの書�
 
 # 🎨 UI (shadcn/ui・Tailwind CSS)
 
-UI コンポーネントは shadcn/ui を使ってください。ボタン・フォーム・ダイアログなどを自作したり、別の UI ライブラリ (MUI・Chakra UI など) を足したりしないでください。shadcn/ui に無いものだけ、shadcn/ui のコンポーネントを組み合わせて作ります。
+shadcn/ui を入れたパッケージ (`components.json` がある) では、UI コンポーネントは shadcn/ui を使ってください。ボタン・フォーム・ダイアログなどを自作したり、別の UI ライブラリ (MUI・Chakra UI など) を足したりしないでください。shadcn/ui に無いものだけ、shadcn/ui のコンポーネントを組み合わせて作ります。
 
 shadcn/ui・Tailwind CSS・Base UI は版ごとに書き方が変わり、学習データの書き方は古いことがあります。書く前に、リポジトリの版と、その版のドキュメントを確かめてください。
 

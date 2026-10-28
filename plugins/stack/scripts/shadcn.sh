@@ -18,7 +18,8 @@ if [ "${1:-}" = mcp ]; then
   if git -C "$root" rev-parse --is-inside-work-tree > /dev/null 2>&1; then
     found=$(git -C "$root" ls-files --cached --others --exclude-standard -- components.json '*/components.json')
   else
-    found=$(find "$root" -name node_modules -prune -o -name components.json -print -quit)
+    # git の外 (ホームなど) で深く潜らないよう、4 階層 (apps/web/components.json など) までにする
+    found=$(find "$root" -maxdepth 4 -name node_modules -prune -o -name components.json -print -quit)
   fi
   if [ -z "$found" ]; then
     echo "components.json が無いので、shadcn の MCP は起動しません (shadcn/ui を入れたリポジトリでだけ起動します)" >&2
@@ -27,8 +28,12 @@ if [ "${1:-}" = mcp ]; then
 fi
 
 # --minimum-release-age は bun 1.4.4 から。古い bun はこの flag を無視し、7 日待たずに動くため止める
-if ! bun_version=$(bun --version 2> /dev/null); then
+if ! command -v bun > /dev/null; then
   echo "bun が見つかりません。bun 1.4.4 以上を入れてください" >&2
+  exit 1
+fi
+if ! bun_version=$(bun --version 2> /dev/null); then
+  echo "bun --version が失敗しました: $(bun --version 2>&1 | tail -n 1)" >&2
   exit 1
 fi
 if ! [[ $bun_version =~ ^([0-9]+)\.([0-9]+)\.([0-9]+) ]]; then
