@@ -17,7 +17,10 @@ if [ "${1:-}" = mcp ]; then
   # サブ dir も、commit 前のもの (init した直後) も数える。.gitignore で外したもの (node_modules など) は数えない
   if git -C "$root" rev-parse --is-inside-work-tree > /dev/null 2>&1; then
     # :(top) で、Claude Code をサブ dir で開いてもリポジトリ全体を探す
-    found=$(git -C "$root" ls-files --cached --others --exclude-standard -- ':(top)components.json' ':(top)*/components.json' 2> /dev/null || true)
+    pathspec=(':(top)components.json' ':(top)*/components.json')
+    found=$(git -C "$root" ls-files -- "${pathspec[@]}" 2> /dev/null || true)
+    # commit 前のものは、commit 済みのものが無いときだけ探す (未追跡のファイルを毎回たどらないため)
+    [ -n "$found" ] || found=$(git -C "$root" ls-files --others --exclude-standard -- "${pathspec[@]}" 2> /dev/null || true)
   else
     # git の外 (ホームなど) で深く潜らないよう、4 階層 (apps/web/components.json など) までにする
     found=$(find "$root" -maxdepth 4 -name node_modules -prune -o -name components.json -print -quit 2> /dev/null || true)
@@ -42,7 +45,8 @@ if ! [[ $bun_version =~ ^([0-9]+)\.([0-9]+)\.([0-9]+) ]]; then
   exit 1
 fi
 major=${BASH_REMATCH[1]} minor=${BASH_REMATCH[2]} patch=${BASH_REMATCH[3]}
-if ((major < 1 || (major == 1 && (minor < 4 || (minor == 4 && patch < 4))))); then
+# 1.4.4 の正式版より前の canary (1.4.4-canary.*) も古いものとして扱う
+if ((major < 1 || (major == 1 && (minor < 4 || (minor == 4 && patch < 4))))) || [[ $bun_version == 1.4.4-* ]]; then
   echo "bun $bun_version は古く、公開から 7 日待つ設定 (--minimum-release-age) が効きません。bun 1.4.4 以上に上げてください" >&2
   exit 1
 fi

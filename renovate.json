@@ -35,8 +35,9 @@
       "minimumReleaseAge": "7 days"
     },
     {
-      "description": "plugins/*/.mcp.json・scripts/*.sh の版を上げたら、そのプラグインの plugin.json の version も上げる。上げないと claude plugin update で届かない",
+      "description": "plugins/*/.mcp.json・scripts/*.sh の版を上げたら、そのプラグインの plugin.json の version も上げる。上げないと claude plugin update で届かない。同じプラグインの PR が 2 つ開いても同じ版にならないよう、ベースが進んだら rebase して上げ直す",
       "matchFileNames": ["plugins/*/.mcp.json", "plugins/*/scripts/*.sh"],
+      "rebaseWhen": "behind-base-branch",
       "bumpVersions": [
         {
           "filePatterns": ["{{{replace '/scripts$' '' packageFileDir}}}/.claude-plugin/plugin.json"],
