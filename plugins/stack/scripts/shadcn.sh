@@ -11,11 +11,11 @@ fi
 version=$1
 shift
 
-# 数える components.json か。shadcn/ui の $schema か、$schema が無ければ React の印 (tsx・rsc) がある (shadcn-vue・shadcn-svelte なども同じ名前のファイルを使うため)
+# 数える components.json か。shadcn/ui の $schema (手元のコピーも含む) か、$schema が無ければ React の印 (tsx・rsc) がある (shadcn-vue・shadcn-svelte なども同じ名前のファイルを使うため)
 is_shadcn_ui() { # <パス>
   [ -f "$1" ] || return 1
   if grep -q '"[$]schema"' "$1"; then
-    grep -q 'ui\.shadcn\.com/schema' "$1"
+    grep -Eq 'ui\.shadcn\.com/schema|node_modules/shadcn/' "$1"
   else
     grep -Eq '"(tsx|rsc)"' "$1"
   fi

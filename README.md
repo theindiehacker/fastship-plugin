@@ -139,7 +139,7 @@ Claude Code からも `/dev:issue` で起票できます。Slack (Claude Tag) �
 UI コンポーネントを shadcn/ui に揃えるため、stack に shadcn/ui の MCP サーバーを入れました ([🎨 UI](#-ui-shadcnui))。
 
 1. ローカルで `claude plugin update dev@fastship` を実行します。stack を入れていれば `claude plugin update stack@fastship` も実行し、shadcn/ui を入れたリポジトリで Claude Code を開き直して、`/mcp` で `plugin:stack:shadcn` が connected か確かめます。MCP は bun で動くため、bun 1.4.4 以上が PATH に要ります。古い bun では、7 日待つ設定が効かないので、MCP は起動せずに止まります (クラウドの環境の bun は 1.4.4)
-2. stack を入れているリポジトリでは、`/dev:setup` を実行し直し、作った PR をマージします。`components.json` の無い React の Web アプリに、shadcn/ui を入れるか聞きます。`mise.toml` の bun が 1.4.4 より古ければ上げます (Web のセッションの Bash は、この bun を使います)
+2. stack を入れているリポジトリでは、`/dev:setup` を実行し直し、作った PR をマージします。`components.json` の無い React の Web アプリに、shadcn/ui を入れるか聞きます。`mise.toml` の bun が 1.4.4 より古ければ上げます (Web のセッションの Bash は、この bun を使います)。`lefthook.yml` の `bunx biome`・`bunx tsc` は、`bun biome`・`bun tsc` に直してください (`bunx` は、Biome・TypeScript が入っていないと npm の別のパッケージを動かすため)
 3. [クラウド環境を作り直します](#クラウド環境を作り直す) (`# dev 0.21.0`。stack も入れていれば `# stack 0.3.0`)
 
 ### 0.20.0 に上げたとき
@@ -365,7 +365,7 @@ Sub Issue は、PR がマージされるまで `claude:implement` が付いた�
 
 | 配るもの | 内容 |
 |:--|:--|
-| 🚫 PreToolUse | bun・uv のリポジトリで npm・pip などを止め、bun・uv を使わせる。公開から 7 日待つ指定の無い shadcn の実行 (`bunx shadcn` など) も止める |
+| 🚫 PreToolUse | bun・uv のリポジトリで npm・pip などを止め、bun・uv を使わせる |
 | ✏️ PostToolUse | Claude が編集したファイルを Biome・Ruff で整形する |
 | ✔️ Stop | 変更したファイルが Biome・tsc・Ruff・Pyright を通り、knip (使っていないコード・依存)・deptry (Python の依存の過不足)・lint-imports (import の規約) の違反が無くなるまで、作業を続けさせる。knip・deptry・lint-imports はプロジェクト全体を確かめる |
 | 🎨 `/stack:ui` | shadcn/ui・Tailwind CSS の書き方 (shadcn の MCP で探して例を見て、CLI で追加する) |
