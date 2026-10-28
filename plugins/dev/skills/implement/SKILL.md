@@ -146,8 +146,9 @@ gh api --paginate "repos/{owner}/{repo}/commits/$sha/check-runs?per_page=100" --
    - 採用するなら直し、4 の検査を通してください。バグの指摘は、再現するテストを先に書いてから直してください (4 と同じ)。
    - PR は作り直さないでください。やったことが変わったときだけ、`/dev:push-pr` の 7-b の手順で本文を部分更新してください。
    - どの指摘にも、何をしたか (採用しないなら理由) を返信してください。返信の先頭には `<!-- fastship:reply -->` と改行を付けてください。
+   - 直した指摘のスレッドは、push の後に Resolve してください (`/dev:push-pr` の「スレッドの Resolve」)。直さなかった指摘と質問は、開いたままにします。開発者が、マージの前に確かめられるようにするためです。
  - push する前に、PR がベースとコンフリクトしていないか確かめてください (`gh api "repos/{owner}/{repo}/pulls/<PR>" --jq .mergeable` が `false` ならコンフリクト)。コンフリクトしていれば、7 の `CONFLICT` と同じく取り込んで解消してから push します。コンフリクトしている PR では、Claude のレビュー (Actions) が動かないためです。
- - push したら (Request changes の指摘に返信だけで対応したときも)、すぐに PR を Ready にしてください (冒頭の「Ready にする」)。Claude のレビューが PR 全体を見直し、Approve / Request changes を付け直します。
+ - push して Resolve したら (Request changes の指摘に返信だけで対応したときも)、すぐに PR を Ready にしてください (冒頭の「Ready にする」)。Claude のレビューが PR 全体を見直し、Approve / Request changes を付け直します。Approve が付くまで、この 6 を繰り返します。
    - Approve の後の、下の小さな修正だけの push は、Draft にせず、Ready のまま push してください。再レビューは動きません。小さな修正のために再レビューを回すと、CI とレビューの時間がかかり、Approve が外れることもあるためです。この push は、CI とマージする開発者が確かめます。
 
  - Approve の後は、行コメントや bot が nit などとした指摘のうち、直すと明らかに良く、小さいものだけを直してください。小さいものとは、PR が変えたファイルの中で、振る舞いを変えない修正 (タイポ・名前・コメント・import・整形・テストの追加など) です。振る舞いが変わるもの・迷うもの・質問は直さず、返信だけにしてください。マージは、デフォルトブランチに向けた PR なら開発者が、epic ブランチに向けた PR なら 7 で行います。
@@ -184,6 +185,6 @@ bash "${CLAUDE_PLUGIN_ROOT}/scripts/epic.sh" merge <PR>
  - PR を Draft / Ready に切り替えられない (CCR のルートも `gh pr ready` も失敗する)
  - epic ブランチにマージできない (7 で `FAILED` と出る)
  - CI が、変更と関係のない理由 (シークレット・外部サービスなど) で失敗する。または同じ失敗を 2 回直しても通らない
- - 再レビューを 3 回頼んでも Request changes が続く。またはレビューの指摘が Sub Issue・親 Issue と食い違い、どちらに従うか決められない
+ - Claude のコードレビューの Request changes が 5 回付いた (数え方は `/dev:push-pr` の 11)。またはレビューの指摘が Sub Issue・親 Issue と食い違い、どちらに従うか決められない
 
 名前や小さな設計の選択など、決めれば進められるものは止めずに決め、理由を PR の Diff コメントに書いてください。
