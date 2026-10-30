@@ -135,6 +135,13 @@ Claude Code からも `/dev:issue` で起票できます。Slack (Claude Tag) �
 
    ![スキルのパスで版を確かめる](docs/images/claude-5-skill-version.png)
 
+### 0.21.0 に上げたとき
+UI コンポーネントを shadcn/ui に揃えるため、stack に shadcn/ui の MCP サーバーを入れました ([🎨 UI](#-ui-shadcnui))。
+
+1. ローカルで `claude plugin update dev@fastship` を実行します。stack を入れていれば `claude plugin update stack@fastship` も実行し、shadcn/ui を入れたリポジトリで Claude Code を開き直して、`/mcp` で `plugin:stack:shadcn` が connected か確かめます。MCP は bun で動くため、bun 1.4.4 以上が PATH に要ります。古い bun では、7 日待つ設定が効かないので、MCP は起動せずに止まります (クラウドの環境の bun は 1.4.4)
+2. stack を入れているリポジトリでは、`/dev:setup` を実行し直し、作った PR をマージします。`components.json` の無い React の Web アプリに、shadcn/ui を入れるか聞きます。`mise.toml` の bun が 1.4.4 より古ければ上げます (Web のセッションの Bash は、この bun を使います)。`lefthook.yml` の `bunx biome`・`bunx tsc` は、`bun biome`・`bun tsc` に直してください (`bunx` は、Biome・TypeScript が入っていないと npm の別のパッケージを動かすため)
+3. [クラウド環境を作り直します](#クラウド環境を作り直す) (`# dev 0.21.0`。stack も入れていれば `# stack 0.3.0`)
+
 ### 0.20.0 に上げたとき
 技術スタックによらない処理を、新しい [session プラグイン](#-セッション-session-プラグイン) にまとめました。Web のセッションの準備 (ツール・依存・Docker の起動) と、作業を終える前の gitleaks・trivy・semgrep の検査です。stack 0.1 の SessionStart (ツール・依存の導入) は session に移り、stack 0.2.0 は session に依存します。Web のセッション開始で通信が止まっても、待ち続けずにやり直します。
 
@@ -204,6 +211,15 @@ FastShip プロジェクト (GitHub Project) をやめ、判断待ちはリポ�
 | `/dev:push-pr` | 🧑‍💻 開発者 / ルーティン (⑦⑧ 実装) | PR テンプレートに沿って PR を作成・更新する |
 
 `/dev:implement` は、リポジトリの検査 (`CLAUDE.md`・CI に書かれたテスト・lint・型チェック) を自分で実行してから PR を作ります。技術スタックの hook (stack プラグイン) は要りません。
+
+## 🎨 UI (shadcn/ui)
+shadcn/ui を入れた React の Web アプリ (`components.json` がある) では、画面の UI コンポーネントを shadcn/ui で作ります (課題分析の見本・実装)。自作や、別の UI ライブラリは足しません。
+
+stack は [shadcn/ui の MCP サーバー](https://ui.shadcn.com/docs/mcp) (`plugins/stack/.mcp.json`) を配ります。Claude はレジストリのコンポーネントを探し、使い方の例を見て、CLI で追加します。探し方・追加の仕方は `/stack:ui` が配ります。
+
+ - bun (`scripts/shadcn.sh`) で動くため、Node.js は要りません。MCP は、shadcn が使う依存も、公開から 7 日たった版だけで動きます (`--minimum-release-age`、renovate と同じ日数)。bun が 1.4.4 より古いと、この設定が効かないので起動しません。プロジェクトに足す依存 (`shadcn add` が入れるもの) には、この制限はかかりません
+ - shadcn/ui の `components.json` があるリポジトリ (3 階層下のサブ dir まで。例: `packages/apps/web/components.json`) でだけ起動します。shadcn-vue・shadcn-svelte の `components.json` では起動しません。無いリポジトリでは起動せず、`/mcp` には接続の失敗と出ます。bun が無いときも同じで、ほかの機能には影響しません
+ - 実装は、shadcn/ui の無い既存のアプリには入れず、今の作りに合わせます。init が既にある画面の見た目を変えるためです。入れるかは `/dev:setup` (stack) で聞きます。新しく作る Web アプリには、実装が入れます
 
 ## 🏷️ ラベル
 
@@ -352,10 +368,11 @@ Sub Issue は、PR がマージされるまで `claude:implement` が付いた�
 | 🚫 PreToolUse | bun・uv のリポジトリで npm・pip などを止め、bun・uv を使わせる |
 | ✏️ PostToolUse | Claude が編集したファイルを Biome・Ruff で整形する |
 | ✔️ Stop | 変更したファイルが Biome・tsc・Ruff・Pyright を通り、knip (使っていないコード・依存)・deptry (Python の依存の過不足)・lint-imports (import の規約) の違反が無くなるまで、作業を続けさせる。knip・deptry・lint-imports はプロジェクト全体を確かめる |
-| 🎨 `/stack:ui` | shadcn/ui・Tailwind CSS の書き方 |
+| 🎨 `/stack:ui` | shadcn/ui・Tailwind CSS の書き方 (shadcn の MCP で探して例を見て、CLI で追加する) |
+| 🧩 MCP | shadcn/ui の MCP サーバー (コンポーネントを探す・使い方の例を見る) ([🎨 UI](#-ui-shadcnui)) |
 | 📚 依存 | session (Web で、hook が使う依存を入れる)・Context7 (版に合ったドキュメント)・pyright-lsp (編集した直後の型エラー) |
 
-1. ローカルで `/plugin install stack@fastship` を実行してから、`/dev:setup` で技術スタックを入れると答えます。setup が `/stack:setup` で道具と設定を入れ、リポジトリの `.claude/settings.json` で stack を有効にします。
+1. ローカルで `/plugin install stack@fastship` を実行してから、`/dev:setup` で技術スタックを入れると答えます。setup が `/stack:setup` で道具と設定を入れ (React の Web アプリには、shadcn/ui を入れるかも聞きます)、リポジトリの `.claude/settings.json` で stack を有効にします。
 2. クラウド環境のセットアップスクリプトに、`claude plugin install stack@fastship` の行を足します ([3. クラウド環境](#3-クラウド環境))。
 
 hook は、道具と設定 (`node_modules` の Biome・knip、`.venv` の Ruff・deptry・lint-imports と `[tool.importlinter]` など) があるリポジトリでだけ動きます。ローカルで pyright-lsp を使うには、`pyright-langserver` を PATH に入れてください (例: `uv tool install pyright`)。

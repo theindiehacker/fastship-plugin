@@ -1,8 +1,8 @@
 {
   "name": "stack",
   "displayName": "FastShip 技術スタックプラグイン",
-  "version": "0.2.0",
-  "description": "bun / Biome・uv / Ruff / Pyright・shadcn/ui・Tailwind CSS の設定・整形・検査・書き方を配るプラグイン",
+  "version": "0.3.0",
+  "description": "bun / Biome・uv / Ruff / Pyright・shadcn/ui・Tailwind CSS の設定・整形・検査・書き方と、shadcn/ui の MCP を配るプラグイン",
   "repository": "https://github.com/theindiehacker/fastship-plugin",
   "keywords": ["bun", "biome", "uv", "ruff", "pyright", "shadcn", "tailwindcss", "hooks"],
   "dependencies": ["session@fastship", "context7@claude-plugins-official", "pyright-lsp@claude-plugins-official"]

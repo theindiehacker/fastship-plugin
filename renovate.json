@@ -17,13 +17,34 @@
       "matchStrings": ["uvx (?<depName>[a-zA-Z0-9._-]+)@(?<currentValue>[^\\s\"]+)"],
       "datasourceTemplate": "pypi",
       "versioningTemplate": "pep440"
+    },
+    {
+      "description": "plugins/*/.mcp.json で scripts/shadcn.sh に渡す shadcn の版を更新する",
+      "customType": "regex",
+      "managerFilePatterns": ["/^plugins/[^/]+/\\.mcp\\.json$/"],
+      "matchStrings": ["scripts/shadcn\\.sh\",\\s*\"(?<currentValue>\\d+\\.\\d+\\.\\d+)\""],
+      "depNameTemplate": "shadcn",
+      "datasourceTemplate": "npm",
+      "versioningTemplate": "semver"
     }
   ],
   "packageRules": [
     {
       "description": "公開から 7 日たった版だけを取り込む。乗っ取られて悪意のあるコードを入れられた版は、公開から数日で見つかり取り下げられることが多い",
-      "matchDatasources": ["pypi"],
+      "matchDatasources": ["pypi", "npm"],
       "minimumReleaseAge": "7 days"
+    },
+    {
+      "description": "plugins/*/.mcp.json・scripts/*.sh の版を上げたら、そのプラグインの plugin.json の version も上げる。上げないと claude plugin update で届かない。同じプラグインの PR が 2 つ開いても同じ版にならないよう、ベースが進んだら rebase して上げ直す",
+      "matchFileNames": ["plugins/*/.mcp.json", "plugins/*/scripts/*.sh"],
+      "rebaseWhen": "behind-base-branch",
+      "bumpVersions": [
+        {
+          "filePatterns": ["{{{replace '/scripts$' '' packageFileDir}}}/.claude-plugin/plugin.json"],
+          "matchStrings": ["\"version\":\\s*\"(?<version>[^\"]+)\""],
+          "bumpType": "patch"
+        }
+      ]
     }
   ]
 }
