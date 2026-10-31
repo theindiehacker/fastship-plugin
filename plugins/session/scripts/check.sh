@@ -113,7 +113,7 @@ if [ -n "$code" ] && uvx --version > /dev/null 2>&1 && [ "$(left)" -gt 0 ]; then
   files=()
   while IFS= read -r f; do files+=("$f"); done <<< "$code"
   # semgrep は --error のとき、検出で 1 を返し、ルールを取得できないなどの失敗では 2 以上を返す
-  timeout -k 10 "$(left)" uvx semgrep@1.182.0 scan --config p/default --severity ERROR --error --metrics off --disable-version-check \
+  timeout -k 10 "$(left)" uvx semgrep@1.182.1 scan --config p/default --severity ERROR --error --metrics off --disable-version-check \
     --disable-nosem --quiet "${files[@]}" > "$out" 2>&1
   case $? in
     0) ;;

@@ -11,8 +11,8 @@ cd "${CLAUDE_PROJECT_DIR:-.}" || exit 0
 
 # Web の既定のネットワークでは mise.run が通らないため、GitHub Releases から入れる。版と SHA-256 は Renovate が更新する (renovate.json)
 # renovate: datasource=github-release-attachments depName=jdx/mise
-MISE_VERSION="v2026.10.19"
-MISE_SHA256="3162760f40b6b5f706c60641e4ef5ee7322bc6c54f72fc26a7111b337aa18d9d"
+MISE_VERSION="v2026.10.21"
+MISE_SHA256="ccfe12d7a62c6fb9def2a20db1f210f13a51de881f21fd8c85db4b6312405d07"
 
 BIN_DIR="${HOME}/.local/bin"
 SHIMS_DIR="${MISE_DATA_DIR:-${HOME}/.local/share/mise}/shims"
